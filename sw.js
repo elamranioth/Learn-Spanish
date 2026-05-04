@@ -1,4 +1,4 @@
-const CACHE_NAME = 'learn-spanish-v2';
+const CACHE_NAME = 'learn-spanish-v3';
 const basePath = self.location.pathname.replace(/sw\.js$/, '');
 const shellFiles = [
   basePath,
