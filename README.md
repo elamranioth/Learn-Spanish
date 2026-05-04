@@ -15,4 +15,6 @@ npm run dev
 npm run build
 ```
 
+The Vite base path is configured for GitHub Pages at `/Learn-Spanish/`.
+
 The app uses browser speech synthesis for pronunciation and localStorage for saved words and reading progress.
