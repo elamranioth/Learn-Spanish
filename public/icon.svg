@@ -1,0 +1,7 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" role="img" aria-label="Learn Spanish">
+  <rect width="512" height="512" rx="88" fill="#2f5d3a"/>
+  <path d="M132 120h174c48 0 82 34 82 82v190H214c-48 0-82-34-82-82V120z" fill="#fffaf1"/>
+  <path d="M176 166h110M176 214h160M176 262h126" stroke="#b1502a" stroke-width="24" stroke-linecap="round"/>
+  <path d="M132 120v190c0 48 34 82 82 82h174" fill="none" stroke="#1c1c1a" stroke-width="18" stroke-linejoin="round"/>
+  <path d="M356 120v272" stroke="#d8cfb9" stroke-width="14" stroke-linecap="round"/>
+</svg>

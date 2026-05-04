@@ -1,6 +1,7 @@
 import React from 'react';
 import { createRoot } from 'react-dom/client';
 import './base.css';
+import { registerServiceWorker } from './pwa.js';
 import SpanishBook from './spanish-book.jsx';
 
 if (typeof window !== 'undefined' && !window.storage) {
@@ -17,6 +18,8 @@ if (typeof window !== 'undefined' && !window.storage) {
     },
   };
 }
+
+registerServiceWorker();
 
 createRoot(document.getElementById('root')).render(
   <React.StrictMode>

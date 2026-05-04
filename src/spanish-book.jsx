@@ -7129,12 +7129,92 @@ function MemoriaView({ savedWords, onRemove, onClear }) {
   );
 }
 
+function HomeView({
+  totalChapters,
+  visitedCount,
+  savedWordsCount,
+  levelFilter,
+  recommendations,
+  onStart,
+  onOpenMemoria,
+  onSelectChapter,
+}) {
+  const progress = totalChapters ? Math.round((visitedCount / totalChapters) * 100) : 0;
+
+  return (
+    <article className="chapter-body home-dashboard">
+      <header className="home-hero">
+        <div className="home-kicker">
+          <GraduationCap size={18} />
+          Plan de estudio
+        </div>
+        <h1 className="home-title">Learn Spanish</h1>
+        <p className="home-subtitle">
+          Hoy: lee un capitulo, escucha una pagina, guarda tres palabras, y termina con una practica corta.
+        </p>
+        <div className="home-actions">
+          <button className="home-primary" onClick={onStart}>
+            Empezar
+            <ChevronRight size={16} />
+          </button>
+          <button className="home-secondary" onClick={onOpenMemoria}>
+            <Bookmark size={15} />
+            Memoria
+          </button>
+        </div>
+      </header>
+
+      <section className="home-stats" aria-label="Study progress">
+        <div className="home-stat">
+          <span className="home-stat-label">Progreso</span>
+          <strong>{progress}%</strong>
+          <span>{visitedCount} / {totalChapters} capitulos</span>
+        </div>
+        <div className="home-stat">
+          <span className="home-stat-label">Nivel</span>
+          <strong>{levelFilter === 'ALL' ? 'Todo' : levelFilter}</strong>
+          <span>Filtro activo</span>
+        </div>
+        <div className="home-stat">
+          <span className="home-stat-label">Memoria</span>
+          <strong>{savedWordsCount}</strong>
+          <span>{savedWordsCount === 1 ? 'palabra' : 'palabras'}</span>
+        </div>
+      </section>
+
+      <section className="home-path">
+        <div className="home-section-heading">
+          <Clock size={18} />
+          Siguiente lectura
+        </div>
+        <div className="home-recommendations">
+          {recommendations.map((chapter, index) => (
+            <button
+              key={chapter.id}
+              className="home-rec"
+              onClick={() => onSelectChapter(chapter)}
+            >
+              <span className="home-rec-index">{String(index + 1).padStart(2, '0')}</span>
+              <span className="home-rec-main">
+                <span className="home-rec-title">{chapter.title}</span>
+                <span className="home-rec-meta">{chapter.sectionLabel} - {chapter.level}</span>
+              </span>
+              <ChevronRight size={16} />
+            </button>
+          ))}
+        </div>
+      </section>
+    </article>
+  );
+}
+
 export default function SpanishBook() {
   const [activeSectionId, setActiveSectionId] = useState('tiempos');
   const [activeChapterId, setActiveChapterId] = useState('tiempos');
   const [levelFilter, setLevelFilter] = useState('ALL');
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [showMemoria, setShowMemoria] = useState(false);
+  const [showHome, setShowHome] = useState(true);
 
   // --- Font size: persists across sessions, applied to body via CSS variable ---
   const [fontScale, setFontScale] = useState(1.0); // multiplier: 0.85 → 1.3
@@ -7142,6 +7222,7 @@ export default function SpanishBook() {
 
   // --- Memoria: saved words, persisted via window.storage ---
   const [savedWords, setSavedWords] = useState([]);
+  const [visitedChapters, setVisitedChapters] = useState([]);
 
   useEffect(() => {
     // Load saved words, font scale, and last-read position on mount
@@ -7166,6 +7247,10 @@ export default function SpanishBook() {
             setResumeOffer(parsed);
           }
         }
+      } catch (_) {}
+      try {
+        const visited = await window.storage.get('visited-chapters');
+        if (visited?.value) setVisitedChapters(JSON.parse(visited.value));
       } catch (_) {}
     })();
   }, []);
@@ -7300,13 +7385,30 @@ export default function SpanishBook() {
   const currentIndex = visibleFlatChapters.findIndex((c) => c.id === activeChapterId);
   const prevChapter = currentIndex > 0 ? visibleFlatChapters[currentIndex - 1] : null;
   const nextChapter = currentIndex >= 0 && currentIndex < visibleFlatChapters.length - 1 ? visibleFlatChapters[currentIndex + 1] : null;
+  const visitedSet = useMemo(() => new Set(visitedChapters), [visitedChapters]);
+  const visibleVisitedCount = useMemo(
+    () => visibleFlatChapters.filter((c) => visitedSet.has(c.id)).length,
+    [visibleFlatChapters, visitedSet]
+  );
+  const recommendedChapters = useMemo(() => {
+    const unseen = visibleFlatChapters.filter((c) => !visitedSet.has(c.id));
+    return (unseen.length ? unseen : visibleFlatChapters).slice(0, 4);
+  }, [visibleFlatChapters, visitedSet]);
+  const startChapter = recommendedChapters[0] || visibleFlatChapters[0];
 
   function selectChapter(c) {
     setActiveChapterId(c.id);
     setActiveSectionId(c.sectionId || c.sectionId);
     setShowMemoria(false);
+    setShowHome(false);
     setSidebarOpen(false);
     setResumeOffer(null);
+    setVisitedChapters(prev => {
+      if (prev.includes(c.id)) return prev;
+      const next = [...prev, c.id];
+      try { window.storage.set('visited-chapters', JSON.stringify(next)); } catch (_) {}
+      return next;
+    });
     // Persist last-read position
     try {
       window.storage.set('last-read', JSON.stringify({
@@ -7395,9 +7497,27 @@ export default function SpanishBook() {
             </div>
 
             <nav className="section-nav">
+              <div className={`section-group home-nav-item ${showHome ? 'active' : ''}`}>
+                <button
+                  className="section-btn home-section-btn"
+                  onClick={() => { setShowHome(true); setShowMemoria(false); setSidebarOpen(false); }}
+                >
+                  <div className="section-icon-wrap home-icon-wrap">
+                    <Compass size={18} className="section-icon" />
+                  </div>
+                  <div className="section-text">
+                    <div className="section-label">Inicio</div>
+                    <div className="section-sublabel">Plan diario</div>
+                  </div>
+                  <div className="section-meta">
+                    <div className="section-count">{visitedChapters.length}</div>
+                  </div>
+                </button>
+              </div>
+
               {SECTIONS.map((s) => {
                 const visibleChapters = s.chapters.filter((c) => levelFilter === 'ALL' || c.level === levelFilter);
-                const isActive = s.id === activeSectionId && !showMemoria;
+                const isActive = s.id === activeSectionId && !showMemoria && !showHome;
                 const isExpanded = expandedSections[s.id];
                 return (
                   <div key={s.id} className={`section-group ${isActive ? 'active' : ''} ${isExpanded ? 'expanded' : 'collapsed'}`}>
@@ -7425,7 +7545,7 @@ export default function SpanishBook() {
                         {visibleChapters.map((c) => (
                           <li key={c.id}>
                             <button
-                              className={`chapter-btn ${activeChapterId === c.id && !showMemoria ? 'active' : ''}`}
+                              className={`chapter-btn ${activeChapterId === c.id && !showMemoria && !showHome ? 'active' : ''}`}
                               onClick={() => { setShowMemoria(false); selectChapter({ ...c, sectionId: s.id }); }}
                             >
                               <span className="chapter-btn-level">{c.level}</span>
@@ -7443,7 +7563,7 @@ export default function SpanishBook() {
               <div className={`section-group memoria-nav-item ${showMemoria ? 'active' : ''}`}>
                 <button
                   className="section-btn memoria-section-btn"
-                  onClick={() => { setShowMemoria(true); setSidebarOpen(false); }}
+                  onClick={() => { setShowHome(false); setShowMemoria(true); setSidebarOpen(false); }}
                 >
                   <div className="section-icon-wrap memoria-icon-wrap">
                     <Bookmark size={18} className="section-icon" />
@@ -7468,8 +7588,19 @@ export default function SpanishBook() {
 
         {/* MAIN */}
         <main className="book-main">
-          <div className="book-page">
-            {showMemoria ? (
+          <div className={`book-page ${showHome ? 'home-page' : ''}`}>
+            {showHome ? (
+              <HomeView
+                totalChapters={visibleFlatChapters.length}
+                visitedCount={visibleVisitedCount}
+                savedWordsCount={savedWords.length}
+                levelFilter={levelFilter}
+                recommendations={recommendedChapters}
+                onStart={() => startChapter && selectChapter(startChapter)}
+                onOpenMemoria={() => { setShowHome(false); setShowMemoria(true); }}
+                onSelectChapter={selectChapter}
+              />
+            ) : showMemoria ? (
               <MemoriaView
                 savedWords={savedWords}
                 onRemove={handleRemoveWord}
@@ -7485,6 +7616,7 @@ export default function SpanishBook() {
             )}
 
             {/* Chapter navigation (prev / next) */}
+            {!showHome && !showMemoria && (
             <nav className="chapter-nav">
               {prevChapter ? (
                 <button className="nav-btn prev" onClick={() => selectChapter(prevChapter)}>
@@ -7505,6 +7637,7 @@ export default function SpanishBook() {
                 </button>
               ) : <div />}
             </nav>
+            )}
           </div>
 
           {/* CEFR LEVEL FILTER (the bottom of your sketch) */}
@@ -7525,7 +7658,9 @@ export default function SpanishBook() {
                 ))}
               </div>
               <div className="level-bar-counter">
-                {currentIndex >= 0 ? `${currentIndex + 1} / ${visibleFlatChapters.length}` : '—'}
+                {showHome
+                  ? `${visibleVisitedCount} / ${visibleFlatChapters.length}`
+                  : currentIndex >= 0 ? `${currentIndex + 1} / ${visibleFlatChapters.length}` : '—'}
               </div>
             </div>
           </footer>
@@ -8065,8 +8200,169 @@ const styles = `
   padding: 32px 16px 48px;
   width: 100%;
 }
+.book-page.home-page {
+  max-width: 920px;
+}
 @media (max-width: 700px) {
   .book-page { padding: 22px 8px 36px; }
+}
+
+.home-dashboard {
+  max-width: 840px;
+}
+.home-hero {
+  padding: 10px 0 26px;
+  border-bottom: 1px solid var(--rule);
+}
+.home-kicker,
+.home-section-heading {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 12px;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: var(--green);
+  font-weight: 700;
+}
+.home-title {
+  font-family: 'Cormorant Garamond', Georgia, serif;
+  font-size: clamp(48px, 8vw, 86px);
+  line-height: 0.95;
+  color: var(--ink);
+  margin: 18px 0 16px;
+  font-weight: 700;
+}
+.home-subtitle {
+  max-width: 620px;
+  font-size: 22px;
+  line-height: 1.55;
+  color: var(--ink-soft);
+  margin: 0;
+}
+.home-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-top: 26px;
+}
+.home-primary,
+.home-secondary {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  min-height: 42px;
+  border-radius: 6px;
+  padding: 8px 16px;
+  cursor: pointer;
+  font-family: 'Literata', Georgia, serif;
+  font-weight: 700;
+  touch-action: manipulation;
+}
+.home-primary {
+  background: var(--green);
+  color: #ffffff;
+  border: 1px solid var(--green);
+}
+.home-primary:hover { background: #244a2e; }
+.home-secondary {
+  background: var(--paper);
+  color: var(--ink);
+  border: 1px solid var(--rule);
+}
+.home-secondary:hover { border-color: var(--green); color: var(--green); }
+.home-stats {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 12px;
+  margin: 24px 0 30px;
+}
+.home-stat {
+  border: 1px solid var(--rule);
+  border-radius: 8px;
+  padding: 16px;
+  background: var(--paper-light);
+}
+.home-stat-label {
+  display: block;
+  font-size: 11px;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: var(--ink-mute);
+  margin-bottom: 6px;
+}
+.home-stat strong {
+  display: block;
+  font-family: 'Cormorant Garamond', Georgia, serif;
+  font-size: 34px;
+  line-height: 1;
+  color: var(--sienna-deep);
+}
+.home-stat span:last-child {
+  display: block;
+  margin-top: 6px;
+  color: var(--ink-soft);
+  font-size: 14px;
+}
+.home-path {
+  margin-top: 4px;
+}
+.home-recommendations {
+  display: grid;
+  gap: 8px;
+  margin-top: 14px;
+}
+.home-rec {
+  width: 100%;
+  display: grid;
+  grid-template-columns: auto 1fr auto;
+  align-items: center;
+  gap: 14px;
+  text-align: left;
+  border: 1px solid var(--rule);
+  background: var(--paper);
+  border-radius: 8px;
+  padding: 14px 16px;
+  color: var(--ink);
+  cursor: pointer;
+  touch-action: manipulation;
+}
+.home-rec:hover {
+  border-color: var(--green);
+  background: var(--green-tint);
+}
+.home-rec-index {
+  font-family: 'Cormorant Garamond', Georgia, serif;
+  font-size: 18px;
+  color: var(--sienna);
+  font-weight: 700;
+}
+.home-rec-main {
+  min-width: 0;
+}
+.home-rec-title,
+.home-rec-meta {
+  display: block;
+}
+.home-rec-title {
+  font-family: 'Cormorant Garamond', Georgia, serif;
+  font-size: 22px;
+  font-weight: 700;
+  color: var(--ink);
+  line-height: 1.15;
+}
+.home-rec-meta {
+  margin-top: 2px;
+  color: var(--ink-mute);
+  font-size: 13px;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+@media (max-width: 700px) {
+  .home-title { font-size: 48px; }
+  .home-subtitle { font-size: 18px; }
+  .home-stats { grid-template-columns: 1fr; }
 }
 
 .chapter-header { margin-bottom: 32px; }
