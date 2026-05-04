@@ -17,6 +17,7 @@ const SECTION_ICONS = {
   gramatica: ListTree,      // grammar rules — structure
   lectura: Library,         // reading — library
   vocabulario: BookText,    // word lists
+  palabras: GraduationCap,  // 5000-word memorization lab
   frases: MessageSquare,    // useful phrases — speech bubble
   tips: Lightbulb,          // strategy tips
   resumen: Compass,         // takeaways — orientation
@@ -4941,6 +4942,26 @@ const SECTIONS = [
     ],
   },
   {
+    id: 'palabras',
+    label: 'Palabras',
+    sublabel: '5000 palabras agrupadas',
+    chapters: [
+      {
+        id: 'palabras-5000',
+        level: 'A1-B2',
+        alwaysVisible: true,
+        title: 'Banco de Palabras',
+        subtitle: 'Read, reveal, repeat',
+        intro: 'The full vocabulary bank from your grouped document. The original three groups stay intact; the interface gives you a small daily deck so the list becomes something you can actually remember.',
+        blocks: [
+          {
+            type: 'vocab-lab',
+          },
+        ],
+      },
+    ],
+  },
+  {
     id: 'frases',
     label: 'Frases',
     sublabel: 'Expresiones útiles',
@@ -6114,9 +6135,184 @@ function FoldableStoriesBlock({ stories }) {
 }
 
 // =============================================================
-// CHAPTER RENDERER — book-style content blocks
+// PALABRAS LAB - grouped vocabulary study deck
 // =============================================================
-function ChapterContent({ chapter, sectionId }) {
+function PalabrasLab({ onSaveWord }) {
+  const [groups, setGroups] = useState(null);
+  const [activeGroupId, setActiveGroupId] = useState('');
+  const [query, setQuery] = useState('');
+  const [cursor, setCursor] = useState(0);
+  const [revealed, setRevealed] = useState({});
+  const [showEnglish, setShowEnglish] = useState(false);
+  useEffect(() => {
+    let alive = true;
+    import('./vocab-groups.json').then((module) => {
+      if (!alive) return;
+      const loadedGroups = module.default || [];
+      setGroups(loadedGroups);
+      setActiveGroupId((current) => current || loadedGroups[0]?.id || '');
+    });
+    return () => { alive = false; };
+  }, []);
+
+  const isLoading = !groups;
+  const activeGroup = groups?.find((g) => g.id === activeGroupId) || groups?.[0] || {
+    id: 'loading',
+    title: 'Cargando palabras',
+    description: '',
+    entries: [],
+  };
+  const filteredEntries = useMemo(() => {
+    const q = query.trim().toLowerCase();
+    if (!q) return activeGroup.entries;
+    return activeGroup.entries.filter((entry) =>
+      entry.spanish.toLowerCase().includes(q) ||
+      entry.english.toLowerCase().includes(q) ||
+      String(entry.rank).includes(q)
+    );
+  }, [activeGroup, query]);
+  const deckSize = 24;
+  const deckStart = Math.min(cursor, Math.max(0, filteredEntries.length - 1));
+  const deck = filteredEntries.slice(deckStart, deckStart + deckSize);
+  const deckText = deck.map((entry) => entry.spanish).join('. ');
+
+  useEffect(() => {
+    setCursor(0);
+    setRevealed({});
+  }, [activeGroupId, query]);
+
+  if (isLoading) {
+    return (
+      <section className="block palabras-lab">
+        <div className="palabras-empty">
+          <Sparkles size={24} />
+          <p>Cargando palabras...</p>
+        </div>
+      </section>
+    );
+  }
+
+  function nextDeck() {
+    setCursor((prev) => (prev + deckSize >= filteredEntries.length ? 0 : prev + deckSize));
+    setRevealed({});
+  }
+
+  function surpriseDeck() {
+    const maxStart = Math.max(0, filteredEntries.length - deckSize);
+    setCursor(Math.floor(Math.random() * (maxStart + 1)));
+    setRevealed({});
+  }
+
+  function toggleReveal(entry) {
+    const key = `${activeGroup.id}-${entry.rank}-${entry.spanish}`;
+    setRevealed((prev) => ({ ...prev, [key]: !prev[key] }));
+  }
+
+  function saveEntry(entry) {
+    onSaveWord?.({
+      word: entry.spanish,
+      translation: entry.english,
+      pos: activeGroup.title,
+      extras: [`Rank ${entry.rank}`, activeGroup.description],
+      savedAt: Date.now(),
+    });
+  }
+
+  return (
+    <section className="block palabras-lab">
+      <div className="palabras-toolbar">
+        <div className="palabras-group-tabs" role="tablist" aria-label="Vocabulary groups">
+          {groups.map((group) => (
+            <button
+              key={group.id}
+              className={`palabras-tab ${group.id === activeGroup.id ? 'active' : ''}`}
+              onClick={() => setActiveGroupId(group.id)}
+              role="tab"
+              aria-selected={group.id === activeGroup.id}
+            >
+              <span>{group.title.replace(/^Group /, 'G')}</span>
+              <strong>{group.entries.length}</strong>
+            </button>
+          ))}
+        </div>
+        <label className="palabras-search">
+          <span>Buscar</span>
+          <input
+            value={query}
+            onChange={(e) => setQuery(e.target.value)}
+            placeholder="palabra, meaning, rank..."
+          />
+        </label>
+      </div>
+
+      <div className="palabras-stage">
+        <div className="palabras-stage-copy">
+          <div className="palabras-stage-kicker">Grupo intacto</div>
+          <h2>{activeGroup.title}</h2>
+          <p>{activeGroup.description}</p>
+        </div>
+        <div className="palabras-stage-stats">
+          <div>
+            <span>Mostrando</span>
+            <strong>{deck.length}</strong>
+          </div>
+          <div>
+            <span>Filtradas</span>
+            <strong>{filteredEntries.length}</strong>
+          </div>
+          <div>
+            <span>Entrada</span>
+            <strong>{filteredEntries.length ? deckStart + 1 : 0}</strong>
+          </div>
+        </div>
+      </div>
+
+      <div className="palabras-actions">
+        <SpeakBtn text={deckText} size="md" className="palabras-read-btn" />
+        <button className="palabras-action-btn" onClick={() => setShowEnglish((prev) => !prev)}>
+          {showEnglish ? 'Ocultar ingles' : 'Mostrar ingles'}
+        </button>
+        <button className="palabras-action-btn" onClick={nextDeck}>Siguiente ronda</button>
+        <button className="palabras-action-btn" onClick={surpriseDeck}>Barajar</button>
+      </div>
+
+      {deck.length ? (
+        <div className="palabras-grid">
+          {deck.map((entry) => {
+            const key = `${activeGroup.id}-${entry.rank}-${entry.spanish}`;
+            const isRevealed = showEnglish || revealed[key];
+            return (
+              <article key={key} className={`palabra-card ${isRevealed ? 'revealed' : ''}`}>
+                <button className="palabra-main" onClick={() => toggleReveal(entry)}>
+                  <span className="palabra-rank">#{entry.rank}</span>
+                  <span className="palabra-es">{entry.spanish}</span>
+                  <span className="palabra-en">{isRevealed ? entry.english : '...'}</span>
+                </button>
+                <div className="palabra-card-actions">
+                  <SpeakBtn text={entry.spanish} />
+                  <button className="palabra-save" onClick={() => saveEntry(entry)}>
+                    <Bookmark size={13} />
+                    Memoria
+                  </button>
+                </div>
+              </article>
+            );
+          })}
+        </div>
+      ) : (
+        <div className="palabras-empty">
+          <Sparkles size={24} />
+          <p>No words match this search in the selected group.</p>
+        </div>
+      )}
+    </section>
+  );
+}
+
+// =============================================================
+// CHAPTER RENDERER - book-style content blocks
+// =============================================================
+function ChapterContent({ chapter, sectionId, onSaveWord }) {
   return (
     <article className="chapter-body">
       <header className="chapter-header">
@@ -6231,6 +6427,8 @@ function ChapterContent({ chapter, sectionId }) {
                 </div>
               </section>
             );
+          case 'vocab-lab':
+            return <PalabrasLab key={i} onSaveWord={onSaveWord} />;
           case 'phraselist':
             return (
               <section key={i} className="block">
@@ -7351,7 +7549,7 @@ export default function SpanishBook() {
     const list = [];
     for (const s of SECTIONS) {
       for (const c of s.chapters) {
-        if (levelFilter === 'ALL' || c.level === levelFilter) {
+        if (c.alwaysVisible || levelFilter === 'ALL' || c.level === levelFilter) {
           list.push({ ...c, sectionId: s.id, sectionLabel: s.label });
         }
       }
@@ -7516,7 +7714,7 @@ export default function SpanishBook() {
               </div>
 
               {SECTIONS.map((s) => {
-                const visibleChapters = s.chapters.filter((c) => levelFilter === 'ALL' || c.level === levelFilter);
+                const visibleChapters = s.chapters.filter((c) => c.alwaysVisible || levelFilter === 'ALL' || c.level === levelFilter);
                 const isActive = s.id === activeSectionId && !showMemoria && !showHome;
                 const isExpanded = expandedSections[s.id];
                 return (
@@ -7607,7 +7805,7 @@ export default function SpanishBook() {
                 onClear={handleClearWords}
               />
             ) : activeChapter ? (
-              <ChapterContent chapter={activeChapter} sectionId={activeSectionId} />
+              <ChapterContent chapter={activeChapter} sectionId={activeSectionId} onSaveWord={handleSaveWord} />
             ) : (
               <div className="empty">
                 <Sparkles size={28} />
@@ -8590,6 +8788,260 @@ const styles = `
 }
 .vocab-es { color: var(--green); font-weight: 600; }
 .vocab-en { color: var(--ink-mute); font-style: italic; }
+
+/* Palabras lab */
+.palabras-lab {
+  margin-top: 28px;
+}
+.palabras-toolbar {
+  display: grid;
+  grid-template-columns: 1fr minmax(220px, 280px);
+  gap: 12px;
+  align-items: stretch;
+  margin-bottom: 16px;
+}
+.palabras-group-tabs {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 8px;
+}
+.palabras-tab {
+  border: 1px solid var(--rule);
+  background: var(--paper);
+  color: var(--ink-soft);
+  border-radius: 8px;
+  padding: 10px 12px;
+  text-align: left;
+  cursor: pointer;
+  min-height: 70px;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  gap: 8px;
+  touch-action: manipulation;
+}
+.palabras-tab:hover {
+  border-color: var(--green);
+}
+.palabras-tab.active {
+  background: var(--green-tint);
+  border-color: var(--green);
+}
+.palabras-tab span {
+  font-size: 12px;
+  line-height: 1.25;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--green);
+  overflow-wrap: anywhere;
+}
+.palabras-tab strong {
+  font-family: 'Cormorant Garamond', Georgia, serif;
+  font-size: 24px;
+  line-height: 1;
+  color: var(--sienna-deep);
+}
+.palabras-search {
+  border: 1px solid var(--rule);
+  border-radius: 8px;
+  padding: 9px 12px;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  background: var(--paper-light);
+}
+.palabras-search span {
+  font-size: 11px;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: var(--ink-mute);
+  margin-bottom: 4px;
+}
+.palabras-search input {
+  width: 100%;
+  border: none;
+  outline: none;
+  background: transparent;
+  color: var(--ink);
+  font-size: 16px;
+  min-width: 0;
+}
+.palabras-stage {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 18px;
+  border: 1px solid var(--rule);
+  border-radius: 8px;
+  padding: 18px;
+  background: var(--paper-light);
+  margin-bottom: 14px;
+}
+.palabras-stage-kicker {
+  font-size: 11px;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: var(--green);
+  font-weight: 700;
+}
+.palabras-stage h2 {
+  font-family: 'Cormorant Garamond', Georgia, serif;
+  font-size: 32px;
+  line-height: 1.1;
+  margin: 6px 0 8px;
+  color: var(--ink);
+}
+.palabras-stage p {
+  margin: 0;
+  color: var(--ink-soft);
+  font-size: 16px;
+  line-height: 1.55;
+}
+.palabras-stage-stats {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(72px, 1fr));
+  gap: 8px;
+  align-self: stretch;
+}
+.palabras-stage-stats div {
+  border-left: 1px solid var(--rule);
+  padding-left: 12px;
+}
+.palabras-stage-stats span {
+  display: block;
+  font-size: 10px;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--ink-mute);
+}
+.palabras-stage-stats strong {
+  display: block;
+  font-family: 'Cormorant Garamond', Georgia, serif;
+  font-size: 28px;
+  line-height: 1.1;
+  color: var(--sienna-deep);
+  margin-top: 4px;
+}
+.palabras-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 16px;
+}
+.palabras-action-btn,
+.palabra-save {
+  border: 1px solid var(--rule);
+  background: var(--paper);
+  color: var(--ink);
+  border-radius: 6px;
+  min-height: 34px;
+  padding: 6px 10px;
+  cursor: pointer;
+  font-size: 14px;
+  touch-action: manipulation;
+}
+.palabras-action-btn:hover,
+.palabra-save:hover {
+  border-color: var(--green);
+  color: var(--green);
+}
+.palabras-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 10px;
+}
+.palabra-card {
+  border: 1px solid var(--rule);
+  border-radius: 8px;
+  background: var(--paper);
+  min-height: 164px;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+.palabra-card.revealed {
+  border-color: var(--green);
+}
+.palabra-main {
+  flex: 1;
+  border: none;
+  background: transparent;
+  text-align: left;
+  padding: 14px;
+  cursor: pointer;
+  color: var(--ink);
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  touch-action: manipulation;
+}
+.palabra-rank {
+  color: var(--ink-mute);
+  font-size: 12px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+.palabra-es {
+  color: var(--green);
+  font-family: 'Cormorant Garamond', Georgia, serif;
+  font-size: 30px;
+  line-height: 1.05;
+  font-weight: 700;
+  overflow-wrap: anywhere;
+}
+.palabra-en {
+  color: var(--ink-soft);
+  font-size: 15px;
+  line-height: 1.35;
+  font-style: italic;
+  overflow-wrap: anywhere;
+}
+.palabra-card-actions {
+  border-top: 1px solid var(--rule-soft);
+  padding: 8px 10px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 8px;
+}
+.palabra-save {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+}
+.palabras-empty {
+  border: 1px dashed var(--rule);
+  border-radius: 8px;
+  padding: 28px;
+  display: grid;
+  place-items: center;
+  gap: 8px;
+  color: var(--ink-mute);
+  text-align: center;
+}
+@media (max-width: 820px) {
+  .palabras-toolbar,
+  .palabras-stage {
+    grid-template-columns: 1fr;
+  }
+  .palabras-stage-stats {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+  .palabras-stage-stats div {
+    border-left: none;
+    border-top: 1px solid var(--rule);
+    padding: 10px 0 0;
+  }
+}
+@media (max-width: 620px) {
+  .palabras-group-tabs,
+  .palabras-stage-stats {
+    grid-template-columns: 1fr;
+  }
+  .palabra-card {
+    min-height: 150px;
+  }
+}
 
 /* Phrase list */
 .phrase-list {

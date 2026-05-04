@@ -1,6 +1,6 @@
 # Learn Spanish
 
-An interactive Spanish reading book built with React and Vite. It includes a study dashboard, lesson chapters, verb practice, text-to-speech pronunciation, level filtering, resume reading, saved vocabulary, and installable offline support.
+An interactive Spanish reading book built with React and Vite. It includes a study dashboard, lesson chapters, verb practice, text-to-speech pronunciation, grouped vocabulary memorization, level filtering, resume reading, saved vocabulary, and installable offline support.
 
 Live site: https://elamranioth.github.io/Learn-Spanish/
 
@@ -18,6 +18,8 @@ npm run build
 ```
 
 The Vite base path is configured for GitHub Pages at `/Learn-Spanish/`.
+
+The `Palabras` section is generated from `spanish_vocab_grouped.docx` and preserves the document's three original vocabulary groups.
 
 ## Deploy
 
