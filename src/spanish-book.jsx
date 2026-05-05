@@ -6137,13 +6137,101 @@ function FoldableStoriesBlock({ stories }) {
 // =============================================================
 // PALABRAS LAB - grouped vocabulary study deck
 // =============================================================
-function PalabrasLab({ onSaveWord }) {
+const PALABRAS_PROGRESS_KEY = 'palabras-progress-v1';
+const DAY_MS = 24 * 60 * 60 * 1000;
+
+function palabraKey(groupId, entry) {
+  return `${groupId}::${entry.rank}::${entry.spanish}`;
+}
+
+function clampInt(n, min, max) {
+  return Math.max(min, Math.min(max, Math.round(n)));
+}
+
+function schedulePalabraReview(previous, rating, now = Date.now()) {
+  const oldInterval = previous?.intervalDays || 0;
+  const oldEase = previous?.ease || 2.35;
+  const oldReps = previous?.reps || 0;
+  const ratingConfig = {
+    again: { label: 'Again', easeDelta: -0.18, minDays: 10 / 1440, multiplier: 0.2 },
+    hard: { label: 'Hard', easeDelta: -0.08, minDays: 1, multiplier: 1.15 },
+    good: { label: 'Good', easeDelta: 0.02, minDays: oldReps ? 2 : 1, multiplier: oldEase },
+    easy: { label: 'Easy', easeDelta: 0.12, minDays: oldReps ? 4 : 3, multiplier: oldEase + 0.7 },
+  }[rating] || { label: 'Good', easeDelta: 0, minDays: 1, multiplier: oldEase };
+  const ease = Math.max(1.35, Math.min(3.2, oldEase + ratingConfig.easeDelta));
+  const intervalDays = rating === 'again'
+    ? ratingConfig.minDays
+    : Math.max(ratingConfig.minDays, (oldInterval || 1) * ratingConfig.multiplier);
+
+  return {
+    ...previous,
+    ease,
+    intervalDays,
+    dueAt: now + intervalDays * DAY_MS,
+    reps: rating === 'again' ? 0 : oldReps + 1,
+    lapses: rating === 'again' ? (previous?.lapses || 0) + 1 : previous?.lapses || 0,
+    seen: true,
+    mastered: rating === 'easy' || intervalDays >= 7,
+    lastRating: ratingConfig.label,
+    reviewedAt: now,
+  };
+}
+
+function getPalabraProgressStats(groups, progress, now = Date.now()) {
+  const stats = { total: 0, seen: 0, due: 0, mastered: 0, byGroup: {} };
+  for (const group of groups || []) {
+    const groupStats = { total: group.entries.length, seen: 0, due: 0, mastered: 0 };
+    stats.total += group.entries.length;
+    for (const entry of group.entries) {
+      const state = progress[palabraKey(group.id, entry)];
+      if (!state?.seen) continue;
+      stats.seen++;
+      groupStats.seen++;
+      if (state.mastered) {
+        stats.mastered++;
+        groupStats.mastered++;
+      }
+      if ((state.dueAt || 0) <= now) {
+        stats.due++;
+        groupStats.due++;
+      }
+    }
+    stats.byGroup[group.id] = groupStats;
+  }
+  return stats;
+}
+
+function makePalabraExample(entry, groupId) {
+  const word = entry.spanish.split(',')[0].trim();
+  if (groupId === 'function-words') {
+    return {
+      es: `Uso "${word}" para unir una idea con otra.`,
+      en: `"${word}" helps connect one idea to another.`,
+    };
+  }
+  if (/^to /.test(entry.english)) {
+    return {
+      es: `Hoy necesito ${word} en una frase clara.`,
+      en: `Today I need "${word}" in a clear sentence.`,
+    };
+  }
+  return {
+    es: `Escribo "${word}" en mi cuaderno de espanol.`,
+    en: `"${word}" means ${entry.english}.`,
+  };
+}
+
+function PalabrasLab({ onSaveWord, progress = {}, onProgressChange }) {
   const [groups, setGroups] = useState(null);
   const [activeGroupId, setActiveGroupId] = useState('');
   const [query, setQuery] = useState('');
   const [cursor, setCursor] = useState(0);
   const [revealed, setRevealed] = useState({});
   const [showEnglish, setShowEnglish] = useState(false);
+  const [dueOnly, setDueOnly] = useState(false);
+  const [showBrowser, setShowBrowser] = useState(false);
+  const [browserScrollTop, setBrowserScrollTop] = useState(0);
+  const [listenMode, setListenMode] = useState(false);
   useEffect(() => {
     let alive = true;
     import('./vocab-groups.json').then((module) => {
@@ -6164,22 +6252,35 @@ function PalabrasLab({ onSaveWord }) {
   };
   const filteredEntries = useMemo(() => {
     const q = query.trim().toLowerCase();
-    if (!q) return activeGroup.entries;
-    return activeGroup.entries.filter((entry) =>
+    const base = q ? activeGroup.entries.filter((entry) =>
       entry.spanish.toLowerCase().includes(q) ||
       entry.english.toLowerCase().includes(q) ||
       String(entry.rank).includes(q)
-    );
-  }, [activeGroup, query]);
+    ) : activeGroup.entries;
+    if (!dueOnly) return base;
+    const now = Date.now();
+    return base.filter((entry) => {
+      const state = progress[palabraKey(activeGroup.id, entry)];
+      return state?.seen && (state.dueAt || 0) <= now;
+    });
+  }, [activeGroup, query, dueOnly, progress]);
   const deckSize = 24;
   const deckStart = Math.min(cursor, Math.max(0, filteredEntries.length - 1));
   const deck = filteredEntries.slice(deckStart, deckStart + deckSize);
   const deckText = deck.map((entry) => entry.spanish).join('. ');
+  const progressStats = useMemo(() => getPalabraProgressStats(groups || [], progress), [groups, progress]);
+  const activeStats = progressStats.byGroup[activeGroup.id] || { total: activeGroup.entries.length, seen: 0, due: 0, mastered: 0 };
+  const rowHeight = 74;
+  const browserHeight = 420;
+  const browserStart = Math.max(0, Math.floor(browserScrollTop / rowHeight) - 4);
+  const browserEnd = Math.min(filteredEntries.length, browserStart + Math.ceil(browserHeight / rowHeight) + 10);
+  const browserRows = filteredEntries.slice(browserStart, browserEnd);
 
   useEffect(() => {
     setCursor(0);
     setRevealed({});
-  }, [activeGroupId, query]);
+    setBrowserScrollTop(0);
+  }, [activeGroupId, query, dueOnly]);
 
   if (isLoading) {
     return (
@@ -6208,12 +6309,48 @@ function PalabrasLab({ onSaveWord }) {
     setRevealed((prev) => ({ ...prev, [key]: !prev[key] }));
   }
 
+  function rateEntry(entry, rating) {
+    const key = palabraKey(activeGroup.id, entry);
+    const next = {
+      ...progress,
+      [key]: {
+        ...schedulePalabraReview(progress[key], rating),
+        groupId: activeGroup.id,
+        spanish: entry.spanish,
+        english: entry.english,
+        rank: entry.rank,
+      },
+    };
+    onProgressChange?.(next);
+    setRevealed((prev) => ({ ...prev, [`${activeGroup.id}-${entry.rank}-${entry.spanish}`]: true }));
+  }
+
+  function playActiveListening() {
+    if (!deck.length) return;
+    warmupAudio();
+    if (listenMode) {
+      window.speechSynthesis?.cancel();
+      setListenMode(false);
+      return;
+    }
+    const lines = deck.flatMap((entry) => {
+      const example = makePalabraExample(entry, activeGroup.id);
+      return [entry.spanish, example.es, entry.spanish];
+    });
+    setListenMode(true);
+    speak(lines.join('. '), {
+      onend: () => setListenMode(false),
+      onerror: () => setListenMode(false),
+    });
+  }
+
   function saveEntry(entry) {
     onSaveWord?.({
       word: entry.spanish,
       translation: entry.english,
       pos: activeGroup.title,
       extras: [`Rank ${entry.rank}`, activeGroup.description],
+      tags: ['palabras', activeGroup.id],
       savedAt: Date.now(),
     });
   }
@@ -6264,16 +6401,37 @@ function PalabrasLab({ onSaveWord }) {
             <span>Entrada</span>
             <strong>{filteredEntries.length ? deckStart + 1 : 0}</strong>
           </div>
+          <div>
+            <span>Vencidas</span>
+            <strong>{activeStats.due}</strong>
+          </div>
+          <div>
+            <span>Vistas</span>
+            <strong>{activeStats.seen}</strong>
+          </div>
+          <div>
+            <span>Dominadas</span>
+            <strong>{activeStats.mastered}</strong>
+          </div>
         </div>
       </div>
 
       <div className="palabras-actions">
         <SpeakBtn text={deckText} size="md" className="palabras-read-btn" />
+        <button className={`palabras-action-btn ${listenMode ? 'active' : ''}`} onClick={playActiveListening}>
+          {listenMode ? 'Escuchando...' : 'Escucha activa'}
+        </button>
+        <button className={`palabras-action-btn ${dueOnly ? 'active' : ''}`} onClick={() => setDueOnly((prev) => !prev)}>
+          {dueOnly ? 'Todas' : 'Vencidas'}
+        </button>
         <button className="palabras-action-btn" onClick={() => setShowEnglish((prev) => !prev)}>
           {showEnglish ? 'Ocultar ingles' : 'Mostrar ingles'}
         </button>
         <button className="palabras-action-btn" onClick={nextDeck}>Siguiente ronda</button>
         <button className="palabras-action-btn" onClick={surpriseDeck}>Barajar</button>
+        <button className={`palabras-action-btn ${showBrowser ? 'active' : ''}`} onClick={() => setShowBrowser((prev) => !prev)}>
+          Lista completa
+        </button>
       </div>
 
       {deck.length ? (
@@ -6281,12 +6439,20 @@ function PalabrasLab({ onSaveWord }) {
           {deck.map((entry) => {
             const key = `${activeGroup.id}-${entry.rank}-${entry.spanish}`;
             const isRevealed = showEnglish || revealed[key];
+            const reviewState = progress[palabraKey(activeGroup.id, entry)];
+            const example = makePalabraExample(entry, activeGroup.id);
             return (
               <article key={key} className={`palabra-card ${isRevealed ? 'revealed' : ''}`}>
                 <button className="palabra-main" onClick={() => toggleReveal(entry)}>
                   <span className="palabra-rank">#{entry.rank}</span>
                   <span className="palabra-es">{entry.spanish}</span>
                   <span className="palabra-en">{isRevealed ? entry.english : '...'}</span>
+                  {isRevealed && (
+                    <span className="palabra-example">
+                      <span>{example.es}</span>
+                      <em>{example.en}</em>
+                    </span>
+                  )}
                 </button>
                 <div className="palabra-card-actions">
                   <SpeakBtn text={entry.spanish} />
@@ -6295,6 +6461,18 @@ function PalabrasLab({ onSaveWord }) {
                     Memoria
                   </button>
                 </div>
+                <div className="palabra-review-actions">
+                  {['again', 'hard', 'good', 'easy'].map((rating) => (
+                    <button key={rating} onClick={() => rateEntry(entry, rating)}>
+                      {rating === 'again' ? 'Again' : rating === 'hard' ? 'Hard' : rating === 'good' ? 'Good' : 'Easy'}
+                    </button>
+                  ))}
+                </div>
+                {reviewState?.seen && (
+                  <div className="palabra-review-state">
+                    {reviewState.mastered ? 'Dominada' : `Due ${new Date(reviewState.dueAt || Date.now()).toLocaleDateString()}`}
+                  </div>
+                )}
               </article>
             );
           })}
@@ -6305,6 +6483,36 @@ function PalabrasLab({ onSaveWord }) {
           <p>No words match this search in the selected group.</p>
         </div>
       )}
+
+      {showBrowser && (
+        <div className="palabras-browser">
+          <div className="palabras-browser-head">
+            <span>Lista virtual</span>
+            <strong>{filteredEntries.length} palabras</strong>
+          </div>
+          <div
+            className="palabras-virtual-list"
+            style={{ height: browserHeight }}
+            onScroll={(e) => setBrowserScrollTop(e.currentTarget.scrollTop)}
+          >
+            <div style={{ height: filteredEntries.length * rowHeight, position: 'relative' }}>
+              <div style={{ transform: `translateY(${browserStart * rowHeight}px)` }}>
+                {browserRows.map((entry) => {
+                  const state = progress[palabraKey(activeGroup.id, entry)];
+                  return (
+                    <div key={`${entry.rank}-${entry.spanish}`} className="palabras-virtual-row" style={{ height: rowHeight }}>
+                      <span className="palabra-rank">#{entry.rank}</span>
+                      <strong>{entry.spanish}</strong>
+                      <span>{entry.english}</span>
+                      <button onClick={() => rateEntry(entry, 'good')}>{state?.seen ? 'Actualizar' : 'Visto'}</button>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </section>
   );
 }
@@ -6312,7 +6520,7 @@ function PalabrasLab({ onSaveWord }) {
 // =============================================================
 // CHAPTER RENDERER - book-style content blocks
 // =============================================================
-function ChapterContent({ chapter, sectionId, onSaveWord }) {
+function ChapterContent({ chapter, sectionId, onSaveWord, palabrasProgress, onPalabrasProgressChange }) {
   return (
     <article className="chapter-body">
       <header className="chapter-header">
@@ -6428,7 +6636,14 @@ function ChapterContent({ chapter, sectionId, onSaveWord }) {
               </section>
             );
           case 'vocab-lab':
-            return <PalabrasLab key={i} onSaveWord={onSaveWord} />;
+            return (
+              <PalabrasLab
+                key={i}
+                onSaveWord={onSaveWord}
+                progress={palabrasProgress}
+                onProgressChange={onPalabrasProgressChange}
+              />
+            );
           case 'phraselist':
             return (
               <section key={i} className="block">
@@ -7147,14 +7362,86 @@ function AudioDebugPanel() {
   );
 }
 
-function MemoriaView({ savedWords, onRemove, onClear }) {
+function getMemoriaTags(entry) {
+  const tags = new Set(entry.tags || []);
+  if (entry.pending) tags.add('pending');
+  if (!entry.translation) tags.add('needs-translation');
+  if (/Group 1|cognates|near-cognates/i.test(entry.pos || '')) tags.add('cognates');
+  if (/Group 2|function/i.test(entry.pos || '')) tags.add('function-words');
+  if (/Group 3|remaining/i.test(entry.pos || '')) tags.add('remaining');
+  return [...tags];
+}
+
+function exportMemoriaCsv(words) {
+  const header = ['Spanish', 'English', 'Tags', 'Notes'];
+  const lines = words.map((entry) => [
+    entry.word,
+    entry.translation || '',
+    getMemoriaTags(entry).join(' | '),
+    [...(entry.extras || []), entry.pos || ''].filter(Boolean).join(' | '),
+  ]);
+  const csv = [header, ...lines]
+    .map((row) => row.map((cell) => `"${String(cell).replace(/"/g, '""')}"`).join(','))
+    .join('\n');
+  const blob = new Blob([csv], { type: 'text/csv;charset=utf-8' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = 'memoria-spanish.csv';
+  a.click();
+  URL.revokeObjectURL(url);
+}
+
+function MemoriaView({ savedWords, onRemove, onClear, onUpdateWord }) {
   const [flipped, setFlipped] = useState({});
   const [view, setView] = useState('grid'); // 'grid' | 'list'
+  const [query, setQuery] = useState('');
+  const [tagFilter, setTagFilter] = useState('ALL');
+  const [reviewIndex, setReviewIndex] = useState(0);
+  const [reviewFlipped, setReviewFlipped] = useState(false);
+  const [tagDraft, setTagDraft] = useState('');
 
   function toggleFlip(word) {
     setFlipped(prev => ({ ...prev, [word]: !prev[word] }));
   }
   const sorted = [...savedWords].sort((a, b) => b.savedAt - a.savedAt);
+  const allTags = useMemo(() => {
+    const tags = new Set();
+    for (const entry of sorted) getMemoriaTags(entry).forEach((tag) => tags.add(tag));
+    return [...tags].sort();
+  }, [sorted]);
+  const filtered = useMemo(() => {
+    const q = query.trim().toLowerCase();
+    return sorted.filter((entry) => {
+      const tags = getMemoriaTags(entry);
+      const matchesTag = tagFilter === 'ALL' || tags.includes(tagFilter);
+      const matchesQuery = !q ||
+        entry.word.toLowerCase().includes(q) ||
+        (entry.translation || '').toLowerCase().includes(q) ||
+        tags.some((tag) => tag.toLowerCase().includes(q));
+      return matchesTag && matchesQuery;
+    });
+  }, [sorted, query, tagFilter]);
+  const reviewWord = filtered[reviewIndex % Math.max(1, filtered.length)];
+
+  useEffect(() => {
+    setReviewIndex(0);
+    setReviewFlipped(false);
+  }, [query, tagFilter, savedWords.length]);
+
+  function addTag(word) {
+    const tag = tagDraft.trim().toLowerCase().replace(/\s+/g, '-');
+    if (!tag) return;
+    const entry = savedWords.find((w) => w.word === word);
+    const tags = Array.from(new Set([...(entry?.tags || []), tag]));
+    onUpdateWord?.(word, { tags });
+    setTagDraft('');
+  }
+
+  function nextReview() {
+    setReviewIndex((prev) => (prev + 1) % Math.max(1, filtered.length));
+    setReviewFlipped(false);
+  }
 
   if (sorted.length === 0) {
     return (
@@ -7195,13 +7482,54 @@ function MemoriaView({ savedWords, onRemove, onClear }) {
         >
           Lista
         </button>
+        <button
+          className={`memoria-view-btn ${view === 'review' ? 'active' : ''}`}
+          onClick={() => setView('review')}
+        >
+          Repaso
+        </button>
+      </div>
+      <div className="memoria-tools">
+        <label>
+          <span>Buscar</span>
+          <input value={query} onChange={(e) => setQuery(e.target.value)} placeholder="palabra, translation, tag..." />
+        </label>
+        <label>
+          <span>Etiqueta</span>
+          <select value={tagFilter} onChange={(e) => setTagFilter(e.target.value)}>
+            <option value="ALL">Todas</option>
+            {allTags.map((tag) => <option key={tag} value={tag}>{tag}</option>)}
+          </select>
+        </label>
+        <button className="memoria-tool-btn" onClick={() => exportMemoriaCsv(filtered)}>Export CSV</button>
       </div>
 
-      {view === 'grid' ? (
+      {view === 'review' ? (
+        <div className="memoria-review">
+          {reviewWord ? (
+            <>
+              <button className={`memoria-review-card ${reviewFlipped ? 'flipped' : ''}`} onClick={() => setReviewFlipped((prev) => !prev)}>
+                <span className="memoria-review-count">{filtered.length ? `${reviewIndex + 1} / ${filtered.length}` : '0 / 0'}</span>
+                <strong>{reviewFlipped ? reviewWord.translation || 'Sin traduccion' : reviewWord.word}</strong>
+                <em>{reviewFlipped ? reviewWord.word : 'toca para revelar'}</em>
+              </button>
+              <div className="memoria-review-actions">
+                <SpeakBtn text={reviewWord.word} size="md" />
+                <input value={tagDraft} onChange={(e) => setTagDraft(e.target.value)} placeholder="add-tag" />
+                <button onClick={() => addTag(reviewWord.word)}>Tag</button>
+                <button onClick={nextReview}>Siguiente</button>
+              </div>
+            </>
+          ) : (
+            <div className="memoria-empty-text">No hay palabras para este filtro.</div>
+          )}
+        </div>
+      ) : view === 'grid' ? (
         <div className="memoria-grid">
-          {sorted.map((entry) => {
+          {filtered.map((entry) => {
             const isFlipped = flipped[entry.word];
             const isPending = entry.pending;
+            const tags = getMemoriaTags(entry);
             return (
               <div
                 key={entry.word}
@@ -7223,6 +7551,11 @@ function MemoriaView({ savedWords, onRemove, onClear }) {
                       </div>
                     ) : (
                       <div className="memoria-hint">toca para detalles</div>
+                    )}
+                    {tags.length > 0 && (
+                      <div className="memoria-tags">
+                        {tags.slice(0, 3).map((tag) => <span key={tag}>{tag}</span>)}
+                      </div>
                     )}
                   </div>
                   {/* Back — full details */}
@@ -7265,8 +7598,9 @@ function MemoriaView({ savedWords, onRemove, onClear }) {
         </div>
       ) : (
         <div className="memoria-list">
-          {sorted.map((entry) => {
+          {filtered.map((entry) => {
             const isPending = entry.pending;
+            const tags = getMemoriaTags(entry);
             return (
               <div key={entry.word} className="memoria-list-row">
                 <div className="memoria-list-main">
@@ -7289,6 +7623,11 @@ function MemoriaView({ savedWords, onRemove, onClear }) {
                       {entry.extras.slice(0, 4).map((e, i) => (
                         <span key={i} className="memoria-list-extra-tag">{e}</span>
                       ))}
+                    </div>
+                  )}
+                  {tags.length > 0 && (
+                    <div className="memoria-list-extras">
+                      {tags.map((tag) => <span key={tag} className="memoria-list-extra-tag">{tag}</span>)}
                     </div>
                   )}
                 </div>
@@ -7332,9 +7671,14 @@ function HomeView({
   visitedCount,
   savedWordsCount,
   levelFilter,
+  palabrasSummary,
+  sectionProgress,
   recommendations,
   onStart,
   onOpenMemoria,
+  onOpenPalabras,
+  onOpenVerb,
+  onOpenReading,
   onSelectChapter,
 }) {
   const progress = totalChapters ? Math.round((visitedCount / totalChapters) * 100) : 0;
@@ -7348,7 +7692,7 @@ function HomeView({
         </div>
         <h1 className="home-title">Learn Spanish</h1>
         <p className="home-subtitle">
-          Hoy: lee un capitulo, escucha una pagina, guarda tres palabras, y termina con una practica corta.
+          Hoy: 10 palabras, una pagina leida en voz alta, un verbo repasado, y tres palabras guardadas.
         </p>
         <div className="home-actions">
           <button className="home-primary" onClick={onStart}>
@@ -7377,6 +7721,63 @@ function HomeView({
           <span className="home-stat-label">Memoria</span>
           <strong>{savedWordsCount}</strong>
           <span>{savedWordsCount === 1 ? 'palabra' : 'palabras'}</span>
+        </div>
+        <div className="home-stat">
+          <span className="home-stat-label">Palabras due</span>
+          <strong>{palabrasSummary.due}</strong>
+          <span>{palabrasSummary.mastered} dominadas</span>
+        </div>
+      </section>
+
+      <section className="home-daily">
+        <div className="home-section-heading">
+          <Zap size={18} />
+          Ruta diaria
+        </div>
+        <div className="home-daily-grid">
+          <button onClick={onOpenPalabras}>
+            <span>01</span>
+            <strong>10 palabras</strong>
+            <em>{palabrasSummary.due ? `${palabrasSummary.due} vencidas` : `${palabrasSummary.seen} vistas`}</em>
+          </button>
+          <button onClick={onOpenReading}>
+            <span>02</span>
+            <strong>Lectura con audio</strong>
+            <em>lee y escucha una pagina</em>
+          </button>
+          <button onClick={onOpenVerb}>
+            <span>03</span>
+            <strong>Un verbo</strong>
+            <em>tabla, voz, repeticion</em>
+          </button>
+          <button onClick={onOpenMemoria}>
+            <span>04</span>
+            <strong>Memoria</strong>
+            <em>{savedWordsCount} guardadas</em>
+          </button>
+        </div>
+      </section>
+
+      <section className="home-progress-map">
+        <div className="home-section-heading">
+          <Compass size={18} />
+          Mapa de progreso
+        </div>
+        <div className="home-progress-list">
+          {sectionProgress.map((item) => {
+            const pct = item.total ? Math.round((item.visited / item.total) * 100) : 0;
+            return (
+              <div key={item.id} className="home-progress-row">
+                <div className="home-progress-top">
+                  <span>{item.label}</span>
+                  <strong>{item.visited} / {item.total}</strong>
+                </div>
+                <div className="home-progress-track">
+                  <span style={{ width: `${pct}%` }} />
+                </div>
+              </div>
+            );
+          })}
         </div>
       </section>
 
@@ -7421,6 +7822,7 @@ export default function SpanishBook() {
   // --- Memoria: saved words, persisted via window.storage ---
   const [savedWords, setSavedWords] = useState([]);
   const [visitedChapters, setVisitedChapters] = useState([]);
+  const [palabrasProgress, setPalabrasProgress] = useState({});
 
   useEffect(() => {
     // Load saved words, font scale, and last-read position on mount
@@ -7450,6 +7852,10 @@ export default function SpanishBook() {
         const visited = await window.storage.get('visited-chapters');
         if (visited?.value) setVisitedChapters(JSON.parse(visited.value));
       } catch (_) {}
+      try {
+        const progress = await window.storage.get(PALABRAS_PROGRESS_KEY);
+        if (progress?.value) setPalabrasProgress(JSON.parse(progress.value));
+      } catch (_) {}
     })();
   }, []);
 
@@ -7468,6 +7874,15 @@ export default function SpanishBook() {
 
   async function persistWords(words) {
     try { await window.storage.set('memoria-words', JSON.stringify(words)); } catch (_) {}
+  }
+
+  async function persistPalabrasProgress(progress) {
+    try { await window.storage.set(PALABRAS_PROGRESS_KEY, JSON.stringify(progress)); } catch (_) {}
+  }
+
+  function handlePalabrasProgressChange(next) {
+    setPalabrasProgress(next);
+    persistPalabrasProgress(next);
   }
 
   // Background-translate a word and update the saved entry with the result.
@@ -7515,6 +7930,14 @@ export default function SpanishBook() {
   function handleRemoveWord(word) {
     setSavedWords(prev => {
       const next = prev.filter(w => w.word !== word);
+      persistWords(next);
+      return next;
+    });
+  }
+
+  function handleUpdateWord(word, patch) {
+    setSavedWords(prev => {
+      const next = prev.map(w => w.word === word ? { ...w, ...patch } : w);
       persistWords(next);
       return next;
     });
@@ -7593,6 +8016,25 @@ export default function SpanishBook() {
     return (unseen.length ? unseen : visibleFlatChapters).slice(0, 4);
   }, [visibleFlatChapters, visitedSet]);
   const startChapter = recommendedChapters[0] || visibleFlatChapters[0];
+  const palabrasSummary = useMemo(() => {
+    const values = Object.values(palabrasProgress || {});
+    const now = Date.now();
+    return {
+      seen: values.filter((v) => v?.seen).length,
+      due: values.filter((v) => v?.seen && (v.dueAt || 0) <= now).length,
+      mastered: values.filter((v) => v?.mastered).length,
+    };
+  }, [palabrasProgress]);
+  const sectionProgress = useMemo(() => {
+    return SECTIONS.map((section) => {
+      const chapters = section.chapters.filter((c) => c.alwaysVisible || levelFilter === 'ALL' || c.level === levelFilter);
+      const visited = chapters.filter((c) => visitedSet.has(c.id)).length;
+      return { id: section.id, label: section.label, total: chapters.length, visited };
+    }).filter((item) => item.total > 0);
+  }, [levelFilter, visitedSet]);
+  const palabrasChapter = visibleFlatChapters.find((c) => c.id === 'palabras-5000');
+  const verbChapter = visibleFlatChapters.find((c) => c.sectionId === 'verbos') || visibleFlatChapters.find((c) => c.sectionId === 'verbos2');
+  const readingChapter = visibleFlatChapters.find((c) => c.sectionId === 'lectura');
 
   function selectChapter(c) {
     setActiveChapterId(c.id);
@@ -7793,9 +8235,14 @@ export default function SpanishBook() {
                 visitedCount={visibleVisitedCount}
                 savedWordsCount={savedWords.length}
                 levelFilter={levelFilter}
+                palabrasSummary={palabrasSummary}
+                sectionProgress={sectionProgress}
                 recommendations={recommendedChapters}
                 onStart={() => startChapter && selectChapter(startChapter)}
                 onOpenMemoria={() => { setShowHome(false); setShowMemoria(true); }}
+                onOpenPalabras={() => palabrasChapter && selectChapter(palabrasChapter)}
+                onOpenVerb={() => verbChapter && selectChapter(verbChapter)}
+                onOpenReading={() => readingChapter && selectChapter(readingChapter)}
                 onSelectChapter={selectChapter}
               />
             ) : showMemoria ? (
@@ -7803,9 +8250,16 @@ export default function SpanishBook() {
                 savedWords={savedWords}
                 onRemove={handleRemoveWord}
                 onClear={handleClearWords}
+                onUpdateWord={handleUpdateWord}
               />
             ) : activeChapter ? (
-              <ChapterContent chapter={activeChapter} sectionId={activeSectionId} onSaveWord={handleSaveWord} />
+              <ChapterContent
+                chapter={activeChapter}
+                sectionId={activeSectionId}
+                onSaveWord={handleSaveWord}
+                palabrasProgress={palabrasProgress}
+                onPalabrasProgressChange={handlePalabrasProgressChange}
+              />
             ) : (
               <div className="empty">
                 <Sparkles size={28} />
@@ -8472,7 +8926,7 @@ const styles = `
 .home-secondary:hover { border-color: var(--green); color: var(--green); }
 .home-stats {
   display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
+  grid-template-columns: repeat(4, minmax(0, 1fr));
   gap: 12px;
   margin: 24px 0 30px;
 }
@@ -8504,7 +8958,87 @@ const styles = `
   font-size: 14px;
 }
 .home-path {
-  margin-top: 4px;
+  margin-top: 28px;
+}
+.home-daily,
+.home-progress-map {
+  margin-top: 28px;
+}
+.home-daily-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 10px;
+  margin-top: 14px;
+}
+.home-daily-grid button {
+  min-height: 126px;
+  border: 1px solid var(--rule);
+  border-radius: 8px;
+  background: var(--paper);
+  color: var(--ink);
+  text-align: left;
+  padding: 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  cursor: pointer;
+  touch-action: manipulation;
+}
+.home-daily-grid button:hover {
+  border-color: var(--green);
+  background: var(--green-tint);
+}
+.home-daily-grid span {
+  font-size: 11px;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: var(--sienna);
+  font-weight: 700;
+}
+.home-daily-grid strong {
+  font-family: 'Cormorant Garamond', Georgia, serif;
+  font-size: 24px;
+  line-height: 1.05;
+  color: var(--ink);
+}
+.home-daily-grid em {
+  color: var(--ink-mute);
+  font-size: 13px;
+  line-height: 1.35;
+}
+.home-progress-list {
+  display: grid;
+  gap: 10px;
+  margin-top: 14px;
+}
+.home-progress-row {
+  border: 1px solid var(--rule);
+  border-radius: 8px;
+  padding: 12px 14px;
+  background: var(--paper-light);
+}
+.home-progress-top {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  color: var(--ink);
+  font-size: 14px;
+  margin-bottom: 8px;
+}
+.home-progress-top strong {
+  color: var(--ink-mute);
+}
+.home-progress-track {
+  height: 6px;
+  border-radius: 999px;
+  background: var(--rule-soft);
+  overflow: hidden;
+}
+.home-progress-track span {
+  display: block;
+  height: 100%;
+  background: var(--green);
+  border-radius: inherit;
 }
 .home-recommendations {
   display: grid;
@@ -8557,10 +9091,15 @@ const styles = `
   letter-spacing: 0.06em;
   text-transform: uppercase;
 }
+@media (max-width: 960px) {
+  .home-stats,
+  .home-daily-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
 @media (max-width: 700px) {
   .home-title { font-size: 48px; }
   .home-subtitle { font-size: 18px; }
-  .home-stats { grid-template-columns: 1fr; }
+  .home-stats,
+  .home-daily-grid { grid-template-columns: 1fr; }
 }
 
 .chapter-header { margin-bottom: 32px; }
@@ -8945,6 +9484,11 @@ const styles = `
   border-color: var(--green);
   color: var(--green);
 }
+.palabras-action-btn.active {
+  background: var(--ink);
+  border-color: var(--ink);
+  color: #ffffff;
+}
 .palabras-grid {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
@@ -8996,6 +9540,20 @@ const styles = `
   font-style: italic;
   overflow-wrap: anywhere;
 }
+.palabra-example {
+  border-top: 1px dotted var(--rule-soft);
+  padding-top: 8px;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  font-size: 13px;
+  color: var(--ink);
+  line-height: 1.35;
+}
+.palabra-example em {
+  color: var(--ink-mute);
+  font-size: 12px;
+}
 .palabra-card-actions {
   border-top: 1px solid var(--rule-soft);
   padding: 8px 10px;
@@ -9008,6 +9566,85 @@ const styles = `
   display: inline-flex;
   align-items: center;
   gap: 5px;
+}
+.palabra-review-actions {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 4px;
+  padding: 0 10px 8px;
+}
+.palabra-review-actions button {
+  border: 1px solid var(--rule-soft);
+  background: var(--paper-light);
+  color: var(--ink-soft);
+  border-radius: 5px;
+  font-size: 11px;
+  padding: 5px 2px;
+  cursor: pointer;
+  touch-action: manipulation;
+}
+.palabra-review-actions button:hover {
+  border-color: var(--green);
+  color: var(--green);
+}
+.palabra-review-state {
+  padding: 0 10px 9px;
+  font-size: 11px;
+  color: var(--ink-mute);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+.palabras-browser {
+  margin-top: 18px;
+  border: 1px solid var(--rule);
+  border-radius: 8px;
+  overflow: hidden;
+  background: var(--paper);
+}
+.palabras-browser-head {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 12px 14px;
+  border-bottom: 1px solid var(--rule);
+  background: var(--paper-light);
+  font-size: 13px;
+  color: var(--ink-mute);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+.palabras-browser-head strong {
+  color: var(--green);
+}
+.palabras-virtual-list {
+  overflow-y: auto;
+}
+.palabras-virtual-row {
+  display: grid;
+  grid-template-columns: 70px 1fr 1.4fr auto;
+  gap: 12px;
+  align-items: center;
+  padding: 10px 14px;
+  border-bottom: 1px solid var(--rule-soft);
+  font-size: 14px;
+}
+.palabras-virtual-row strong {
+  color: var(--green);
+  font-family: 'Cormorant Garamond', Georgia, serif;
+  font-size: 22px;
+  line-height: 1.1;
+}
+.palabras-virtual-row button {
+  border: 1px solid var(--rule);
+  background: transparent;
+  border-radius: 5px;
+  padding: 5px 8px;
+  cursor: pointer;
+  color: var(--ink-mute);
+}
+.palabras-virtual-row button:hover {
+  border-color: var(--green);
+  color: var(--green);
 }
 .palabras-empty {
   border: 1px dashed var(--rule);
@@ -9040,6 +9677,13 @@ const styles = `
   }
   .palabra-card {
     min-height: 150px;
+  }
+  .palabras-virtual-row {
+    grid-template-columns: 52px 1fr;
+  }
+  .palabras-virtual-row span:nth-child(3),
+  .palabras-virtual-row button {
+    grid-column: 2;
   }
 }
 
@@ -11326,6 +11970,126 @@ const styles = `
   background: var(--ink);
   color: #ffffff;
 }
+.memoria-tools {
+  display: grid;
+  grid-template-columns: 1fr minmax(160px, 220px) auto;
+  gap: 10px;
+  align-items: end;
+  margin: 10px 0 18px;
+}
+.memoria-tools label {
+  border: 1px solid var(--rule);
+  border-radius: 8px;
+  padding: 8px 10px;
+  background: var(--paper-light);
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+.memoria-tools label span {
+  font-size: 10px;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: var(--ink-mute);
+}
+.memoria-tools input,
+.memoria-tools select {
+  border: none;
+  outline: none;
+  background: transparent;
+  color: var(--ink);
+  min-width: 0;
+}
+.memoria-tool-btn,
+.memoria-review-actions button {
+  border: 1px solid var(--rule);
+  background: var(--paper);
+  color: var(--ink);
+  border-radius: 6px;
+  min-height: 38px;
+  padding: 8px 12px;
+  cursor: pointer;
+  touch-action: manipulation;
+}
+.memoria-tool-btn:hover,
+.memoria-review-actions button:hover {
+  border-color: var(--green);
+  color: var(--green);
+}
+.memoria-tags {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 4px;
+  margin-top: 8px;
+}
+.memoria-tags span {
+  font-size: 10px;
+  color: var(--ink-mute);
+  background: var(--paper-light);
+  border: 1px solid var(--rule-soft);
+  border-radius: 999px;
+  padding: 1px 7px;
+}
+.memoria-review {
+  margin: 18px 0 32px;
+}
+.memoria-review-card {
+  width: 100%;
+  min-height: 280px;
+  border: 1px solid var(--rule);
+  border-radius: 10px;
+  background: var(--paper);
+  color: var(--ink);
+  padding: 24px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 14px;
+  cursor: pointer;
+  text-align: center;
+  touch-action: manipulation;
+}
+.memoria-review-card.flipped {
+  background: var(--ink);
+  color: #ffffff;
+}
+.memoria-review-card strong {
+  font-family: 'Cormorant Garamond', Georgia, serif;
+  font-size: 48px;
+  line-height: 1.05;
+  overflow-wrap: anywhere;
+}
+.memoria-review-card em {
+  color: currentColor;
+  opacity: 0.68;
+}
+.memoria-review-count {
+  font-size: 12px;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: var(--ink-mute);
+}
+.memoria-review-card.flipped .memoria-review-count {
+  color: rgba(255,255,255,0.55);
+}
+.memoria-review-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
+  margin-top: 12px;
+}
+.memoria-review-actions input {
+  flex: 1;
+  min-width: 160px;
+  border: 1px solid var(--rule);
+  border-radius: 6px;
+  padding: 8px 10px;
+  background: var(--paper-light);
+  color: var(--ink);
+}
 
 /* Front-of-card translation preview */
 .memoria-front-translation {
@@ -11485,6 +12249,8 @@ const styles = `
   .memoria-list-en { font-size: 15px; }
   .memoria-list-actions { gap: 3px; }
   .memoria-list-sd, .memoria-list-remove { width: 30px; height: 30px; }
+  .memoria-tools { grid-template-columns: 1fr; }
+  .memoria-review-card strong { font-size: 36px; }
 }
 
 .memoria-grid {
