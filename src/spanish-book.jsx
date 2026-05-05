@@ -10952,16 +10952,22 @@ const styles = `
 .foldable-grammar {
   margin: 24px 0;
   border-top: 2px solid var(--green);
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
 }
 .gl-item {
-  border-bottom: 1px solid var(--rule);
+  border: 1px solid var(--rule);
+  border-radius: 6px;
+  background: rgba(255, 255, 255, 0.62);
+  overflow: hidden;
 }
 .gl-toggle {
   width: 100%;
   background: transparent;
   border: none;
   text-align: left;
-  padding: 18px 6px;
+  padding: 20px 16px;
   display: flex;
   align-items: center;
   gap: 14px;
@@ -10972,7 +10978,10 @@ const styles = `
 }
 .gl-toggle:hover { background: rgba(47, 93, 58, 0.04); }
 .gl-toggle:active { background: var(--green-tint); }
-.gl-item.open .gl-toggle { background: var(--green-tint); }
+.gl-item.open .gl-toggle {
+  background: var(--green-tint);
+  border-bottom: 1px solid var(--rule-soft);
+}
 .gl-num {
   font-family: 'Cormorant Garamond', serif;
   font-size: 15px;
@@ -11034,7 +11043,8 @@ const styles = `
   color: var(--green);
 }
 .gl-body {
-  padding: 6px 0 30px 4px;
+  padding: 22px 20px 30px;
+  background: linear-gradient(180deg, rgba(238, 247, 230, 0.28), rgba(255, 255, 255, 0));
   animation: fold-open 240ms ease-out;
 }
 .gl-intro {
@@ -11161,11 +11171,12 @@ const styles = `
 }
 
 @media (max-width: 700px) {
-  .gl-toggle { padding: 14px 4px; gap: 10px; }
+  .foldable-grammar { gap: 12px; }
+  .gl-toggle { padding: 16px 12px; gap: 10px; }
   .gl-num { font-size: 13px; min-width: 22px; }
   .gl-title { font-size: 19px; }
   .gl-subtitle { font-size: 13px; }
-  .gl-body { padding: 4px 0 22px 2px; }
+  .gl-body { padding: 18px 14px 24px; }
   .gl-intro { font-size: 16px; }
   .gl-heading { font-size: 18px; }
   .gl-text { font-size: 16px; }
