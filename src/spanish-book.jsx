@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { BookOpen, Menu, X, ChevronLeft, ChevronRight, ChevronDown, Bookmark, Languages, Quote, Lightbulb, NotebookPen, Sparkles, Volume2, RotateCcw, Check, Clock, Zap, BookText, Library, ListTree, MessageSquare, GraduationCap, Compass } from 'lucide-react';
+import { CANCIONES_SONGS } from './canciones.js';
 
 /* =============================================================
    SPANISH — A Personal Reading Book
@@ -4212,7 +4213,7 @@ const SECTIONS = [
   {
     id: 'lectura',
     label: 'Lectura',
-    sublabel: 'Diez cuentos plegables',
+    sublabel: 'Cuentos, poemas y canciones',
     chapters: [
       {
         id: 'stories',
@@ -4840,6 +4841,23 @@ const SECTIONS = [
           {
             type: 'takeaway',
             text: 'A poem is a question that refuses to answer itself. Read these again in a week and they will mean something different. That is not because the poem changed — it is because you did.',
+          },
+        ],
+      },
+      {
+        id: 'canciones',
+        level: 'A2-B1',
+        title: 'Canciones',
+        subtitle: 'Letras organizadas, traducidas y sin repeticiones',
+        intro: 'This songbook sits under Lectura after the poems. Each song from Canciones.docx is organized into clear learning sections, with repeated chorus ideas condensed so you study the meaning once and move on.',
+        blocks: [
+          {
+            type: 'foldable-songs',
+            songs: CANCIONES_SONGS,
+          },
+          {
+            type: 'takeaway',
+            text: 'Songs are memory machines. Read one section, listen to it, repeat the vocabulary, then close the English and try to explain the song in your own Spanish.',
           },
         ],
       },
@@ -5899,6 +5917,78 @@ function FoldablePoemsBlock({ poems }) {
   );
 }
 
+function FoldableSongsBlock({ songs }) {
+  const [openIndex, setOpenIndex] = useState(null);
+  function toggle(i) { setOpenIndex(prev => prev === i ? null : i); }
+
+  return (
+    <section className="block foldable-poems foldable-songs">
+      {songs.map((song, i) => {
+        const isOpen = openIndex === i;
+        const speakText = song.sections.map((section) => section.es).join('. ');
+        return (
+          <div key={song.title} className={`poem-item song-item ${isOpen ? 'open' : 'closed'}`}>
+            <button className="poem-toggle" onClick={() => toggle(i)} aria-expanded={isOpen}>
+              <div className="poem-toggle-inner">
+                <span className="poem-num">{String(i + 1).padStart(2, '0')}</span>
+                <div className="poem-toggle-text">
+                  <span className="poem-title-line">{song.title}</span>
+                  <span className="poem-attribution">{song.attribution}</span>
+                </div>
+              </div>
+              <div className="poem-toggle-right">
+                <span className="poem-level-tag">{song.level}</span>
+                <ChevronDown size={18} className={`poem-chevron ${isOpen ? 'open' : ''}`} />
+              </div>
+            </button>
+
+            {isOpen && (
+              <div className="poem-body song-body">
+                <p className="poem-intro-note">{song.note}</p>
+                <div className="poem-tools">
+                  <SpeakBtn text={speakText} size="md" />
+                  <span className="poem-speak-label">Escuchar secciones</span>
+                </div>
+                <div className="song-sections">
+                  {song.sections.map((section, si) => (
+                    <div key={section.label} className="song-section">
+                      <div className="song-section-label">{String(si + 1).padStart(2, '0')} · {section.label}</div>
+                      <div className="song-section-grid">
+                        <KaraokeText text={section.es} paragraphClass="song-lyric-es" />
+                        <p className="song-lyric-en">{section.en}</p>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+                {song.vocab && song.vocab.length > 0 && (
+                  <div className="poem-vocab-block song-vocab-block">
+                    <div className="poem-vocab-label">Vocabulario de la canción</div>
+                    <div className="poem-vocab-grid">
+                      {song.vocab.map((v, vi) => (
+                        <div key={vi} className="poem-vocab-row">
+                          <span className="poem-vocab-es">{v.es}</span>
+                          <span className="poem-vocab-dash">—</span>
+                          <span className="poem-vocab-en">{v.en}</span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+                {song.learningNote && (
+                  <aside className="poem-learning-note">
+                    <div className="poem-learning-label"><Lightbulb size={14} /> Nota de canción</div>
+                    <p>{song.learningNote}</p>
+                  </aside>
+                )}
+              </div>
+            )}
+          </div>
+        );
+      })}
+    </section>
+  );
+}
+
 function FoldableBiosBlock({ bios }) {
   const [openIndex, setOpenIndex] = useState(null);
   function toggle(i) { setOpenIndex(prev => prev === i ? null : i); }
@@ -6661,6 +6751,8 @@ function ChapterContent({ chapter, sectionId, onSaveWord, palabrasProgress, onPa
             );
           case 'foldable-poems':
             return <FoldablePoemsBlock key={i} poems={block.poems} />;
+          case 'foldable-songs':
+            return <FoldableSongsBlock key={i} songs={block.songs} />;
           case 'foldable-bios':
             return <FoldableBiosBlock key={i} bios={block.bios} />;
           case 'foldable-grammar':
@@ -10593,6 +10685,61 @@ const styles = `
   font-style: italic;
 }
 
+.foldable-songs {
+  border-top-color: var(--green);
+}
+.song-body {
+  background: linear-gradient(180deg, rgba(238, 247, 230, 0.36), rgba(255, 255, 255, 0));
+}
+.song-sections {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+.song-section {
+  border: 1px solid var(--rule-soft);
+  border-radius: 6px;
+  background: rgba(255, 255, 255, 0.64);
+  padding: 16px;
+}
+.song-section-label {
+  font-family: 'Cormorant Garamond', serif;
+  font-size: 12px;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+  color: var(--green);
+  font-weight: 700;
+  margin-bottom: 12px;
+}
+.song-section-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 22px;
+  align-items: start;
+}
+.song-lyric-es,
+.song-lyric-en {
+  margin: 0;
+  white-space: pre-line;
+}
+.song-lyric-es {
+  font-family: 'Literata', Georgia, serif;
+  font-size: 18px;
+  line-height: 1.7;
+  color: var(--ink);
+  font-weight: 600;
+}
+.song-lyric-en {
+  font-family: 'Literata', Georgia, serif;
+  font-size: 16px;
+  line-height: 1.7;
+  color: var(--ink-mute);
+  font-style: italic;
+}
+.song-vocab-block {
+  background: rgba(238, 247, 230, 0.48);
+}
+
 @media (max-width: 700px) {
   .poem-toggle { padding: 18px 12px; }
   .poem-title-line { font-size: 24px; }
@@ -10611,6 +10758,11 @@ const styles = `
   .poem-stanza-en { font-size: 16px; }
   .poem-vocab-grid { grid-template-columns: 1fr; }
   .poem-learning-note p { font-size: 15px; }
+  .song-section-grid { grid-template-columns: 1fr; }
+  .song-lyric-en {
+    padding-top: 10px;
+    border-top: 1px dotted var(--rule-soft);
+  }
 }
 
 .foldable-bios {
