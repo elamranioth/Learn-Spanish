@@ -9,6 +9,7 @@ import { CANCIONES_SONGS } from './canciones.js';
    ============================================================= */
 
 const LEVELS = ['A1', 'A2', 'B1', 'B2'];
+const LESSON_STATUS_KEY = 'lesson-status-v1';
 
 // Icon for each section — used in sidebar nav and chapter headers
 const SECTION_ICONS = {
@@ -5423,7 +5424,7 @@ function KaraokeText({ text, paragraphClass = 'reading-paragraph', firstParagrap
   const tokens = useMemo(() => {
     const result = [];
     let charPos = 0;
-    const regex = /([a-zA-ZáéíóúñüÁÉÍÓÚÑÜ]+)|([^a-zA-ZáéíóúñüÁÉÍÓÚÑÜ]+)/g;
+    const regex = /([0-9a-zA-ZáéíóúñüÁÉÍÓÚÑÜ]+)|([^0-9a-zA-ZáéíóúñüÁÉÍÓÚÑÜ]+)/g;
     let m;
     while ((m = regex.exec(text)) !== null) {
       const isWord = !!m[1];
@@ -5452,9 +5453,19 @@ function KaraokeText({ text, paragraphClass = 'reading-paragraph', firstParagrap
 
     for (let i = 0; i < tokens.length; i++) {
       const tok = tokens[i];
+      if (!tok.isWord && curWords.length === 0 && /^\s+$/.test(tok.text)) {
+        continue;
+      }
+      const localStart = curSpoken.length;
       curSpoken += tok.text;
       if (tok.isWord) {
-        curWords.push({ tokenIdx: i, text: tok.text, commaAfter: false });
+        curWords.push({
+          tokenIdx: i,
+          text: tok.text,
+          charStart: localStart,
+          charEnd: localStart + tok.text.length,
+          commaAfter: false,
+        });
         lastWordIdx = curWords.length - 1;
       } else {
         // Mark trailing comma on the previous word (for pause estimation)
@@ -5532,10 +5543,6 @@ function KaraokeText({ text, paragraphClass = 'reading-paragraph', firstParagrap
         return;
       }
 
-      // Pre-highlight first word so the user has instant visual feedback
-      // even before the audio engine actually starts producing sound
-      setActiveWordIdx(sentence.words[0].tokenIdx);
-
       const utt = new SpeechSynthesisUtterance(sentence.spokenText);
       const v = getSpanishVoice();
       if (v) utt.voice = v;
@@ -5545,18 +5552,35 @@ function KaraokeText({ text, paragraphClass = 'reading-paragraph', firstParagrap
 
       let onstartFired = false;
       let onendHandled = false;
+      let boundarySeen = false;
+      let fallbackScheduled = false;
       let utteranceStartTime = 0;
       // Constants used in BOTH scheduling and calibration — they must match
       const INTER_WORD_MS = 30;
       const COMMA_PAUSE_MS = 200;
 
-      function scheduleHighlights() {
+      function findBoundaryWord(charIndex) {
+        const pos = Math.max(0, Number(charIndex) || 0);
+        let match = sentence.words[0];
+        for (const word of sentence.words) {
+          if (word.charStart <= pos + 1) {
+            match = word;
+          } else {
+            break;
+          }
+        }
+        return match;
+      }
+
+      function scheduleEstimatedHighlights() {
+        if (fallbackScheduled || boundarySeen || stopRef.current) return;
+        fallbackScheduled = true;
         let elapsed = 0;
         for (let wi = 0; wi < sentence.words.length; wi++) {
           const word = sentence.words[wi];
           const myDelay = elapsed;
           const t = setTimeout(() => {
-            if (!stopRef.current) setActiveWordIdx(word.tokenIdx);
+            if (!stopRef.current && !boundarySeen) setActiveWordIdx(word.tokenIdx);
           }, myDelay);
           timersRef.current.push(t);
           elapsed += word.text.length * msPerCharRef.current + INTER_WORD_MS;
@@ -5568,15 +5592,24 @@ function KaraokeText({ text, paragraphClass = 'reading-paragraph', firstParagrap
         if (onstartFired) return;
         onstartFired = true;
         utteranceStartTime = performance.now();
-        scheduleHighlights();
+        const fallback = setTimeout(scheduleEstimatedHighlights, 350);
+        timersRef.current.push(fallback);
       };
 
-      // Fallback: if onstart never fires (some engines skip it), kick off after 500 ms
+      utt.onboundary = (event) => {
+        if (stopRef.current || typeof event.charIndex !== 'number') return;
+        const word = findBoundaryWord(event.charIndex);
+        if (!word) return;
+        boundarySeen = true;
+        setActiveWordIdx(word.tokenIdx);
+      };
+
+      // Fallback: if onstart never fires (some engines skip it), estimate after 500 ms.
       const onstartFallback = setTimeout(() => {
         if (!onstartFired && !stopRef.current) {
           onstartFired = true;
           utteranceStartTime = performance.now();
-          scheduleHighlights();
+          scheduleEstimatedHighlights();
         }
       }, 500);
       timersRef.current.push(onstartFallback);
@@ -6671,7 +6704,34 @@ function PalabrasLab({ onSaveWord, progress = {}, onProgressChange }) {
 // =============================================================
 // CHAPTER RENDERER - book-style content blocks
 // =============================================================
-function ChapterContent({ chapter, sectionId, onSaveWord, palabrasProgress, onPalabrasProgressChange }) {
+function LessonStatusControl({ status, onChange }) {
+  const isRead = status === 'read' || status === 'understood';
+  const isUnderstood = status === 'understood';
+
+  function markRead() {
+    onChange?.(status === 'read' ? null : 'read');
+  }
+
+  function markUnderstood() {
+    onChange?.(status === 'understood' ? 'read' : 'understood');
+  }
+
+  return (
+    <div className="lesson-status-control" aria-label="Lesson status">
+      <span className="lesson-status-label">Estado</span>
+      <button className={`lesson-status-btn ${isRead ? 'active' : ''}`} onClick={markRead}>
+        <BookOpen size={14} />
+        Leído
+      </button>
+      <button className={`lesson-status-btn understood ${isUnderstood ? 'active' : ''}`} onClick={markUnderstood}>
+        <Check size={14} />
+        Entendido
+      </button>
+    </div>
+  );
+}
+
+function ChapterContent({ chapter, sectionId, onSaveWord, palabrasProgress, onPalabrasProgressChange, lessonStatus, onLessonStatusChange }) {
   return (
     <article className="chapter-body">
       <header className="chapter-header">
@@ -6687,6 +6747,7 @@ function ChapterContent({ chapter, sectionId, onSaveWord, palabrasProgress, onPa
         </div>
         <h1 className="chapter-title">{chapter.title}</h1>
         {chapter.subtitle && <p className="chapter-subtitle">{chapter.subtitle}</p>}
+        <LessonStatusControl status={lessonStatus} onChange={onLessonStatusChange} />
         <div className="chapter-rule" />
       </header>
 
@@ -7370,151 +7431,6 @@ function DictionaryPopup({ savedWords, onSave, onRemove }) {
 // =============================================================
 // MEMORIA VIEW — saved words flashcard panel
 // =============================================================
-// =============================================================
-// AUDIO DEBUG PANEL — temporary diagnostic for mobile audio issues
-// Tap the small badge to run a full check and see what's failing
-// =============================================================
-function AudioDebugPanel() {
-  const [open, setOpen] = useState(false);
-  const [report, setReport] = useState(null);
-  const [testing, setTesting] = useState(false);
-
-  function runDiagnostic() {
-    const lines = [];
-
-    // Check 1: speechSynthesis exists
-    const hasAPI = typeof window !== 'undefined' && !!window.speechSynthesis;
-    lines.push(`[1] window.speechSynthesis: ${hasAPI ? 'YES ✓' : 'NO ✗'}`);
-
-    if (!hasAPI) {
-      setReport(lines.join('\n'));
-      return;
-    }
-
-    // Check 2: voices loaded
-    const voices = window.speechSynthesis.getVoices() || [];
-    lines.push(`[2] Voices loaded: ${voices.length}`);
-
-    // Check 3: list Spanish voices
-    const spanish = voices.filter(v => v.lang && v.lang.toLowerCase().startsWith('es'));
-    lines.push(`[3] Spanish voices: ${spanish.length}`);
-    spanish.slice(0, 5).forEach(v => {
-      lines.push(`    • ${v.name} (${v.lang})${v.default ? ' [default]' : ''}${v.localService ? ' [local]' : ' [remote]'}`);
-    });
-    if (spanish.length === 0 && voices.length > 0) {
-      lines.push(`    First 3 available voices:`);
-      voices.slice(0, 3).forEach(v => lines.push(`    • ${v.name} (${v.lang})`));
-    }
-
-    // Check 4: sample picked voice
-    const picked = getSpanishVoice();
-    lines.push(`[4] Selected voice: ${picked ? picked.name + ' (' + picked.lang + ')' : 'NONE'}`);
-
-    // Check 5: speak a test phrase
-    setTesting(true);
-    lines.push(`[5] Speaking test phrase…`);
-    setReport(lines.join('\n'));
-
-    try {
-      window.speechSynthesis.cancel();
-      const utt = new SpeechSynthesisUtterance('Hola, esto es una prueba.');
-      if (picked) utt.voice = picked;
-      utt.lang = picked?.lang || 'es-ES';
-      utt.rate = 0.9;
-      utt.volume = 1;
-      let started = false;
-      let ended = false;
-
-      utt.onstart = () => {
-        started = true;
-        setReport(lines.join('\n') + '\n[6] onstart fired ✓ (audio should be playing now)');
-      };
-      utt.onend = () => {
-        ended = true;
-        setTesting(false);
-        setReport(lines.join('\n') + '\n[6] onstart: ' + (started ? 'YES ✓' : 'NO ✗') + '\n[7] onend: YES ✓\nDONE — if you heard nothing, your device has no audio output for this voice.');
-      };
-      utt.onerror = (e) => {
-        setTesting(false);
-        setReport(lines.join('\n') + '\n[ERROR] ' + (e.error || 'unknown') + '\nonstart fired: ' + started);
-      };
-
-      window.speechSynthesis.speak(utt);
-
-      // Safety: if neither onstart nor onend fires within 5s, report it
-      setTimeout(() => {
-        if (!started && !ended) {
-          setTesting(false);
-          setReport(lines.join('\n') + '\n[6] onstart: NO ✗ (5s elapsed, no events fired)\nThe browser accepted the speak() call but produced no events. This usually means the audio engine is blocked or muted at the OS level.');
-        }
-      }, 5000);
-    } catch (e) {
-      setTesting(false);
-      setReport(lines.join('\n') + '\n[EXCEPTION] ' + e.message);
-    }
-  }
-
-  if (!open) {
-    return (
-      <button
-        onClick={() => setOpen(true)}
-        style={{
-          position: 'fixed', bottom: 16, right: 16, zIndex: 99999,
-          background: '#1c1c1a', color: '#fff', border: 'none',
-          borderRadius: 999, padding: '8px 14px', fontSize: 12,
-          fontFamily: 'monospace', cursor: 'pointer',
-          boxShadow: '0 4px 12px rgba(0,0,0,0.25)',
-        }}
-      >
-        🔧 Audio
-      </button>
-    );
-  }
-
-  return (
-    <div
-      style={{
-        position: 'fixed', bottom: 16, right: 16, zIndex: 99999,
-        width: 'min(360px, calc(100vw - 32px))',
-        background: '#1c1c1a', color: '#fff',
-        borderRadius: 12, padding: 16,
-        boxShadow: '0 8px 32px rgba(0,0,0,0.4)',
-        fontFamily: 'monospace', fontSize: 12,
-      }}
-    >
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
-        <strong>Audio diagnostic</strong>
-        <button
-          onClick={() => { setOpen(false); setReport(null); }}
-          style={{ background: 'transparent', color: '#fff', border: 'none', fontSize: 18, cursor: 'pointer' }}
-        >×</button>
-      </div>
-      <button
-        onClick={runDiagnostic}
-        disabled={testing}
-        style={{
-          width: '100%', padding: 10, marginBottom: 12,
-          background: testing ? '#444' : '#2f5d3a', color: '#fff',
-          border: 'none', borderRadius: 6, fontSize: 13,
-          fontFamily: 'inherit', cursor: testing ? 'wait' : 'pointer',
-        }}
-      >
-        {testing ? 'Testing…' : 'Run test'}
-      </button>
-      {report && (
-        <pre
-          style={{
-            margin: 0, whiteSpace: 'pre-wrap', wordBreak: 'break-word',
-            background: '#000', padding: 12, borderRadius: 6,
-            maxHeight: '50vh', overflowY: 'auto',
-            fontSize: 11, lineHeight: 1.5,
-          }}
-        >{report}</pre>
-      )}
-    </div>
-  );
-}
-
 function getMemoriaTags(entry) {
   const tags = new Set(entry.tags || []);
   if (entry.pending) tags.add('pending');
@@ -7976,6 +7892,7 @@ export default function SpanishBook() {
   const [savedWords, setSavedWords] = useState([]);
   const [visitedChapters, setVisitedChapters] = useState([]);
   const [palabrasProgress, setPalabrasProgress] = useState({});
+  const [lessonStatuses, setLessonStatuses] = useState({});
 
   useEffect(() => {
     // Load saved words, font scale, and last-read position on mount
@@ -8009,6 +7926,10 @@ export default function SpanishBook() {
         const progress = await window.storage.get(PALABRAS_PROGRESS_KEY);
         if (progress?.value) setPalabrasProgress(JSON.parse(progress.value));
       } catch (_) {}
+      try {
+        const statuses = await window.storage.get(LESSON_STATUS_KEY);
+        if (statuses?.value) setLessonStatuses(JSON.parse(statuses.value));
+      } catch (_) {}
     })();
   }, []);
 
@@ -8033,9 +7954,26 @@ export default function SpanishBook() {
     try { await window.storage.set(PALABRAS_PROGRESS_KEY, JSON.stringify(progress)); } catch (_) {}
   }
 
+  async function persistLessonStatuses(statuses) {
+    try { await window.storage.set(LESSON_STATUS_KEY, JSON.stringify(statuses)); } catch (_) {}
+  }
+
   function handlePalabrasProgressChange(next) {
     setPalabrasProgress(next);
     persistPalabrasProgress(next);
+  }
+
+  function handleLessonStatusChange(chapterId, status) {
+    setLessonStatuses(prev => {
+      const next = { ...prev };
+      if (status) {
+        next[chapterId] = status;
+      } else {
+        delete next[chapterId];
+      }
+      persistLessonStatuses(next);
+      return next;
+    });
   }
 
   // Background-translate a word and update the saved entry with the result.
@@ -8231,7 +8169,6 @@ export default function SpanishBook() {
 
   return (
     <div className="book-root">
-      <AudioDebugPanel />
       <DictionaryPopup savedWords={savedWords} onSave={handleSaveWord} onRemove={handleRemoveWord} />
       <style>{styles}</style>
 
@@ -8335,17 +8272,25 @@ export default function SpanishBook() {
                     </button>
                     {isExpanded && visibleChapters.length > 0 && (
                       <ul className="chapter-list">
-                        {visibleChapters.map((c) => (
-                          <li key={c.id}>
-                            <button
-                              className={`chapter-btn ${activeChapterId === c.id && !showMemoria && !showHome ? 'active' : ''}`}
-                              onClick={() => { setShowMemoria(false); selectChapter({ ...c, sectionId: s.id }); }}
-                            >
-                              <span className="chapter-btn-level">{c.level}</span>
-                              <span className="chapter-btn-title">{c.title}</span>
-                            </button>
-                          </li>
-                        ))}
+                        {visibleChapters.map((c) => {
+                          const status = lessonStatuses[c.id];
+                          return (
+                            <li key={c.id}>
+                              <button
+                                className={`chapter-btn ${activeChapterId === c.id && !showMemoria && !showHome ? 'active' : ''}`}
+                                onClick={() => { setShowMemoria(false); selectChapter({ ...c, sectionId: s.id }); }}
+                              >
+                                <span className="chapter-btn-level">{c.level}</span>
+                                <span className="chapter-btn-title">{c.title}</span>
+                                {status && (
+                                  <span className={`chapter-btn-status ${status}`}>
+                                    {status === 'understood' ? 'Entendido' : 'Leído'}
+                                  </span>
+                                )}
+                              </button>
+                            </li>
+                          );
+                        })}
                       </ul>
                     )}
                   </div>
@@ -8412,6 +8357,8 @@ export default function SpanishBook() {
                 onSaveWord={handleSaveWord}
                 palabrasProgress={palabrasProgress}
                 onPalabrasProgressChange={handlePalabrasProgressChange}
+                lessonStatus={lessonStatuses[activeChapter.id]}
+                onLessonStatusChange={(status) => handleLessonStatusChange(activeChapter.id, status)}
               />
             ) : (
               <div className="empty">
@@ -8963,6 +8910,28 @@ const styles = `
   font-size: 17px;
   transition: color 120ms ease, background 120ms ease;
 }
+.chapter-btn-title {
+  flex: 1;
+  min-width: 0;
+}
+.chapter-btn-status {
+  margin-left: auto;
+  border: 1px solid var(--rule);
+  border-radius: 999px;
+  padding: 2px 7px;
+  font-family: 'Cormorant Garamond', serif;
+  font-size: 10px;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--ink-mute);
+  background: var(--paper-light);
+  flex-shrink: 0;
+}
+.chapter-btn-status.understood {
+  color: var(--green);
+  border-color: rgba(47, 93, 58, 0.28);
+  background: var(--green-tint);
+}
 .chapter-btn:hover { background: rgba(177, 80, 42, 0.06); color: var(--ink); }
 .chapter-btn.active {
   color: var(--sienna-deep);
@@ -9253,6 +9222,7 @@ const styles = `
   .home-subtitle { font-size: 18px; }
   .home-stats,
   .home-daily-grid { grid-template-columns: 1fr; }
+  .chapter-btn-status { display: none; }
 }
 
 .chapter-header { margin-bottom: 32px; }
@@ -9297,6 +9267,70 @@ const styles = `
   color: var(--ink-mute);
   font-size: 18px;
   margin: 0;
+}
+.lesson-status-control {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 18px;
+  padding: 8px;
+  border: 1px solid var(--rule-soft);
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.7);
+}
+.lesson-status-label {
+  padding: 0 6px 0 4px;
+  font-family: 'Cormorant Garamond', serif;
+  font-size: 11px;
+  letter-spacing: 0.22em;
+  text-transform: uppercase;
+  color: var(--ink-mute);
+  font-weight: 700;
+}
+.lesson-status-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  border: 1px solid var(--rule);
+  border-radius: 999px;
+  background: var(--paper-light);
+  color: var(--ink-mute);
+  font-family: 'Literata', Georgia, serif;
+  font-size: 13px;
+  font-weight: 700;
+  padding: 7px 12px;
+  cursor: pointer;
+  transition: color 140ms ease, border-color 140ms ease, background 140ms ease, transform 140ms ease;
+}
+.lesson-status-btn:hover {
+  color: var(--green);
+  border-color: var(--green);
+  background: var(--green-tint);
+}
+.lesson-status-btn:active {
+  transform: scale(0.97);
+}
+.lesson-status-btn.active {
+  color: var(--green);
+  border-color: rgba(47, 93, 58, 0.36);
+  background: var(--green-tint);
+}
+.lesson-status-btn.understood.active {
+  color: #ffffff;
+  border-color: var(--green);
+  background: var(--green);
+}
+@media (max-width: 700px) {
+  .lesson-status-control {
+    width: 100%;
+    justify-content: space-between;
+    border-radius: 12px;
+  }
+  .lesson-status-label { display: none; }
+  .lesson-status-btn {
+    flex: 1;
+    justify-content: center;
+  }
 }
 .chapter-rule {
   margin-top: 22px;
