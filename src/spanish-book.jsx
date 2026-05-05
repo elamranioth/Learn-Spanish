@@ -6078,7 +6078,11 @@ function FoldableBiosBlock({ bios }) {
   );
 }
 
-function FoldableGrammarBlock({ lessons }) {
+function getNestedLessonKey(chapterId, type, index, title) {
+  return `${chapterId || 'chapter'}::${type}::${index}::${title}`;
+}
+
+function FoldableGrammarBlock({ lessons, chapterId, lessonStatuses = {}, onLessonStatusChange }) {
   const [openIndex, setOpenIndex] = useState(null);
   function toggle(i) {
     setOpenIndex((prev) => (prev === i ? null : i));
@@ -6087,6 +6091,7 @@ function FoldableGrammarBlock({ lessons }) {
     <section className="block foldable-grammar">
       {lessons.map((lesson, i) => {
         const isOpen = openIndex === i;
+        const statusKey = getNestedLessonKey(chapterId, 'grammar', i, lesson.title);
         return (
           <div key={i} className={`gl-item ${isOpen ? 'open' : 'closed'}`}>
             <button
@@ -6101,10 +6106,19 @@ function FoldableGrammarBlock({ lessons }) {
                 <span className="gl-title">{lesson.title}</span>
                 <span className="gl-subtitle">{lesson.subtitle}</span>
               </div>
+              {lessonStatuses[statusKey] && (
+                <span className={`gl-status-pill ${lessonStatuses[statusKey]}`}>
+                  {lessonStatuses[statusKey] === 'understood' ? 'Entendido' : 'Leído'}
+                </span>
+              )}
               <ChevronDown size={18} className={`gl-chevron ${isOpen ? 'open' : ''}`} />
             </button>
             {isOpen && (
               <div className="gl-body">
+                <LessonStatusControl
+                  status={lessonStatuses[statusKey]}
+                  onChange={(status) => onLessonStatusChange?.(statusKey, status)}
+                />
                 {lesson.intro && <p className="gl-intro">{lesson.intro}</p>}
                 {lesson.sections.map((s, si) => (
                   <GrammarSection key={si} s={s} />
@@ -6122,7 +6136,7 @@ function FoldableGrammarBlock({ lessons }) {
 // FOLDABLE STORIES — list of collapsible reading texts
 // Each story title is a button. Click to expand/collapse the body.
 // =============================================================
-function FoldableStoriesBlock({ stories }) {
+function FoldableStoriesBlock({ stories, chapterId, lessonStatuses = {}, onLessonStatusChange }) {
   const [openIndex, setOpenIndex] = useState(null);
   function toggle(i) {
     setOpenIndex((prev) => (prev === i ? null : i));
@@ -6131,27 +6145,49 @@ function FoldableStoriesBlock({ stories }) {
     <section className="block foldable-stories">
       {stories.map((s, i) => {
         const isOpen = openIndex === i;
+        const statusKey = getNestedLessonKey(chapterId, 'story', i, s.title);
         return (
-          <div key={i} className={`fold-item ${isOpen ? 'open' : 'closed'}`}>
+          <div key={i} className={`story-item ${isOpen ? 'open' : 'closed'}`}>
             <button
-              className="fold-toggle"
+              className="bio-toggle story-toggle"
               onClick={() => toggle(i)}
               aria-expanded={isOpen}
             >
-              <span className="fold-num">{String(i + 1).padStart(2, '0')}</span>
-              <span className="fold-level">{s.level}</span>
-              <span className="fold-title">{s.title}</span>
-              <ChevronDown size={18} className={`fold-chevron ${isOpen ? 'open' : ''}`} />
+              <div className="bio-toggle-left">
+                <span className="bio-num">{String(i + 1).padStart(2, '0')}</span>
+                <div className="bio-toggle-text">
+                  <span className="bio-name">{s.title}</span>
+                  <span className="bio-subtitle-line">{s.paragraphs.length} párrafos · lectura con audio</span>
+                </div>
+              </div>
+              <div className="bio-toggle-right">
+                <div className="bio-level-pills">
+                  <BioBadge level={s.level} />
+                  {lessonStatuses[statusKey] && (
+                    <span className={`story-status-pill ${lessonStatuses[statusKey]}`}>
+                      {lessonStatuses[statusKey] === 'understood' ? 'Entendido' : 'Leído'}
+                    </span>
+                  )}
+                </div>
+                <ChevronDown size={18} className={`bio-chevron ${isOpen ? 'open' : ''}`} />
+              </div>
             </button>
             {isOpen && (
-              <div className="fold-body">
-                <div className="story-tools">
-                  <SpeakBtn text={s.paragraphs.join(' ')} size="md" className="story-speak-all" />
-                  <span className="story-speak-label">Escuchar el cuento</span>
+              <div className="bio-body story-body">
+                <div className="bio-section story-section">
+                  <div className="bio-section-header">
+                    <BioBadge level={s.level} />
+                    <h3 className="bio-section-title">{s.title}</h3>
+                    <SpeakBtn text={s.paragraphs.join(' ')} size="md" className="bio-section-speak" />
+                  </div>
+                  <LessonStatusControl
+                    status={lessonStatuses[statusKey]}
+                    onChange={(status) => onLessonStatusChange?.(statusKey, status)}
+                  />
+                  {s.paragraphs.map((p, pi) => (
+                    <KaraokeText key={pi} text={p} paragraphClass="bio-paragraph story-paragraph" />
+                  ))}
                 </div>
-                {s.paragraphs.map((p, pi) => (
-                  <KaraokeText key={pi} text={p} paragraphClass="reading-paragraph" />
-                ))}
               </div>
             )}
           </div>
@@ -6731,7 +6767,8 @@ function LessonStatusControl({ status, onChange }) {
   );
 }
 
-function ChapterContent({ chapter, sectionId, onSaveWord, palabrasProgress, onPalabrasProgressChange, lessonStatus, onLessonStatusChange }) {
+function ChapterContent({ chapter, sectionId, onSaveWord, palabrasProgress, onPalabrasProgressChange, lessonStatuses = {}, onLessonStatusChange }) {
+  const hasNestedLessonStatus = chapter.blocks.some((block) => block.type === 'foldable-grammar' || block.type === 'foldable-stories');
   return (
     <article className="chapter-body">
       <header className="chapter-header">
@@ -6747,7 +6784,12 @@ function ChapterContent({ chapter, sectionId, onSaveWord, palabrasProgress, onPa
         </div>
         <h1 className="chapter-title">{chapter.title}</h1>
         {chapter.subtitle && <p className="chapter-subtitle">{chapter.subtitle}</p>}
-        <LessonStatusControl status={lessonStatus} onChange={onLessonStatusChange} />
+        {!hasNestedLessonStatus && (
+          <LessonStatusControl
+            status={lessonStatuses[chapter.id]}
+            onChange={(status) => onLessonStatusChange?.(chapter.id, status)}
+          />
+        )}
         <div className="chapter-rule" />
       </header>
 
@@ -6817,9 +6859,25 @@ function ChapterContent({ chapter, sectionId, onSaveWord, palabrasProgress, onPa
           case 'foldable-bios':
             return <FoldableBiosBlock key={i} bios={block.bios} />;
           case 'foldable-grammar':
-            return <FoldableGrammarBlock key={i} lessons={block.lessons} />;
+            return (
+              <FoldableGrammarBlock
+                key={i}
+                lessons={block.lessons}
+                chapterId={chapter.id}
+                lessonStatuses={lessonStatuses}
+                onLessonStatusChange={onLessonStatusChange}
+              />
+            );
           case 'foldable-stories':
-            return <FoldableStoriesBlock key={i} stories={block.stories} />;
+            return (
+              <FoldableStoriesBlock
+                key={i}
+                stories={block.stories}
+                chapterId={chapter.id}
+                lessonStatuses={lessonStatuses}
+                onLessonStatusChange={onLessonStatusChange}
+              />
+            );
           case 'glossary':
             return (
               <section key={i} className="block">
@@ -8273,7 +8331,8 @@ export default function SpanishBook() {
                     {isExpanded && visibleChapters.length > 0 && (
                       <ul className="chapter-list">
                         {visibleChapters.map((c) => {
-                          const status = lessonStatuses[c.id];
+                          const hasNestedStatus = c.blocks?.some((block) => block.type === 'foldable-grammar' || block.type === 'foldable-stories');
+                          const status = hasNestedStatus ? null : lessonStatuses[c.id];
                           return (
                             <li key={c.id}>
                               <button
@@ -8357,8 +8416,8 @@ export default function SpanishBook() {
                 onSaveWord={handleSaveWord}
                 palabrasProgress={palabrasProgress}
                 onPalabrasProgressChange={handlePalabrasProgressChange}
-                lessonStatus={lessonStatuses[activeChapter.id]}
-                onLessonStatusChange={(status) => handleLessonStatusChange(activeChapter.id, status)}
+                lessonStatuses={lessonStatuses}
+                onLessonStatusChange={handleLessonStatusChange}
               />
             ) : (
               <div className="empty">
@@ -11057,6 +11116,25 @@ const styles = `
   line-height: 1.15;
 }
 .gl-item.open .gl-title { color: var(--green); }
+.gl-status-pill,
+.story-status-pill {
+  border: 1px solid var(--rule);
+  border-radius: 999px;
+  padding: 3px 8px;
+  font-family: 'Cormorant Garamond', serif;
+  font-size: 10px;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--ink-mute);
+  background: var(--paper-light);
+  flex-shrink: 0;
+}
+.gl-status-pill.understood,
+.story-status-pill.understood {
+  color: var(--green);
+  border-color: rgba(47, 93, 58, 0.28);
+  background: var(--green-tint);
+}
 .gl-subtitle {
   font-family: 'Literata', Georgia, serif;
   font-size: 14px;
@@ -11080,6 +11158,9 @@ const styles = `
   padding: 22px 20px 30px;
   background: linear-gradient(180deg, rgba(238, 247, 230, 0.28), rgba(255, 255, 255, 0));
   animation: fold-open 240ms ease-out;
+}
+.gl-body .lesson-status-control {
+  margin: 0 0 22px;
 }
 .gl-intro {
   font-family: 'Literata', Georgia, serif;
@@ -11210,6 +11291,7 @@ const styles = `
   .gl-num { font-size: 13px; min-width: 22px; }
   .gl-title { font-size: 19px; }
   .gl-subtitle { font-size: 13px; }
+  .gl-status-pill { display: none; }
   .gl-body { padding: 18px 14px 24px; }
   .gl-intro { font-size: 16px; }
   .gl-heading { font-size: 18px; }
@@ -11223,8 +11305,36 @@ const styles = `
 /* ===== Grammar Lesson Sections ===== */
 /* ===== Foldable Stories (Lectura section) ===== */
 .foldable-stories {
-  margin: 28px 0;
+  margin: 24px 0;
   border-top: 2px solid var(--ink);
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+.story-item {
+  border: 1px solid var(--rule);
+  border-radius: 4px;
+  background: rgba(255, 255, 255, 0.62);
+  overflow: hidden;
+  break-inside: avoid;
+}
+.story-item.open .story-toggle {
+  background: var(--paper-light);
+  border-bottom: 1px solid var(--rule-soft);
+}
+.story-body {
+  padding: 0 4px 28px;
+  animation: fold-open 240ms ease-out;
+}
+.story-section {
+  padding: 28px 0 0;
+  border-bottom: none;
+}
+.story-section .lesson-status-control {
+  margin: 0 0 22px;
+}
+.story-paragraph:first-of-type {
+  margin-top: 0;
 }
 .fold-item {
   border-bottom: 1px solid var(--rule);
@@ -11319,6 +11429,9 @@ const styles = `
 }
 
 @media (max-width: 700px) {
+  .story-toggle { padding: 16px 4px; gap: 10px; }
+  .story-status-pill { display: none; }
+  .story-body { padding: 0 2px 22px; }
   .fold-toggle { padding: 16px 4px 16px 2px; gap: 10px; }
   .fold-num { font-size: 13px; min-width: 22px; }
   .fold-level { font-size: 11px; min-width: 24px; }
