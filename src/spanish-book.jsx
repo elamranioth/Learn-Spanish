@@ -4846,102 +4846,6 @@ const SECTIONS = [
     ],
   },
   {
-    id: 'vocabulario',
-    label: 'Vocabulario',
-    sublabel: 'Palabras por tema',
-    chapters: [
-      {
-        id: 'voc1',
-        level: 'A2',
-        title: 'Trabajo y Profesiones',
-        subtitle: 'The working day',
-        intro: 'A core vocabulary for the office, the courtroom, and the daily working life. Practical terms first, abstract ones later.',
-        blocks: [
-          {
-            type: 'vocab',
-            columns: [
-              { es: 'el trabajo', en: 'work, job' },
-              { es: 'la oficina', en: 'office' },
-              { es: 'el despacho', en: 'private office, study' },
-              { es: 'la reunión', en: 'meeting' },
-              { es: 'el cliente', en: 'client' },
-              { es: 'el contrato', en: 'contract' },
-              { es: 'el abogado', en: 'lawyer' },
-              { es: 'el juez', en: 'judge' },
-              { es: 'el tribunal', en: 'court' },
-              { es: 'la demanda', en: 'lawsuit, claim' },
-              { es: 'el sueldo', en: 'salary' },
-              { es: 'el horario', en: 'schedule' },
-              { es: 'el jefe', en: 'boss' },
-              { es: 'el empleado', en: 'employee' },
-              { es: 'la empresa', en: 'company' },
-              { es: 'el negocio', en: 'business' },
-              { es: 'el plazo', en: 'deadline, term' },
-              { es: 'la firma', en: 'signature' },
-            ],
-          },
-          {
-            type: 'examples',
-            title: 'En frases',
-            pairs: [
-              { es: 'Tengo una reunión con el cliente a las diez.', en: 'I have a meeting with the client at ten.' },
-              { es: 'El plazo del contrato vence el viernes.', en: 'The contract deadline expires on Friday.' },
-              { es: 'El juez aceptó la demanda.', en: 'The judge accepted the claim.' },
-            ],
-          },
-          {
-            type: 'takeaway',
-            text: 'Group new vocabulary by theme, not alphabetically. Your brain stores words in clusters. The legal cluster is especially valuable for your work — keep it close.',
-          },
-        ],
-      },
-      {
-        id: 'voc2',
-        level: 'B1',
-        title: 'Emociones y Sentimientos',
-        subtitle: 'Naming what you feel',
-        intro: 'B1 is where Spanish stops being only practical and starts being personal. You learn to describe states of mind, motivations, and the small weather of the heart.',
-        blocks: [
-          {
-            type: 'vocab',
-            columns: [
-              { es: 'la alegría', en: 'joy' },
-              { es: 'la tristeza', en: 'sadness' },
-              { es: 'el miedo', en: 'fear' },
-              { es: 'la rabia', en: 'rage' },
-              { es: 'el orgullo', en: 'pride' },
-              { es: 'la vergüenza', en: 'shame' },
-              { es: 'la culpa', en: 'guilt' },
-              { es: 'el alivio', en: 'relief' },
-              { es: 'la nostalgia', en: 'nostalgia' },
-              { es: 'la añoranza', en: 'longing' },
-              { es: 'el cariño', en: 'affection' },
-              { es: 'el rencor', en: 'resentment' },
-              { es: 'la esperanza', en: 'hope' },
-              { es: 'la duda', en: 'doubt' },
-              { es: 'la ilusión', en: 'excitement, hope' },
-              { es: 'el desánimo', en: 'discouragement' },
-            ],
-          },
-          {
-            type: 'examples',
-            title: 'Verbos del sentimiento',
-            pairs: [
-              { es: 'Me da miedo perder la calma.', en: 'It scares me to lose my temper.' },
-              { es: 'Le tengo cariño a esa ciudad.', en: 'I have affection for that city.' },
-              { es: 'Siento nostalgia por mi infancia.', en: 'I feel nostalgia for my childhood.' },
-              { es: 'Me siento orgulloso de mi familia.', en: 'I feel proud of my family.' },
-            ],
-          },
-          {
-            type: 'takeaway',
-            text: 'Notice the structures: "me da" + emoción, "le tengo" + emoción + a, "me siento" + adjetivo, "siento" + sustantivo. Once these four patterns are automatic, you can talk about almost any feeling.',
-          },
-        ],
-      },
-    ],
-  },
-  {
     id: 'palabras',
     label: 'Palabras',
     sublabel: '5000 palabras agrupadas',
@@ -4952,7 +4856,7 @@ const SECTIONS = [
         alwaysVisible: true,
         title: 'Banco de Palabras',
         subtitle: 'Read, reveal, repeat',
-        intro: 'The full vocabulary bank from your grouped document. The original three groups stay intact; the interface gives you a small daily deck so the list becomes something you can actually remember.',
+        intro: 'The full vocabulary bank from your grouped document. The original three groups stay intact, and topic decks like Trabajo y Profesiones and Emociones y Sentimientos reuse the same entries without repeating words.',
         blocks: [
           {
             type: 'vocab-lab',
@@ -6144,6 +6048,134 @@ function palabraKey(groupId, entry) {
   return `${groupId}::${entry.rank}::${entry.spanish}`;
 }
 
+function getEntryGroupId(group, entry) {
+  return entry.sourceGroupId || group.id;
+}
+
+function getEntryProgressKey(group, entry) {
+  return palabraKey(getEntryGroupId(group, entry), entry);
+}
+
+function normalizeVocabularyTerm(value) {
+  return String(value)
+    .toLowerCase()
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .replace(/[¿?¡!.,;:()"']/g, '')
+    .replace(/\s+/g, ' ')
+    .replace(/^(el|la|los|las|un|una|unos|unas)\s+/, '')
+    .trim();
+}
+
+const TOPIC_VOCABULARY_GROUPS = [
+  {
+    id: 'topic-work-professions',
+    title: 'Trabajo y Profesiones',
+    description: 'A focused work-life deck merged into the vocabulary bank without repeating existing entries.',
+    terms: [
+      { spanish: 'el trabajo', english: 'work, job' },
+      { spanish: 'la oficina', english: 'office' },
+      { spanish: 'el despacho', english: 'private office, study' },
+      { spanish: 'la reunión', english: 'meeting' },
+      { spanish: 'el cliente', english: 'client' },
+      { spanish: 'el contrato', english: 'contract' },
+      { spanish: 'el abogado', english: 'lawyer' },
+      { spanish: 'el juez', english: 'judge' },
+      { spanish: 'el tribunal', english: 'court' },
+      { spanish: 'la demanda', english: 'lawsuit, claim' },
+      { spanish: 'el sueldo', english: 'salary' },
+      { spanish: 'el horario', english: 'schedule' },
+      { spanish: 'el jefe', english: 'boss' },
+      { spanish: 'el empleado', english: 'employee' },
+      { spanish: 'la empresa', english: 'company' },
+      { spanish: 'el negocio', english: 'business' },
+      { spanish: 'el plazo', english: 'deadline, term' },
+      { spanish: 'la firma', english: 'signature' },
+    ],
+  },
+  {
+    id: 'topic-emotions-feelings',
+    title: 'Emociones y Sentimientos',
+    description: 'A focused feelings deck merged into the vocabulary bank without repeating existing entries.',
+    terms: [
+      { spanish: 'la alegría', english: 'joy' },
+      { spanish: 'la tristeza', english: 'sadness' },
+      { spanish: 'el miedo', english: 'fear' },
+      { spanish: 'la rabia', english: 'rage' },
+      { spanish: 'el orgullo', english: 'pride' },
+      { spanish: 'la vergüenza', english: 'shame' },
+      { spanish: 'la culpa', english: 'guilt' },
+      { spanish: 'el alivio', english: 'relief' },
+      { spanish: 'la nostalgia', english: 'nostalgia' },
+      { spanish: 'la añoranza', english: 'longing' },
+      { spanish: 'el cariño', english: 'affection' },
+      { spanish: 'el rencor', english: 'resentment' },
+      { spanish: 'la esperanza', english: 'hope' },
+      { spanish: 'la duda', english: 'doubt' },
+      { spanish: 'la ilusión', english: 'excitement, hope' },
+      { spanish: 'el desánimo', english: 'discouragement' },
+    ],
+  },
+];
+
+function buildTopicVocabularyGroups(baseGroups) {
+  const entryByTerm = new Map();
+
+  for (const group of baseGroups || []) {
+    for (const entry of group.entries || []) {
+      const key = normalizeVocabularyTerm(entry.spanish);
+      if (!entryByTerm.has(key)) {
+        entryByTerm.set(key, {
+          ...entry,
+          sourceGroupId: group.id,
+          sourceGroupTitle: group.title,
+        });
+      }
+    }
+  }
+
+  return TOPIC_VOCABULARY_GROUPS.map((topic) => {
+    const seenTerms = new Set();
+    const entries = topic.terms.map((term, index) => {
+      const key = normalizeVocabularyTerm(term.spanish);
+      if (seenTerms.has(key)) return null;
+      seenTerms.add(key);
+
+      const match = entryByTerm.get(key);
+      const fallbackSpanish = term.spanish.replace(/^(el|la|los|las|un|una|unos|unas)\s+/i, '').trim();
+
+      return {
+        ...(match || {
+          rank: `T${index + 1}`,
+          spanish: fallbackSpanish,
+          english: term.english,
+          sourceGroupId: topic.id,
+          sourceGroupTitle: topic.title,
+        }),
+        topicTerm: term.spanish,
+        topicEnglish: term.english,
+        topicOrder: index + 1,
+      };
+    }).filter(Boolean);
+
+    return {
+      id: topic.id,
+      title: topic.title,
+      description: topic.description,
+      entries,
+      isTopic: true,
+    };
+  });
+}
+
+function getDisplaySpanish(entry) {
+  return entry.topicTerm || entry.spanish;
+}
+
+function getDisplayEnglish(entry) {
+  return entry.topicEnglish || entry.english;
+}
+
 function clampInt(n, min, max) {
   return Math.max(min, Math.min(max, Math.round(n)));
 }
@@ -6179,21 +6211,30 @@ function schedulePalabraReview(previous, rating, now = Date.now()) {
 
 function getPalabraProgressStats(groups, progress, now = Date.now()) {
   const stats = { total: 0, seen: 0, due: 0, mastered: 0, byGroup: {} };
+  const countedProgressKeys = new Set();
   for (const group of groups || []) {
     const groupStats = { total: group.entries.length, seen: 0, due: 0, mastered: 0 };
-    stats.total += group.entries.length;
     for (const entry of group.entries) {
-      const state = progress[palabraKey(group.id, entry)];
-      if (!state?.seen) continue;
-      stats.seen++;
-      groupStats.seen++;
-      if (state.mastered) {
-        stats.mastered++;
-        groupStats.mastered++;
+      const progressKey = getEntryProgressKey(group, entry);
+      const state = progress[progressKey];
+      const alreadyCounted = countedProgressKeys.has(progressKey);
+
+      if (!alreadyCounted) {
+        countedProgressKeys.add(progressKey);
+        stats.total++;
       }
-      if ((state.dueAt || 0) <= now) {
-        stats.due++;
-        groupStats.due++;
+
+      if (state?.seen) {
+        groupStats.seen++;
+        if (!alreadyCounted) stats.seen++;
+        if (state.mastered) {
+          groupStats.mastered++;
+          if (!alreadyCounted) stats.mastered++;
+        }
+        if ((state.dueAt || 0) <= now) {
+          groupStats.due++;
+          if (!alreadyCounted) stats.due++;
+        }
       }
     }
     stats.byGroup[group.id] = groupStats;
@@ -6203,6 +6244,18 @@ function getPalabraProgressStats(groups, progress, now = Date.now()) {
 
 function makePalabraExample(entry, groupId) {
   const word = entry.spanish.split(',')[0].trim();
+  if (groupId === 'topic-work-professions') {
+    return {
+      es: `En mi trabajo uso "${word}" con frecuencia.`,
+      en: `At work I use "${word}" often.`,
+    };
+  }
+  if (groupId === 'topic-emotions-feelings') {
+    return {
+      es: `Hoy puedo nombrar "${word}" con calma.`,
+      en: `Today I can name "${word}" calmly.`,
+    };
+  }
   if (groupId === 'function-words') {
     return {
       es: `Uso "${word}" para unir una idea con otra.`,
@@ -6217,7 +6270,7 @@ function makePalabraExample(entry, groupId) {
   }
   return {
     es: `Escribo "${word}" en mi cuaderno de espanol.`,
-    en: `"${word}" means ${entry.english}.`,
+    en: `"${word}" means ${getDisplayEnglish(entry)}.`,
   };
 }
 
@@ -6237,8 +6290,9 @@ function PalabrasLab({ onSaveWord, progress = {}, onProgressChange }) {
     import('./vocab-groups.json').then((module) => {
       if (!alive) return;
       const loadedGroups = module.default || [];
-      setGroups(loadedGroups);
-      setActiveGroupId((current) => current || loadedGroups[0]?.id || '');
+      const mergedGroups = [...loadedGroups, ...buildTopicVocabularyGroups(loadedGroups)];
+      setGroups(mergedGroups);
+      setActiveGroupId((current) => current || mergedGroups[0]?.id || '');
     });
     return () => { alive = false; };
   }, []);
@@ -6251,23 +6305,25 @@ function PalabrasLab({ onSaveWord, progress = {}, onProgressChange }) {
     entries: [],
   };
   const filteredEntries = useMemo(() => {
-    const q = query.trim().toLowerCase();
-    const base = q ? activeGroup.entries.filter((entry) =>
-      entry.spanish.toLowerCase().includes(q) ||
-      entry.english.toLowerCase().includes(q) ||
-      String(entry.rank).includes(q)
-    ) : activeGroup.entries;
+    const q = normalizeVocabularyTerm(query);
+    const base = q ? activeGroup.entries.filter((entry) => [
+      entry.spanish,
+      entry.english,
+      entry.topicTerm,
+      entry.topicEnglish,
+      String(entry.rank),
+    ].some((value) => normalizeVocabularyTerm(value || '').includes(q))) : activeGroup.entries;
     if (!dueOnly) return base;
     const now = Date.now();
     return base.filter((entry) => {
-      const state = progress[palabraKey(activeGroup.id, entry)];
+      const state = progress[getEntryProgressKey(activeGroup, entry)];
       return state?.seen && (state.dueAt || 0) <= now;
     });
   }, [activeGroup, query, dueOnly, progress]);
   const deckSize = 24;
   const deckStart = Math.min(cursor, Math.max(0, filteredEntries.length - 1));
   const deck = filteredEntries.slice(deckStart, deckStart + deckSize);
-  const deckText = deck.map((entry) => entry.spanish).join('. ');
+  const deckText = deck.map((entry) => getDisplaySpanish(entry)).join('. ');
   const progressStats = useMemo(() => getPalabraProgressStats(groups || [], progress), [groups, progress]);
   const activeStats = progressStats.byGroup[activeGroup.id] || { total: activeGroup.entries.length, seen: 0, due: 0, mastered: 0 };
   const rowHeight = 74;
@@ -6310,14 +6366,17 @@ function PalabrasLab({ onSaveWord, progress = {}, onProgressChange }) {
   }
 
   function rateEntry(entry, rating) {
-    const key = palabraKey(activeGroup.id, entry);
+    const sourceGroupId = getEntryGroupId(activeGroup, entry);
+    const key = palabraKey(sourceGroupId, entry);
     const next = {
       ...progress,
       [key]: {
         ...schedulePalabraReview(progress[key], rating),
-        groupId: activeGroup.id,
-        spanish: entry.spanish,
-        english: entry.english,
+        groupId: sourceGroupId,
+        displayGroupId: activeGroup.id,
+        topicId: activeGroup.isTopic ? activeGroup.id : undefined,
+        spanish: getDisplaySpanish(entry),
+        english: getDisplayEnglish(entry),
         rank: entry.rank,
       },
     };
@@ -6335,7 +6394,7 @@ function PalabrasLab({ onSaveWord, progress = {}, onProgressChange }) {
     }
     const lines = deck.flatMap((entry) => {
       const example = makePalabraExample(entry, activeGroup.id);
-      return [entry.spanish, example.es, entry.spanish];
+      return [getDisplaySpanish(entry), example.es, getDisplaySpanish(entry)];
     });
     setListenMode(true);
     speak(lines.join('. '), {
@@ -6345,12 +6404,14 @@ function PalabrasLab({ onSaveWord, progress = {}, onProgressChange }) {
   }
 
   function saveEntry(entry) {
+    const sourceGroupId = getEntryGroupId(activeGroup, entry);
+    const sourceLabel = activeGroup.isTopic && entry.sourceGroupTitle ? `Source ${entry.sourceGroupTitle}` : null;
     onSaveWord?.({
-      word: entry.spanish,
-      translation: entry.english,
-      pos: activeGroup.title,
-      extras: [`Rank ${entry.rank}`, activeGroup.description],
-      tags: ['palabras', activeGroup.id],
+      word: getDisplaySpanish(entry),
+      translation: getDisplayEnglish(entry),
+      pos: activeGroup.isTopic ? `${activeGroup.title} topic` : activeGroup.title,
+      extras: [`Rank ${entry.rank}`, activeGroup.description, sourceLabel].filter(Boolean),
+      tags: ['palabras', activeGroup.id, sourceGroupId].filter(Boolean),
       savedAt: Date.now(),
     });
   }
@@ -6384,7 +6445,7 @@ function PalabrasLab({ onSaveWord, progress = {}, onProgressChange }) {
 
       <div className="palabras-stage">
         <div className="palabras-stage-copy">
-          <div className="palabras-stage-kicker">Grupo intacto</div>
+          <div className="palabras-stage-kicker">{activeGroup.isTopic ? 'Tema integrado' : 'Grupo intacto'}</div>
           <h2>{activeGroup.title}</h2>
           <p>{activeGroup.description}</p>
         </div>
@@ -6439,14 +6500,14 @@ function PalabrasLab({ onSaveWord, progress = {}, onProgressChange }) {
           {deck.map((entry) => {
             const key = `${activeGroup.id}-${entry.rank}-${entry.spanish}`;
             const isRevealed = showEnglish || revealed[key];
-            const reviewState = progress[palabraKey(activeGroup.id, entry)];
+            const reviewState = progress[getEntryProgressKey(activeGroup, entry)];
             const example = makePalabraExample(entry, activeGroup.id);
             return (
               <article key={key} className={`palabra-card ${isRevealed ? 'revealed' : ''}`}>
                 <button className="palabra-main" onClick={() => toggleReveal(entry)}>
                   <span className="palabra-rank">#{entry.rank}</span>
-                  <span className="palabra-es">{entry.spanish}</span>
-                  <span className="palabra-en">{isRevealed ? entry.english : '...'}</span>
+                  <span className="palabra-es">{getDisplaySpanish(entry)}</span>
+                  <span className="palabra-en">{isRevealed ? getDisplayEnglish(entry) : '...'}</span>
                   {isRevealed && (
                     <span className="palabra-example">
                       <span>{example.es}</span>
@@ -6455,7 +6516,7 @@ function PalabrasLab({ onSaveWord, progress = {}, onProgressChange }) {
                   )}
                 </button>
                 <div className="palabra-card-actions">
-                  <SpeakBtn text={entry.spanish} />
+                  <SpeakBtn text={getDisplaySpanish(entry)} />
                   <button className="palabra-save" onClick={() => saveEntry(entry)}>
                     <Bookmark size={13} />
                     Memoria
@@ -6498,12 +6559,12 @@ function PalabrasLab({ onSaveWord, progress = {}, onProgressChange }) {
             <div style={{ height: filteredEntries.length * rowHeight, position: 'relative' }}>
               <div style={{ transform: `translateY(${browserStart * rowHeight}px)` }}>
                 {browserRows.map((entry) => {
-                  const state = progress[palabraKey(activeGroup.id, entry)];
+                  const state = progress[getEntryProgressKey(activeGroup, entry)];
                   return (
                     <div key={`${entry.rank}-${entry.spanish}`} className="palabras-virtual-row" style={{ height: rowHeight }}>
                       <span className="palabra-rank">#{entry.rank}</span>
-                      <strong>{entry.spanish}</strong>
-                      <span>{entry.english}</span>
+                      <strong>{getDisplaySpanish(entry)}</strong>
+                      <span>{getDisplayEnglish(entry)}</span>
                       <button onClick={() => rateEntry(entry, 'good')}>{state?.seen ? 'Actualizar' : 'Visto'}</button>
                     </div>
                   );
