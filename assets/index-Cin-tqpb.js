@@ -24,6 +24,9 @@ Error generating stack: `+n.message+`
   --sienna: #b1502a;
   --sienna-deep: #8b3c1d;
   --sienna-tint: #f4e2d4;
+  --yellow: #9a6a00;
+  --yellow-soft: #c99318;
+  --yellow-tint: #fff2b8;
   --red: #b03030;
   --blue: #1f4f8b;
   --shadow: 0 1px 0 rgba(0,0,0,0.04), 0 12px 30px -18px rgba(60, 50, 30, 0.25);
@@ -498,15 +501,15 @@ Error generating stack: `+n.message+`
 }
 .chapter-btn-status {
   margin-left: auto;
-  border: 1px solid var(--rule);
+  border: 1px solid rgba(154, 106, 0, 0.3);
   border-radius: 999px;
   padding: 2px 7px;
   font-family: 'Cormorant Garamond', serif;
   font-size: 10px;
   letter-spacing: 0.12em;
   text-transform: uppercase;
-  color: var(--ink-mute);
-  background: var(--paper-light);
+  color: var(--yellow);
+  background: var(--yellow-tint);
   flex-shrink: 0;
 }
 .chapter-btn-status.understood {
@@ -885,16 +888,21 @@ Error generating stack: `+n.message+`
   transition: color 140ms ease, border-color 140ms ease, background 140ms ease, transform 140ms ease;
 }
 .lesson-status-btn:hover {
-  color: var(--green);
-  border-color: var(--green);
-  background: var(--green-tint);
+  color: var(--yellow);
+  border-color: var(--yellow-soft);
+  background: var(--yellow-tint);
 }
 .lesson-status-btn:active {
   transform: scale(0.97);
 }
 .lesson-status-btn.active {
+  color: var(--yellow);
+  border-color: rgba(154, 106, 0, 0.38);
+  background: var(--yellow-tint);
+}
+.lesson-status-btn.understood:hover {
   color: var(--green);
-  border-color: rgba(47, 93, 58, 0.36);
+  border-color: var(--green);
   background: var(--green-tint);
 }
 .lesson-status-btn.understood.active {
@@ -2641,15 +2649,15 @@ Error generating stack: `+n.message+`
 .gl-item.open .gl-title { color: var(--green); }
 .gl-status-pill,
 .story-status-pill {
-  border: 1px solid var(--rule);
+  border: 1px solid rgba(154, 106, 0, 0.3);
   border-radius: 999px;
   padding: 3px 8px;
   font-family: 'Cormorant Garamond', serif;
   font-size: 10px;
   letter-spacing: 0.14em;
   text-transform: uppercase;
-  color: var(--ink-mute);
-  background: var(--paper-light);
+  color: var(--yellow);
+  background: var(--yellow-tint);
   flex-shrink: 0;
 }
 .gl-status-pill.understood,
