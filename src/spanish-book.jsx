@@ -8836,6 +8836,7 @@ export default function SpanishBook() {
         {/* SIDEBAR */}
         <aside className={`sidebar ${sidebarOpen ? 'open' : ''}`}>
           <div className="sidebar-inner">
+            <div className="sidebar-header">
             <div className="brand">
               <div className="brand-mark">
                 <BookOpen size={18} />
@@ -8888,6 +8889,8 @@ export default function SpanishBook() {
                   )}
                 </div>
               )}
+            </div>
+
             </div>
 
             <nav className="section-nav">
@@ -9451,6 +9454,15 @@ const styles = `
   }
 }
 
+.sidebar-header {
+  flex-shrink: 0;
+  background: var(--paper-light);
+  border-bottom: 1px solid var(--rule);
+  position: relative;
+  z-index: 4;
+  padding-bottom: 14px;
+}
+
 /* Touch-friendly buttons everywhere (especially e-ink) */
 .chapter-btn,
 .section-btn,
@@ -9472,8 +9484,7 @@ const styles = `
   display: flex;
   align-items: center;
   gap: 12px;
-  padding: 24px 22px 18px;
-  border-bottom: 1px solid var(--rule);
+  padding: 24px 22px 16px;
   position: relative;
 }
 .brand-mark {
@@ -13569,7 +13580,8 @@ const styles = `
 
 /* ===== Study system upgrades ===== */
 .global-search {
-  margin: 12px 0 18px;
+  margin: 0;
+  padding: 0 12px;
   position: relative;
 }
 .global-search label {
@@ -13577,8 +13589,8 @@ const styles = `
   align-items: center;
   gap: 8px;
   border: 1px solid var(--rule);
-  border-radius: 6px;
-  padding: 8px 10px;
+  border-radius: 8px;
+  padding: 12px 14px;
   background: var(--paper-light);
   color: var(--ink-mute);
 }
@@ -13588,11 +13600,15 @@ const styles = `
   background: transparent;
   color: var(--ink);
   font-family: 'Literata', Georgia, serif;
-  font-size: 14px;
+  font-size: 17px;
   outline: none;
 }
 .global-search-results {
-  margin-top: 8px;
+  position: absolute;
+  left: 12px;
+  right: 12px;
+  top: calc(100% + 8px);
+  z-index: 20;
   border: 1px solid var(--rule);
   border-radius: 6px;
   background: var(--paper);
