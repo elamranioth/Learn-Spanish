@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { BookOpen, Menu, X, ChevronLeft, ChevronRight, ChevronDown, Bookmark, Languages, Quote, Lightbulb, NotebookPen, Sparkles, Volume2, RotateCcw, Check, Clock, Zap, BookText, Library, ListTree, MessageSquare, GraduationCap, Compass, Search, Star, AlertTriangle, PenLine, BarChart3, Headphones } from 'lucide-react';
+import { AppMessages, showAppMessage } from './app-messages.jsx';
 import { CANCIONES_SONGS } from './canciones.js';
 import {
   LEARNER_PROFILE_KEY,
@@ -9,6 +10,13 @@ import {
   buildUnifiedReviewQueue,
   scheduleReview,
 } from './learning.js';
+import {
+  cleanDictionaryWord,
+  findStoredDictionaryEntry as findStoredDictionaryEntrySmart,
+  getDictionaryLookupVariants as getDictionaryLookupVariantsSmart,
+  normalizeDictionaryLookup as normalizeDictionaryLookupSmart,
+  translateWord as translateWordSmart,
+} from './spanish-dictionary.js';
 
 /* =============================================================
    SPANISH — A Personal Reading Book
@@ -5713,7 +5721,10 @@ function KaraokeText({ text, paragraphClass = 'reading-paragraph', firstParagrap
     e.stopPropagation();
 
     if (typeof window === 'undefined' || !window.speechSynthesis) {
-      alert('Tu navegador no soporta lectura en voz alta.');
+      showAppMessage('Tu navegador no soporta lectura en voz alta.', {
+        title: 'Audio no disponible',
+        tone: 'warning',
+      });
       return;
     }
     // Critical for mobile: warm up audio engine synchronously inside the click
@@ -5907,7 +5918,13 @@ function KaraokeText({ text, paragraphClass = 'reading-paragraph', firstParagrap
       <p className={paragraphClass}>
         <button
           className="speak-btn speak-btn-sm paragraph-speak"
-          onClick={(e) => { e.stopPropagation(); alert('Tu navegador no soporta lectura en voz alta.'); }}
+          onClick={(e) => {
+            e.stopPropagation();
+            showAppMessage('Tu navegador no soporta lectura en voz alta.', {
+              title: 'Audio no disponible',
+              tone: 'warning',
+            });
+          }}
           aria-label="Audio not supported"
           title="Audio no disponible"
         >
@@ -5960,7 +5977,10 @@ function SpeakBtn({ text, size = 'sm', className = '' }) {
   function handleClick(e) {
     e.stopPropagation();
     if (typeof window === 'undefined' || !window.speechSynthesis) {
-      alert('Tu navegador no soporta lectura en voz alta.');
+      showAppMessage('Tu navegador no soporta lectura en voz alta.', {
+        title: 'Audio no disponible',
+        tone: 'warning',
+      });
       return;
     }
     // Critical for mobile: must call speechSynthesis synchronously inside the
@@ -5978,7 +5998,10 @@ function SpeakBtn({ text, size = 'sm', className = '' }) {
       onerror: (e) => {
         setPlaying(false);
         if (e?.error && e.error !== 'canceled' && e.error !== 'interrupted') {
-          alert('Error al leer: ' + e.error + '. Asegúrate de tener una voz en español instalada.');
+          showAppMessage(`Error al leer: ${e.error}. Asegurate de tener una voz en espanol instalada.`, {
+            title: 'Audio necesita atencion',
+            tone: 'warning',
+          });
         }
       },
     });
@@ -7635,8 +7658,8 @@ function DictionaryPopup({ savedWords, onSave, onRemove }) {
   const savedWordsRef = React.useRef(savedWords);
   const vocabularyGroupsRef = React.useRef(vocabularyGroups);
 
-  const cleanWord = _cleanWord;
-  const translate = translateWord;
+  const cleanWord = cleanDictionaryWord;
+  const translate = translateWordSmart;
 
   // --- Two-stage flow: selection shows a floating Translate button.
   //     Tapping the button opens the full popup. This prevents conflicts with
@@ -7669,13 +7692,13 @@ function DictionaryPopup({ savedWords, onSave, onRemove }) {
       const clean = cleanWord(word);
       if (!clean || clean.length < 2) return;
       setFloatingBtn(null);
-      let stored = findStoredDictionaryEntry(clean, savedWordsRef.current, vocabularyGroupsRef.current);
+      let stored = findStoredDictionaryEntrySmart(clean, savedWordsRef.current, vocabularyGroupsRef.current);
       if (!stored && vocabularyGroupsRef.current.length === 0) {
         try {
           const loadedGroups = await loadPalabrasGroups();
           vocabularyGroupsRef.current = loadedGroups;
           setVocabularyGroups(loadedGroups);
-          stored = findStoredDictionaryEntry(clean, savedWordsRef.current, loadedGroups);
+          stored = findStoredDictionaryEntrySmart(clean, savedWordsRef.current, loadedGroups);
         } catch (_) {}
       }
       if (stored) {
@@ -7803,8 +7826,8 @@ function DictionaryPopup({ savedWords, onSave, onRemove }) {
   const belowViewport = popup.y + 220 > window.innerHeight;
   const topStyle = belowViewport ? 'auto' : popup.y;
   const bottomStyle = belowViewport ? Math.max(12, window.innerHeight - popup.y + 12) : 'auto';
-  const popupVariants = new Set(getDictionaryLookupVariants(popup.word));
-  const savedMatch = savedWords.find(w => popupVariants.has(normalizeDictionaryLookup(w.word)));
+  const popupVariants = new Set(getDictionaryLookupVariantsSmart(popup.word));
+  const savedMatch = savedWords.find(w => popupVariants.has(normalizeDictionaryLookupSmart(w.word)));
   const isSaved = Boolean(savedMatch);
 
   function handleSaveToggle() {
@@ -8064,7 +8087,7 @@ function mergeByNewestObject(localObj = {}, remoteObj = {}) {
 function mergeSavedWords(localWords = [], remoteWords = []) {
   const byWord = new Map();
   for (const word of [...remoteWords, ...localWords]) {
-    const key = normalizeDictionaryLookup(word.word);
+    const key = normalizeDictionaryLookupSmart(word.word);
     const existing = byWord.get(key);
     if (!existing) {
       byWord.set(key, word);
@@ -8954,7 +8977,7 @@ export default function SpanishBook() {
       persistWords(next);
       return next;
     });
-    const result = await translateWord(word);
+    const result = await translateWordSmart(word);
     setSavedWords(prev => {
       const next = prev.map(w => {
         if (w.word !== word) return w;
@@ -9313,6 +9336,7 @@ export default function SpanishBook() {
   return (
     <div className={`book-root translation-mode-${translationMode}`}>
       <DictionaryPopup savedWords={savedWords} onSave={handleSaveWord} onRemove={handleRemoveWord} />
+      <AppMessages />
       <style>{styles}</style>
 
       {/* Mobile top bar */}
@@ -14028,6 +14052,65 @@ const styles = `
 }
 .memoria-list-sd:hover { color: var(--green); border-color: var(--green); }
 .memoria-list-remove:hover { color: var(--red); border-color: var(--red); }
+
+.app-message-stack {
+  position: fixed;
+  top: 84px;
+  right: 18px;
+  z-index: 11000;
+  display: grid;
+  gap: 10px;
+  width: min(360px, calc(100vw - 28px));
+  pointer-events: none;
+}
+.app-message {
+  pointer-events: auto;
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 14px;
+  align-items: start;
+  padding: 13px 13px 13px 15px;
+  background: var(--paper);
+  border: 1px solid var(--rule);
+  border-left: 4px solid var(--green);
+  border-radius: 8px;
+  box-shadow: var(--shadow);
+}
+.app-message-warning { border-left-color: var(--sienna); }
+.app-message-title {
+  display: block;
+  margin-bottom: 3px;
+  font-family: 'Cormorant Garamond', serif;
+  font-size: 18px;
+  font-weight: 700;
+  color: var(--ink);
+}
+.app-message p {
+  margin: 0;
+  font-size: 14px;
+  line-height: 1.35;
+  color: var(--ink-mute);
+}
+.app-message-close {
+  width: 28px;
+  height: 28px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid var(--rule);
+  border-radius: 999px;
+  background: var(--paper-light);
+  color: var(--ink-mute);
+  cursor: pointer;
+}
+@media (max-width: 700px) {
+  .app-message-stack {
+    top: 76px;
+    right: 10px;
+    left: 10px;
+    width: auto;
+  }
+}
 
 .memoria-confirm-overlay,
 .sync-modal-overlay {

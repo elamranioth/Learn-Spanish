@@ -7,6 +7,11 @@ import {
   normalizeAnswer,
   scheduleReview,
 } from './learning.js';
+import {
+  findStoredDictionaryEntry,
+  getDictionaryLookupVariants,
+  normalizeDictionaryLookup,
+} from './spanish-dictionary.js';
 
 function test(name, fn) {
   try {
@@ -30,6 +35,16 @@ test('scheduleReview makes hard cards due sooner than easy cards', () => {
 test('normalizeAnswer strips accents and punctuation for forgiving checks', () => {
   assert.equal(normalizeAnswer('¡Hablé!'), 'hable');
   assert.equal(normalizeAnswer('[teng]{o}'), 'tengo');
+});
+
+test('dictionary lookup connects inflected Spanish forms to stored words', () => {
+  assert.equal(normalizeDictionaryLookup('las familias'), 'familias');
+  assert.ok(getDictionaryLookupVariants('puede').includes('poder'));
+  assert.ok(getDictionaryLookupVariants('hablé').includes('hablar'));
+
+  const saved = [{ word: 'familia', translation: 'family' }, { word: 'poder', translation: 'can / to be able' }];
+  assert.equal(findStoredDictionaryEntry('familias', saved)?.main, 'family');
+  assert.equal(findStoredDictionaryEntry('puede', saved)?.main, 'can / to be able');
 });
 
 test('writing analysis rewards richer Spanish drafts', () => {

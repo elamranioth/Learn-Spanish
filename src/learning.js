@@ -1,3 +1,5 @@
+import { getDictionaryLookupVariants } from './spanish-dictionary.js';
+
 export const DAY_MS = 24 * 60 * 60 * 1000;
 export const LEARNER_PROFILE_KEY = 'learner-profile-v1';
 
@@ -163,13 +165,21 @@ export function analyzeWritingDraft(draft, prompt = {}) {
   const text = String(draft || '');
   const normalized = normalizeTerm(text);
   const words = text.trim() ? text.trim().split(/\s+/).length : 0;
-  const sentences = (text.match(/[.!?]/g) || []).length;
+  const sentenceParts = text.split(/[.!?]+/).map((part) => part.trim()).filter(Boolean);
+  const sentences = (text.match(/[.!?]/g) || []).length || (sentenceParts.length ? 1 : 0);
   const accents = (text.match(/[áéíóúñüÁÉÍÓÚÑÜ]/g) || []).length;
   const connectors = (text.match(/\b(pero|porque|aunque|entonces|tambien|también|ademas|además|sin embargo|por eso|cuando|mientras)\b/gi) || []).length;
-  const verbs = (text.match(/\b(soy|estoy|tengo|quiero|puedo|voy|hago|digo|veo|vivo|trabajo|estudio|fui|era|tenia|tenía|hablo|aprendo)\b/gi) || []).length;
-  const targetUsed = prompt?.target ? normalized.includes(normalizeTerm(prompt.target)) : true;
+  const verbs = (text.match(/\b(soy|eres|es|somos|son|estoy|estas|está|esta|estamos|estan|están|tengo|tienes|tiene|tenemos|tienen|quiero|quieres|quiere|puedo|puedes|puede|voy|vas|va|vamos|van|hago|haces|hace|digo|dices|dice|veo|ves|ve|vivo|vives|vive|trabajo|trabajas|trabaja|estudio|estudias|estudia|fui|fue|era|tenia|tenía|hablo|hablas|habla|aprendo|aprendes|aprende)\b/gi) || []).length;
+  const targetVariants = prompt?.target ? getDictionaryLookupVariants(prompt.target).map(normalizeTerm) : [];
+  const targetUsed = prompt?.target ? targetVariants.some((term) => normalized.includes(term)) : true;
   const likelyEnglish = (text.match(/\b(the|and|but|because|with|from|about|today|question|answer|write|spanish)\b/gi) || []).length;
   const accentCandidates = (text.match(/\b(tambien|ademas|tenia|dias|mas|esta|si|tu|el)\b/gi) || []).length;
+  const spanishSignals = (text.match(/\b(el|la|los|las|un|una|yo|tu|tú|usted|nosotros|porque|pero|que|de|con|para|por|en|mi|mis|su|sus|muy|mas|más|tambien|también)\b/gi) || []).length;
+  const repeatedStarts = sentenceParts
+    .map((part) => normalizeTerm(part).split(' ')[0])
+    .filter(Boolean)
+    .reduce((count, word, index, arr) => count + (index > 0 && word === arr[index - 1] ? 1 : 0), 0);
+  const longSentences = sentenceParts.filter((part) => part.split(/\s+/).filter(Boolean).length > 28).length;
   const tips = [];
 
   if (words < 20) tips.push('Add more detail.');
@@ -180,6 +190,10 @@ export function analyzeWritingDraft(draft, prompt = {}) {
   if (likelyEnglish > 0) tips.push('Replace the English words with Spanish before saving.');
   if (connectors < 1 && words >= 20) tips.push('Add a connector like porque, aunque, or entonces.');
   if (verbs < 2 && words >= 15) tips.push('Use more conjugated verbs.');
+  if (spanishSignals < 3 && words >= 12) tips.push('Make it sound more Spanish with small glue words: que, de, en, para, por, con.');
+  if (repeatedStarts > 0) tips.push('Vary how your sentences begin.');
+  if (longSentences > 0) tips.push('Split one long sentence into two clearer sentences.');
+  if (words >= 35 && sentences >= 3 && connectors >= 1 && likelyEnglish === 0 && accentCandidates === 0) tips.push('Strong draft. Next: try one sentence in a different tense.');
 
   const score = Math.max(0, Math.min(100,
     20 +
@@ -187,12 +201,15 @@ export function analyzeWritingDraft(draft, prompt = {}) {
     Math.min(sentences * 8, 20) +
     Math.min(connectors * 6, 12) +
     Math.min(verbs * 4, 16) +
+    Math.min(spanishSignals * 2, 10) +
     (targetUsed ? 10 : -10) -
     Math.min(likelyEnglish * 8, 24) -
-    Math.min(accentCandidates * 3, 12)
+    Math.min(accentCandidates * 3, 12) -
+    Math.min(repeatedStarts * 4, 8) -
+    Math.min(longSentences * 5, 10)
   ));
 
-  return { words, sentences, accents, connectors, verbs, targetUsed, likelyEnglish, accentCandidates, tips, score };
+  return { words, sentences, accents, connectors, verbs, targetUsed, likelyEnglish, accentCandidates, spanishSignals, repeatedStarts, longSentences, tips, score };
 }
 
 export function buildLearnerProfile({ chapters = [], visitedChapters = [], lessonStatuses = {}, palabrasProgress = {}, savedWords = [], writingEntries = [] } = {}, now = Date.now()) {
