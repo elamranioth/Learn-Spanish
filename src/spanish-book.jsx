@@ -8777,6 +8777,51 @@ export default function SpanishBook() {
     setResumeOffer(null);
   }
 
+  function renderGlobalSearch(extraClass = '') {
+    return (
+      <div className={`global-search ${extraClass}`}>
+        <label>
+          <Search size={14} />
+          <input
+            value={globalSearch}
+            onChange={(e) => setGlobalSearch(e.target.value)}
+            placeholder="Search everything..."
+          />
+        </label>
+        {globalSearch.trim().length >= 2 && (
+          <div className="global-search-results">
+            {searchResults.length ? searchResults.map((result, index) => (
+              <button
+                key={`${result.type}-${result.title}-${index}`}
+                onClick={() => {
+                  if (result.type === 'memoria') {
+                    setShowHome(false);
+                    setShowWriting(false);
+                    setShowMemoria(true);
+                  } else if (result.type === 'writing') {
+                    setShowHome(false);
+                    setShowMemoria(false);
+                    setShowWriting(true);
+                  } else {
+                    selectChapter(result.chapter);
+                  }
+                  setGlobalSearch('');
+                  setSidebarOpen(false);
+                }}
+              >
+                <span>{result.title}</span>
+                <em>{result.meta}</em>
+                {result.context && <small>{result.context}</small>}
+              </button>
+            )) : (
+              <div className="global-search-empty">No matches</div>
+            )}
+          </div>
+        )}
+      </div>
+    );
+  }
+
   return (
     <div className="book-root">
       <DictionaryPopup savedWords={savedWords} onSave={handleSaveWord} onRemove={handleRemoveWord} />
@@ -8790,6 +8835,7 @@ export default function SpanishBook() {
         <div className="mobile-title">
           <span className="mobile-brand-script">Español</span>
         </div>
+        {renderGlobalSearch('header-search')}
         <div className="font-controls">
           <button className="font-btn" onClick={() => bumpFont(-0.05)} aria-label="Smaller text" disabled={fontScale <= 0.85}>
             <span className="font-btn-small">A</span>
@@ -8848,47 +8894,6 @@ export default function SpanishBook() {
               <button className="sidebar-close" onClick={() => setSidebarOpen(false)} aria-label="Close menu">
                 <X size={18} />
               </button>
-            </div>
-
-            <div className="global-search">
-              <label>
-                <Search size={14} />
-                <input
-                  value={globalSearch}
-                  onChange={(e) => setGlobalSearch(e.target.value)}
-                  placeholder="Search everything..."
-                />
-              </label>
-              {globalSearch.trim().length >= 2 && (
-                <div className="global-search-results">
-                  {searchResults.length ? searchResults.map((result, index) => (
-                    <button
-                      key={`${result.type}-${result.title}-${index}`}
-                      onClick={() => {
-                        if (result.type === 'memoria') {
-                          setShowHome(false);
-                          setShowWriting(false);
-                          setShowMemoria(true);
-                        } else if (result.type === 'writing') {
-                          setShowHome(false);
-                          setShowMemoria(false);
-                          setShowWriting(true);
-                        } else {
-                          selectChapter(result.chapter);
-                        }
-                        setGlobalSearch('');
-                        setSidebarOpen(false);
-                      }}
-                    >
-                      <span>{result.title}</span>
-                      <em>{result.meta}</em>
-                      {result.context && <small>{result.context}</small>}
-                    </button>
-                  )) : (
-                    <div className="global-search-empty">No matches</div>
-                  )}
-                </div>
-              )}
             </div>
 
             </div>
@@ -9209,12 +9214,15 @@ const styles = `
 .mobile-bar {
   display: flex;
   align-items: center;
-  justify-content: space-between;
+  justify-content: flex-start;
   padding: 10px 16px;
   border-bottom: 1px solid var(--rule-soft);
   background: var(--paper-light);
   position: sticky; top: 0; z-index: 30;
-  gap: 8px;
+  gap: 10px;
+}
+.mobile-title {
+  flex: 0 0 auto;
 }
 .mobile-brand-script {
   font-family: 'Caveat', cursive;
@@ -9233,6 +9241,7 @@ const styles = `
 
 /* Font controls in the top bar */
 .font-controls {
+  flex: 0 0 auto;
   display: flex;
   align-items: center;
   gap: 4px;
@@ -9460,7 +9469,7 @@ const styles = `
   border-bottom: 1px solid var(--rule);
   position: relative;
   z-index: 4;
-  padding-bottom: 14px;
+  padding-bottom: 0;
 }
 
 /* Touch-friendly buttons everywhere (especially e-ink) */
@@ -13643,6 +13652,41 @@ const styles = `
   text-overflow: ellipsis;
   white-space: nowrap;
   font-style: italic;
+}
+
+.header-search {
+  flex: 1 1 260px;
+  max-width: 560px;
+  margin: 0 auto;
+  padding: 0;
+}
+.header-search label {
+  min-height: 38px;
+  padding: 8px 12px;
+  background: var(--paper);
+}
+.header-search input {
+  font-size: 15px;
+}
+.header-search .global-search-results {
+  left: 0;
+  right: 0;
+  z-index: 40;
+}
+
+@media (max-width: 700px) {
+  .mobile-bar {
+    flex-wrap: wrap;
+  }
+  .font-controls {
+    margin-left: auto;
+  }
+  .header-search {
+    order: 3;
+    flex-basis: 100%;
+    max-width: none;
+    margin: 0;
+  }
 }
 
 .update-banner {
