@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { BookOpen, Menu, X, ChevronLeft, ChevronRight, ChevronDown, Bookmark, Languages, Quote, Lightbulb, NotebookPen, Sparkles, Volume2, RotateCcw, Check, Clock, Zap, BookText, Library, ListTree, MessageSquare, GraduationCap, Compass } from 'lucide-react';
+import { BookOpen, Menu, X, ChevronLeft, ChevronRight, ChevronDown, Bookmark, Languages, Quote, Lightbulb, NotebookPen, Sparkles, Volume2, RotateCcw, Check, Clock, Zap, BookText, Library, ListTree, MessageSquare, GraduationCap, Compass, Search, Star, AlertTriangle, PenLine, BarChart3, Headphones } from 'lucide-react';
 import { CANCIONES_SONGS } from './canciones.js';
 
 /* =============================================================
@@ -10,6 +10,8 @@ import { CANCIONES_SONGS } from './canciones.js';
 
 const LEVELS = ['A1', 'A2', 'B1', 'B2'];
 const LESSON_STATUS_KEY = 'lesson-status-v1';
+const AUDIO_SETTINGS_KEY = 'audio-settings-v1';
+const WRITING_PRACTICE_KEY = 'writing-practice-v1';
 
 // Icon for each section — used in sidebar nav and chapter headers
 const SECTION_ICONS = {
@@ -5317,13 +5319,179 @@ function VerbPractice({ tenses, verbName }) {
 // SPEAK BUTTON — uses browser's built-in speechSynthesis
 // Free, offline, no API. Picks the best Spanish voice available.
 // =============================================================
+function shuffleList(list) {
+  return [...list].sort(() => Math.random() - 0.5);
+}
+
+function collectQuizPairs(source) {
+  const pairs = [];
+  function add(es, en) {
+    if (!es || !en) return;
+    const cleanEs = stripMarkers(String(es)).trim();
+    const cleanEn = String(en).trim();
+    if (cleanEs.length < 2 || cleanEn.length < 2) return;
+    pairs.push({ es: cleanEs, en: cleanEn });
+  }
+
+  for (const section of source?.sections || []) {
+    for (const ex of section.examples || []) add(ex.es, ex.en);
+    for (const row of section.table?.rows || []) {
+      if (row?.[0] && row?.[1]) add(row[1], `${row[0]} form`);
+    }
+  }
+
+  for (const block of source?.blocks || []) {
+    for (const p of block.pairs || []) add(p.es, p.en);
+    for (const w of block.columns || []) add(w.es, w.en);
+    for (const p of block.phrases || []) add(p.es, p.en);
+    for (const word of block.words || []) add(word.es, word.en);
+    for (const lesson of block.lessons || []) {
+      for (const pair of collectQuizPairs(lesson)) add(pair.es, pair.en);
+    }
+  }
+
+  const unique = [];
+  const seen = new Set();
+  for (const pair of pairs) {
+    const key = normalizeForCompare(pair.es);
+    if (!seen.has(key)) {
+      seen.add(key);
+      unique.push(pair);
+    }
+  }
+  return unique;
+}
+
+function buildLessonQuiz(source) {
+  const pairs = collectQuizPairs(source);
+  if (pairs.length < 2) return [];
+  const picked = shuffleList(pairs).slice(0, Math.min(4, pairs.length));
+  return picked.map((pair, index) => {
+    const askSpanish = index % 2 === 0;
+    const answer = askSpanish ? pair.es : pair.en;
+    const distractors = shuffleList(pairs)
+      .filter((candidate) => candidate !== pair)
+      .map((candidate) => askSpanish ? candidate.es : candidate.en)
+      .filter((value) => normalizeForCompare(value) !== normalizeForCompare(answer))
+      .slice(0, 3);
+    return {
+      prompt: askSpanish ? pair.en : pair.es,
+      answer,
+      speak: pair.es,
+      mode: askSpanish ? 'Elige el espanol' : 'Elige la traduccion',
+      choices: shuffleList([answer, ...distractors]).slice(0, 4),
+    };
+  });
+}
+
+function LessonMiniQuiz({ source, title = 'Mini practica' }) {
+  const questions = useMemo(() => buildLessonQuiz(source), [source]);
+  const [answers, setAnswers] = useState({});
+  const [finished, setFinished] = useState(false);
+
+  useEffect(() => {
+    setAnswers({});
+    setFinished(false);
+  }, [source]);
+
+  if (questions.length < 2) return null;
+
+  const answeredCount = Object.keys(answers).length;
+  const score = questions.reduce((total, q, index) => (
+    normalizeForCompare(answers[index]) === normalizeForCompare(q.answer) ? total + 1 : total
+  ), 0);
+
+  return (
+    <section className="lesson-mini-quiz">
+      <div className="lesson-mini-head">
+        <div>
+          <div className="lesson-mini-kicker"><Sparkles size={13} /> Practica rapida</div>
+          <h3>{title}</h3>
+        </div>
+        <button
+          className="lesson-mini-reset"
+          onClick={() => { setAnswers({}); setFinished(false); }}
+        >
+          <RotateCcw size={13} />
+          Reiniciar
+        </button>
+      </div>
+      <div className="lesson-mini-list">
+        {questions.map((q, index) => {
+          const selected = answers[index];
+          const isCorrect = selected && normalizeForCompare(selected) === normalizeForCompare(q.answer);
+          return (
+            <div key={`${q.prompt}-${index}`} className="lesson-mini-card">
+              <div className="lesson-mini-meta">
+                <span>{String(index + 1).padStart(2, '0')}</span>
+                <em>{q.mode}</em>
+                <SpeakBtn text={q.speak} />
+              </div>
+              <p className="lesson-mini-prompt">{q.prompt}</p>
+              <div className="lesson-mini-choices">
+                {q.choices.map((choice) => {
+                  const active = selected === choice;
+                  return (
+                    <button
+                      key={choice}
+                      className={`${active ? 'active' : ''} ${finished && active ? (isCorrect ? 'correct' : 'wrong') : ''}`}
+                      onClick={() => setAnswers((prev) => ({ ...prev, [index]: choice }))}
+                    >
+                      {choice}
+                    </button>
+                  );
+                })}
+              </div>
+              {finished && selected && !isCorrect && (
+                <div className="lesson-mini-answer">Correcto: <strong>{q.answer}</strong></div>
+              )}
+            </div>
+          );
+        })}
+      </div>
+      <div className="lesson-mini-footer">
+        <span>{answeredCount} / {questions.length} respondidas</span>
+        <button
+          className="lesson-mini-check"
+          disabled={answeredCount < questions.length}
+          onClick={() => setFinished(true)}
+        >
+          Comprobar
+        </button>
+        {finished && <strong>{score} / {questions.length}</strong>}
+      </div>
+    </section>
+  );
+}
+
 let _spanishVoice = null;
 let _voicesLoaded = false;
 let _audioWarmedUp = false;
+let _audioSettings = { rate: 0.85, voiceURI: '' };
+
+function getAudioRate() {
+  return Math.max(0.65, Math.min(1.25, Number(_audioSettings.rate) || 0.85));
+}
+
+function setAudioSettings(settings = {}) {
+  _audioSettings = {
+    ..._audioSettings,
+    ...settings,
+    rate: Math.max(0.65, Math.min(1.25, Number(settings.rate ?? _audioSettings.rate) || 0.85)),
+  };
+  _spanishVoice = null;
+}
 
 function loadVoices() {
   if (typeof window === 'undefined' || !window.speechSynthesis) return [];
   return window.speechSynthesis.getVoices() || [];
+}
+
+function loadSpanishVoices() {
+  return loadVoices().filter((voice) =>
+    (voice.lang && voice.lang.toLowerCase().startsWith('es')) ||
+    /spanish|espanol|espaÃ±ol/i.test(voice.name || '')
+  );
 }
 
 function getSpanishVoice() {
@@ -5332,6 +5500,10 @@ function getSpanishVoice() {
   const voices = loadVoices();
   if (voices.length === 0) return null;
   _voicesLoaded = true;
+  if (_audioSettings.voiceURI) {
+    const preferred = voices.find((x) => x.voiceURI === _audioSettings.voiceURI);
+    if (preferred) { _spanishVoice = preferred; return preferred; }
+  }
   // Prefer es-ES, then es-MX, then any Spanish
   const order = ['es-ES', 'es-MX', 'es-US', 'es-AR', 'es-CO', 'es-419', 'es'];
   for (const code of order) {
@@ -5384,7 +5556,7 @@ function speak(text, opts = {}) {
     const v = getSpanishVoice();
     if (v) utt.voice = v;
     utt.lang = v?.lang || 'es-ES';
-    utt.rate = opts.rate ?? 0.78;
+    utt.rate = opts.rate ?? getAudioRate();
     utt.pitch = opts.pitch ?? 1.0;
     utt.volume = 1.0;
     if (opts.onend) utt.onend = opts.onend;
@@ -5547,7 +5719,7 @@ function KaraokeText({ text, paragraphClass = 'reading-paragraph', firstParagrap
       const v = getSpanishVoice();
       if (v) utt.voice = v;
       utt.lang = v?.lang || 'es-ES';
-      utt.rate = 0.85;
+      utt.rate = getAudioRate();
       utt.pitch = 1.0;
 
       let onstartFired = false;
@@ -5767,6 +5939,69 @@ function SpeakBtn({ text, size = 'sm', className = '' }) {
     >
       <Volume2 size={size === 'sm' ? 12 : 14} />
     </button>
+  );
+}
+
+function AudioSettings({ settings, onChange }) {
+  const [voices, setVoices] = useState(() => loadSpanishVoices());
+
+  useEffect(() => {
+    setAudioSettings(settings);
+  }, [settings]);
+
+  useEffect(() => {
+    function refresh() {
+      setVoices(loadSpanishVoices());
+    }
+    refresh();
+    if (typeof window !== 'undefined' && window.speechSynthesis) {
+      window.speechSynthesis.addEventListener?.('voiceschanged', refresh);
+      const t = setTimeout(refresh, 600);
+      return () => {
+        clearTimeout(t);
+        window.speechSynthesis.removeEventListener?.('voiceschanged', refresh);
+      };
+    }
+    return undefined;
+  }, []);
+
+  function update(patch) {
+    const next = { ...settings, ...patch };
+    setAudioSettings(next);
+    onChange?.(next);
+  }
+
+  return (
+    <div className="audio-settings" aria-label="Audio settings">
+      <div className="audio-settings-label">
+        <Headphones size={14} />
+        Audio
+      </div>
+      <select
+        className="audio-rate-select"
+        value={String(settings.rate)}
+        onChange={(e) => update({ rate: Number(e.target.value) })}
+        aria-label="Audio speed"
+      >
+        <option value="0.7">0.70x</option>
+        <option value="0.85">0.85x</option>
+        <option value="1">1.00x</option>
+        <option value="1.15">1.15x</option>
+      </select>
+      <select
+        className="audio-voice-select"
+        value={settings.voiceURI || ''}
+        onChange={(e) => update({ voiceURI: e.target.value })}
+        aria-label="Spanish voice"
+      >
+        <option value="">Voz espanola</option>
+        {voices.map((voice) => (
+          <option key={voice.voiceURI} value={voice.voiceURI}>
+            {voice.name} ({voice.lang})
+          </option>
+        ))}
+      </select>
+    </div>
   );
 }
 
@@ -6123,6 +6358,7 @@ function FoldableGrammarBlock({ lessons, chapterId, lessonStatuses = {}, onLesso
                 {lesson.sections.map((s, si) => (
                   <GrammarSection key={si} s={s} />
                 ))}
+                <LessonMiniQuiz source={lesson} title={`Practica: ${lesson.title}`} />
               </div>
             )}
           </div>
@@ -7155,6 +7391,10 @@ function ChapterContent({ chapter, sectionId, onSaveWord, palabrasProgress, onPa
             return null;
         }
       })}
+
+      {!hasNestedLessonStatus && (
+        <LessonMiniQuiz source={chapter} title={`Practica: ${chapter.title}`} />
+      )}
     </article>
   );
 }
@@ -7493,10 +7733,23 @@ function getMemoriaTags(entry) {
   const tags = new Set(entry.tags || []);
   if (entry.pending) tags.add('pending');
   if (!entry.translation) tags.add('needs-translation');
+  if (entry.favorite) tags.add('favorite');
+  if (entry.difficult) tags.add('difficult');
+  if (entry.review?.mastered) tags.add('mastered');
+  if (entry.review?.seen && (entry.review?.dueAt || 0) <= Date.now()) tags.add('due');
   if (/Group 1|cognates|near-cognates/i.test(entry.pos || '')) tags.add('cognates');
   if (/Group 2|function/i.test(entry.pos || '')) tags.add('function-words');
   if (/Group 3|remaining/i.test(entry.pos || '')) tags.add('remaining');
   return [...tags];
+}
+
+function getMemoriaSummary(words, now = Date.now()) {
+  return {
+    due: words.filter((entry) => entry.review?.seen && (entry.review?.dueAt || 0) <= now).length,
+    mastered: words.filter((entry) => entry.review?.mastered).length,
+    difficult: words.filter((entry) => entry.difficult || entry.review?.lastRating === 'Hard').length,
+    favorite: words.filter((entry) => entry.favorite).length,
+  };
 }
 
 function exportMemoriaCsv(words) {
@@ -7531,7 +7784,12 @@ function MemoriaView({ savedWords, onRemove, onClear, onUpdateWord }) {
   function toggleFlip(word) {
     setFlipped(prev => ({ ...prev, [word]: !prev[word] }));
   }
-  const sorted = [...savedWords].sort((a, b) => b.savedAt - a.savedAt);
+  const sorted = [...savedWords].sort((a, b) => {
+    const aDue = a.review?.seen && (a.review?.dueAt || 0) <= Date.now();
+    const bDue = b.review?.seen && (b.review?.dueAt || 0) <= Date.now();
+    if (aDue !== bDue) return aDue ? -1 : 1;
+    return b.savedAt - a.savedAt;
+  });
   const allTags = useMemo(() => {
     const tags = new Set();
     for (const entry of sorted) getMemoriaTags(entry).forEach((tag) => tags.add(tag));
@@ -7550,6 +7808,7 @@ function MemoriaView({ savedWords, onRemove, onClear, onUpdateWord }) {
     });
   }, [sorted, query, tagFilter]);
   const reviewWord = filtered[reviewIndex % Math.max(1, filtered.length)];
+  const memoriaSummary = useMemo(() => getMemoriaSummary(sorted), [sorted]);
 
   useEffect(() => {
     setReviewIndex(0);
@@ -7563,6 +7822,21 @@ function MemoriaView({ savedWords, onRemove, onClear, onUpdateWord }) {
     const tags = Array.from(new Set([...(entry?.tags || []), tag]));
     onUpdateWord?.(word, { tags });
     setTagDraft('');
+  }
+
+  function toggleWordFlag(word, flag) {
+    const entry = savedWords.find((w) => w.word === word);
+    onUpdateWord?.(word, { [flag]: !entry?.[flag] });
+  }
+
+  function rateSavedWord(word, rating) {
+    const entry = savedWords.find((w) => w.word === word);
+    const review = schedulePalabraReview(entry?.review, rating);
+    onUpdateWord?.(word, {
+      review,
+      difficult: rating === 'hard' ? true : entry?.difficult,
+    });
+    nextReview();
   }
 
   function nextReview() {
@@ -7595,6 +7869,12 @@ function MemoriaView({ savedWords, onRemove, onClear, onUpdateWord }) {
         </p>
       </header>
 
+        <div className="memoria-summary-strip">
+          <span><Clock size={13} /> {memoriaSummary.due} due</span>
+          <span><Star size={13} /> {memoriaSummary.favorite} favoritas</span>
+          <span><AlertTriangle size={13} /> {memoriaSummary.difficult} dificiles</span>
+          <span><Check size={13} /> {memoriaSummary.mastered} dominadas</span>
+        </div>
       {/* View toggle */}
       <div className="memoria-view-toggle">
         <button
@@ -7644,7 +7924,22 @@ function MemoriaView({ savedWords, onRemove, onClear, onUpdateWord }) {
                 <SpeakBtn text={reviewWord.word} size="md" />
                 <input value={tagDraft} onChange={(e) => setTagDraft(e.target.value)} placeholder="add-tag" />
                 <button onClick={() => addTag(reviewWord.word)}>Tag</button>
+                <button onClick={() => toggleWordFlag(reviewWord.word, 'favorite')}>
+                  <Star size={13} />
+                  {reviewWord.favorite ? 'Unfavorite' : 'Favorite'}
+                </button>
+                <button onClick={() => toggleWordFlag(reviewWord.word, 'difficult')}>
+                  <AlertTriangle size={13} />
+                  {reviewWord.difficult ? 'Not hard' : 'Difficult'}
+                </button>
                 <button onClick={nextReview}>Siguiente</button>
+              </div>
+              <div className="memoria-srs-actions">
+                {['again', 'hard', 'good', 'easy'].map((rating) => (
+                  <button key={rating} onClick={() => rateSavedWord(reviewWord.word, rating)}>
+                    {rating === 'again' ? 'Again' : rating === 'hard' ? 'Hard' : rating === 'good' ? 'Good' : 'Easy'}
+                  </button>
+                ))}
               </div>
             </>
           ) : (
@@ -7684,6 +7979,22 @@ function MemoriaView({ savedWords, onRemove, onClear, onUpdateWord }) {
                         {tags.slice(0, 3).map((tag) => <span key={tag}>{tag}</span>)}
                       </div>
                     )}
+                    <div className="memoria-label-actions">
+                      <button
+                        className={entry.favorite ? 'active' : ''}
+                        onClick={(e) => { e.stopPropagation(); toggleWordFlag(entry.word, 'favorite'); }}
+                        aria-label="Toggle favorite"
+                      >
+                        <Star size={12} />
+                      </button>
+                      <button
+                        className={entry.difficult ? 'active hard' : ''}
+                        onClick={(e) => { e.stopPropagation(); toggleWordFlag(entry.word, 'difficult'); }}
+                        aria-label="Toggle difficult"
+                      >
+                        <AlertTriangle size={12} />
+                      </button>
+                    </div>
                   </div>
                   {/* Back — full details */}
                   <div className="memoria-face back">
@@ -7759,6 +8070,20 @@ function MemoriaView({ savedWords, onRemove, onClear, onUpdateWord }) {
                   )}
                 </div>
                 <div className="memoria-list-actions">
+                  <button
+                    className={`memoria-list-remove ${entry.favorite ? 'active-label' : ''}`}
+                    onClick={() => toggleWordFlag(entry.word, 'favorite')}
+                    aria-label="Toggle favorite"
+                  >
+                    <Star size={14} />
+                  </button>
+                  <button
+                    className={`memoria-list-remove ${entry.difficult ? 'active-hard' : ''}`}
+                    onClick={() => toggleWordFlag(entry.word, 'difficult')}
+                    aria-label="Toggle difficult"
+                  >
+                    <AlertTriangle size={14} />
+                  </button>
                   <a
                     className="memoria-list-sd"
                     href={`https://www.spanishdict.com/translate/${encodeURIComponent(entry.word)}`}
@@ -7793,12 +8118,196 @@ function MemoriaView({ savedWords, onRemove, onClear, onUpdateWord }) {
   );
 }
 
+function collectBlockText(block) {
+  const parts = [block.title, block.heading, block.text];
+  for (const p of block.paragraphs || []) parts.push(p);
+  for (const p of block.pairs || []) parts.push(p.es, p.en);
+  for (const w of block.columns || []) parts.push(w.es, w.en);
+  for (const p of block.phrases || []) parts.push(p.es, p.en);
+  for (const w of block.words || []) parts.push(w.es, w.en);
+  for (const lesson of block.lessons || []) {
+    parts.push(lesson.title, lesson.subtitle, lesson.intro);
+    for (const section of lesson.sections || []) {
+      parts.push(section.heading, section.text, section.tip, section.takeaway);
+      for (const ex of section.examples || []) parts.push(ex.es, ex.en);
+    }
+  }
+  for (const story of block.stories || []) parts.push(story.title, ...(story.paragraphs || []));
+  for (const poem of block.poems || []) parts.push(poem.title, poem.attribution, poem.note);
+  for (const song of block.songs || []) parts.push(song.title, song.attribution, song.note);
+  return parts.filter(Boolean).join(' ');
+}
+
+function buildGlobalSearchResults(query, chapters, savedWords) {
+  const q = normalizeVocabularyTerm(query);
+  if (q.length < 2) return [];
+  const results = [];
+  for (const chapter of chapters) {
+    const haystack = normalizeVocabularyTerm([
+      chapter.title,
+      chapter.subtitle,
+      chapter.intro,
+      chapter.sectionLabel,
+      chapter.level,
+      ...(chapter.blocks || []).map(collectBlockText),
+    ].filter(Boolean).join(' '));
+    if (haystack.includes(q)) {
+      results.push({
+        type: 'chapter',
+        title: chapter.title,
+        meta: `${chapter.sectionLabel} - ${chapter.level}`,
+        chapter,
+      });
+    }
+  }
+  for (const entry of savedWords) {
+    const haystack = normalizeVocabularyTerm([entry.word, entry.translation, entry.pos, ...(entry.tags || [])].join(' '));
+    if (haystack.includes(q)) {
+      results.push({
+        type: 'memoria',
+        title: entry.word,
+        meta: entry.translation || 'Memoria',
+      });
+    }
+  }
+  return results.slice(0, 12);
+}
+
+function WritingPractice({ savedWords, chapters, onCountChange }) {
+  const [entries, setEntries] = useState([]);
+  const [promptIndex, setPromptIndex] = useState(0);
+  const [draft, setDraft] = useState('');
+
+  useEffect(() => {
+    (async () => {
+      try {
+        const stored = await window.storage.get(WRITING_PRACTICE_KEY);
+        if (stored?.value) setEntries(JSON.parse(stored.value));
+      } catch (_) {}
+    })();
+  }, []);
+
+  async function persist(next) {
+    setEntries(next);
+    onCountChange?.(next.length);
+    try { await window.storage.set(WRITING_PRACTICE_KEY, JSON.stringify(next)); } catch (_) {}
+  }
+
+  const prompts = useMemo(() => {
+    const wordPrompts = savedWords.slice(0, 8).map((entry) => ({
+      label: `Usa "${entry.word}"`,
+      text: `Write 2 Spanish sentences using "${entry.word}".`,
+      target: entry.word,
+    }));
+    const chapterPrompts = chapters.slice(0, 6).map((chapter) => ({
+      label: chapter.title,
+      text: `Write a short Spanish paragraph about "${chapter.title}".`,
+      target: chapter.title,
+    }));
+    return [
+      { label: 'Diario', text: 'Write 5 Spanish sentences about your day.', target: 'today' },
+      { label: 'Pregunta', text: 'Write a question and answer it in Spanish.', target: 'question' },
+      ...wordPrompts,
+      ...chapterPrompts,
+    ];
+  }, [savedWords, chapters]);
+
+  const prompt = prompts[promptIndex] || prompts[0];
+  const feedback = useMemo(() => {
+    const words = draft.trim() ? draft.trim().split(/\s+/).length : 0;
+    const sentences = (draft.match(/[.!?]/g) || []).length;
+    const accents = (draft.match(/[áéíóúñüÁÉÍÓÚÑÜ]/g) || []).length;
+    const commonSpanish = (draft.match(/\b(yo|tu|el|ella|nosotros|porque|para|con|sin|que|de|la|el|los|las|un|una|estoy|tengo|quiero|puedo)\b/gi) || []).length;
+    const targetUsed = prompt?.target && normalizeVocabularyTerm(draft).includes(normalizeVocabularyTerm(prompt.target));
+    const tips = [];
+    if (words < 20) tips.push('Add more detail.');
+    if (sentences < 2) tips.push('Use at least two complete sentences.');
+    if (!targetUsed && prompt?.target) tips.push('Use the prompt word or idea.');
+    if (accents === 0) tips.push('Check accents when needed.');
+    return { words, sentences, accents, commonSpanish, targetUsed, tips };
+  }, [draft, prompt]);
+
+  function saveDraft() {
+    if (!draft.trim()) return;
+    const next = [{
+      id: `${Date.now()}`,
+      prompt: prompt.text,
+      text: draft.trim(),
+      feedback,
+      createdAt: Date.now(),
+    }, ...entries].slice(0, 40);
+    persist(next);
+    setDraft('');
+  }
+
+  return (
+    <article className="chapter-body writing-view">
+      <header className="chapter-header">
+        <div className="chapter-icon-row">
+          <div className="chapter-icon-wrap"><PenLine size={22} /></div>
+          <div className="chapter-level-tag">Practica activa</div>
+        </div>
+        <h1 className="chapter-title">Writing Practice</h1>
+        <p className="chapter-subtitle">Write, check the shape of the sentence, and keep a small diary.</p>
+        <div className="chapter-rule" />
+      </header>
+
+      <section className="writing-board">
+        <div className="writing-prompt-row">
+          <label>
+            <span>Prompt</span>
+            <select value={promptIndex} onChange={(e) => setPromptIndex(Number(e.target.value))}>
+              {prompts.map((item, index) => <option key={`${item.label}-${index}`} value={index}>{item.label}</option>)}
+            </select>
+          </label>
+          <p>{prompt.text}</p>
+        </div>
+        <textarea
+          value={draft}
+          onChange={(e) => setDraft(e.target.value)}
+          placeholder="Escribe aqui en espanol..."
+          rows={9}
+        />
+        <div className="writing-feedback-grid">
+          <span><strong>{feedback.words}</strong> words</span>
+          <span><strong>{feedback.sentences}</strong> sentences</span>
+          <span><strong>{feedback.accents}</strong> accents</span>
+          <span><strong>{feedback.commonSpanish}</strong> Spanish signals</span>
+        </div>
+        <div className="writing-tips">
+          {feedback.tips.length ? feedback.tips.map((tip) => <span key={tip}>{tip}</span>) : <span>Good shape. Read it out loud once.</span>}
+        </div>
+        <div className="writing-actions">
+          <SpeakBtn text={draft} size="md" />
+          <button onClick={saveDraft} disabled={!draft.trim()}>Save practice</button>
+        </div>
+      </section>
+
+      <section className="writing-history">
+        <div className="home-section-heading"><NotebookPen size={18} /> History</div>
+        {entries.length ? entries.map((entry) => (
+          <article key={entry.id} className="writing-entry">
+            <div className="writing-entry-meta">{new Date(entry.createdAt).toLocaleDateString()} - {entry.feedback.words} words</div>
+            <p>{entry.prompt}</p>
+            <blockquote>{entry.text}</blockquote>
+          </article>
+        )) : (
+          <p className="memoria-empty-text">No saved writing yet.</p>
+        )}
+      </section>
+    </article>
+  );
+}
+
 function HomeView({
   totalChapters,
   visitedCount,
   savedWordsCount,
   levelFilter,
   palabrasSummary,
+  lessonSummary,
+  memoriaSummary,
+  writingCount,
   sectionProgress,
   recommendations,
   onStart,
@@ -7806,6 +8315,7 @@ function HomeView({
   onOpenPalabras,
   onOpenVerb,
   onOpenReading,
+  onOpenWriting,
   onSelectChapter,
 }) {
   const progress = totalChapters ? Math.round((visitedCount / totalChapters) * 100) : 0;
@@ -7847,12 +8357,22 @@ function HomeView({
         <div className="home-stat">
           <span className="home-stat-label">Memoria</span>
           <strong>{savedWordsCount}</strong>
-          <span>{savedWordsCount === 1 ? 'palabra' : 'palabras'}</span>
+          <span>{memoriaSummary.difficult} dificiles</span>
         </div>
         <div className="home-stat">
           <span className="home-stat-label">Palabras due</span>
           <strong>{palabrasSummary.due}</strong>
           <span>{palabrasSummary.mastered} dominadas</span>
+        </div>
+        <div className="home-stat">
+          <span className="home-stat-label">Lecciones</span>
+          <strong>{lessonSummary.understood}</strong>
+          <span>{lessonSummary.read} leidas</span>
+        </div>
+        <div className="home-stat">
+          <span className="home-stat-label">Writing</span>
+          <strong>{writingCount}</strong>
+          <span>entradas</span>
         </div>
       </section>
 
@@ -7881,6 +8401,11 @@ function HomeView({
             <span>04</span>
             <strong>Memoria</strong>
             <em>{savedWordsCount} guardadas</em>
+          </button>
+          <button onClick={onOpenWriting}>
+            <span>05</span>
+            <strong>Writing</strong>
+            <em>sentence practice</em>
           </button>
         </div>
       </section>
@@ -7941,6 +8466,10 @@ export default function SpanishBook() {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [showMemoria, setShowMemoria] = useState(false);
   const [showHome, setShowHome] = useState(true);
+  const [showWriting, setShowWriting] = useState(false);
+  const [globalSearch, setGlobalSearch] = useState('');
+  const [audioSettings, setAudioSettingsState] = useState({ rate: 0.85, voiceURI: '' });
+  const [writingCount, setWritingCount] = useState(0);
 
   // --- Font size: persists across sessions, applied to body via CSS variable ---
   const [fontScale, setFontScale] = useState(1.0); // multiplier: 0.85 → 1.3
@@ -7988,6 +8517,18 @@ export default function SpanishBook() {
         const statuses = await window.storage.get(LESSON_STATUS_KEY);
         if (statuses?.value) setLessonStatuses(JSON.parse(statuses.value));
       } catch (_) {}
+      try {
+        const audio = await window.storage.get(AUDIO_SETTINGS_KEY);
+        if (audio?.value) {
+          const parsed = JSON.parse(audio.value);
+          setAudioSettingsState(parsed);
+          setAudioSettings(parsed);
+        }
+      } catch (_) {}
+      try {
+        const writing = await window.storage.get(WRITING_PRACTICE_KEY);
+        if (writing?.value) setWritingCount(JSON.parse(writing.value).length || 0);
+      } catch (_) {}
     })();
   }, []);
 
@@ -8032,6 +8573,12 @@ export default function SpanishBook() {
       persistLessonStatuses(next);
       return next;
     });
+  }
+
+  function handleAudioSettingsChange(next) {
+    setAudioSettingsState(next);
+    setAudioSettings(next);
+    try { window.storage.set(AUDIO_SETTINGS_KEY, JSON.stringify(next)); } catch (_) {}
   }
 
   // Background-translate a word and update the saved entry with the result.
@@ -8164,6 +8711,18 @@ export default function SpanishBook() {
     const unseen = visibleFlatChapters.filter((c) => !visitedSet.has(c.id));
     return (unseen.length ? unseen : visibleFlatChapters).slice(0, 4);
   }, [visibleFlatChapters, visitedSet]);
+  const searchResults = useMemo(
+    () => buildGlobalSearchResults(globalSearch, visibleFlatChapters, savedWords),
+    [globalSearch, visibleFlatChapters, savedWords]
+  );
+  const lessonSummary = useMemo(() => {
+    const values = Object.values(lessonStatuses || {});
+    return {
+      read: values.filter((status) => status === 'read' || status === 'understood').length,
+      understood: values.filter((status) => status === 'understood').length,
+    };
+  }, [lessonStatuses]);
+  const memoriaSummary = useMemo(() => getMemoriaSummary(savedWords), [savedWords]);
   const startChapter = recommendedChapters[0] || visibleFlatChapters[0];
   const palabrasSummary = useMemo(() => {
     const values = Object.values(palabrasProgress || {});
@@ -8189,6 +8748,7 @@ export default function SpanishBook() {
     setActiveChapterId(c.id);
     setActiveSectionId(c.sectionId || c.sectionId);
     setShowMemoria(false);
+    setShowWriting(false);
     setShowHome(false);
     setSidebarOpen(false);
     setResumeOffer(null);
@@ -8284,11 +8844,47 @@ export default function SpanishBook() {
               </button>
             </div>
 
+            <div className="global-search">
+              <label>
+                <Search size={14} />
+                <input
+                  value={globalSearch}
+                  onChange={(e) => setGlobalSearch(e.target.value)}
+                  placeholder="Search everything..."
+                />
+              </label>
+              {globalSearch.trim().length >= 2 && (
+                <div className="global-search-results">
+                  {searchResults.length ? searchResults.map((result, index) => (
+                    <button
+                      key={`${result.type}-${result.title}-${index}`}
+                      onClick={() => {
+                        if (result.type === 'memoria') {
+                          setShowHome(false);
+                          setShowWriting(false);
+                          setShowMemoria(true);
+                        } else {
+                          selectChapter(result.chapter);
+                        }
+                        setGlobalSearch('');
+                        setSidebarOpen(false);
+                      }}
+                    >
+                      <span>{result.title}</span>
+                      <em>{result.meta}</em>
+                    </button>
+                  )) : (
+                    <div className="global-search-empty">No matches</div>
+                  )}
+                </div>
+              )}
+            </div>
+
             <nav className="section-nav">
               <div className={`section-group home-nav-item ${showHome ? 'active' : ''}`}>
                 <button
                   className="section-btn home-section-btn"
-                  onClick={() => { setShowHome(true); setShowMemoria(false); setSidebarOpen(false); }}
+                  onClick={() => { setShowHome(true); setShowMemoria(false); setShowWriting(false); setSidebarOpen(false); }}
                 >
                   <div className="section-icon-wrap home-icon-wrap">
                     <Compass size={18} className="section-icon" />
@@ -8360,7 +8956,7 @@ export default function SpanishBook() {
               <div className={`section-group memoria-nav-item ${showMemoria ? 'active' : ''}`}>
                 <button
                   className="section-btn memoria-section-btn"
-                  onClick={() => { setShowHome(false); setShowMemoria(true); setSidebarOpen(false); }}
+                  onClick={() => { setShowHome(false); setShowWriting(false); setShowMemoria(true); setSidebarOpen(false); }}
                 >
                   <div className="section-icon-wrap memoria-icon-wrap">
                     <Bookmark size={18} className="section-icon" />
@@ -8371,6 +8967,24 @@ export default function SpanishBook() {
                   </div>
                   <div className="section-meta">
                     <div className="section-count memoria-count">{savedWords.length}</div>
+                  </div>
+                </button>
+              </div>
+
+              <div className={`section-group writing-nav-item ${showWriting ? 'active' : ''}`}>
+                <button
+                  className="section-btn writing-section-btn"
+                  onClick={() => { setShowHome(false); setShowMemoria(false); setShowWriting(true); setSidebarOpen(false); }}
+                >
+                  <div className="section-icon-wrap writing-icon-wrap">
+                    <PenLine size={18} className="section-icon" />
+                  </div>
+                  <div className="section-text">
+                    <div className="section-label">Writing</div>
+                    <div className="section-sublabel">Practica escrita</div>
+                  </div>
+                  <div className="section-meta">
+                    <div className="section-count writing-count">{writingCount}</div>
                   </div>
                 </button>
               </div>
@@ -8393,13 +9007,17 @@ export default function SpanishBook() {
                 savedWordsCount={savedWords.length}
                 levelFilter={levelFilter}
                 palabrasSummary={palabrasSummary}
+                lessonSummary={lessonSummary}
+                memoriaSummary={memoriaSummary}
+                writingCount={writingCount}
                 sectionProgress={sectionProgress}
                 recommendations={recommendedChapters}
                 onStart={() => startChapter && selectChapter(startChapter)}
-                onOpenMemoria={() => { setShowHome(false); setShowMemoria(true); }}
+                onOpenMemoria={() => { setShowHome(false); setShowWriting(false); setShowMemoria(true); }}
                 onOpenPalabras={() => palabrasChapter && selectChapter(palabrasChapter)}
                 onOpenVerb={() => verbChapter && selectChapter(verbChapter)}
                 onOpenReading={() => readingChapter && selectChapter(readingChapter)}
+                onOpenWriting={() => { setShowHome(false); setShowMemoria(false); setShowWriting(true); }}
                 onSelectChapter={selectChapter}
               />
             ) : showMemoria ? (
@@ -8408,6 +9026,12 @@ export default function SpanishBook() {
                 onRemove={handleRemoveWord}
                 onClear={handleClearWords}
                 onUpdateWord={handleUpdateWord}
+              />
+            ) : showWriting ? (
+              <WritingPractice
+                savedWords={savedWords}
+                chapters={visibleFlatChapters}
+                onCountChange={setWritingCount}
               />
             ) : activeChapter ? (
               <ChapterContent
@@ -8427,7 +9051,7 @@ export default function SpanishBook() {
             )}
 
             {/* Chapter navigation (prev / next) */}
-            {!showHome && !showMemoria && (
+            {!showHome && !showMemoria && !showWriting && (
             <nav className="chapter-nav">
               {prevChapter ? (
                 <button className="nav-btn prev" onClick={() => selectChapter(prevChapter)}>
@@ -8468,6 +9092,7 @@ export default function SpanishBook() {
                   >{lv}</button>
                 ))}
               </div>
+              <AudioSettings settings={audioSettings} onChange={handleAudioSettingsChange} />
               <div className="level-bar-counter">
                 {showHome
                   ? `${visibleVisitedCount} / ${visibleFlatChapters.length}`
@@ -12925,5 +13550,365 @@ const styles = `
   color: var(--ink-mute);
   letter-spacing: 0.1em;
   text-transform: uppercase;
+}
+
+/* ===== Study system upgrades ===== */
+.global-search {
+  margin: 12px 0 18px;
+  position: relative;
+}
+.global-search label {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  border: 1px solid var(--rule);
+  border-radius: 6px;
+  padding: 8px 10px;
+  background: var(--paper-light);
+  color: var(--ink-mute);
+}
+.global-search input {
+  width: 100%;
+  border: 0;
+  background: transparent;
+  color: var(--ink);
+  font-family: 'Literata', Georgia, serif;
+  font-size: 14px;
+  outline: none;
+}
+.global-search-results {
+  margin-top: 8px;
+  border: 1px solid var(--rule);
+  border-radius: 6px;
+  background: var(--paper);
+  box-shadow: var(--shadow);
+  overflow: hidden;
+}
+.global-search-results button {
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  text-align: left;
+  border: 0;
+  border-bottom: 1px solid var(--rule-soft);
+  background: transparent;
+  padding: 9px 10px;
+  color: var(--ink);
+  font-family: 'Literata', Georgia, serif;
+  cursor: pointer;
+}
+.global-search-results button:hover { background: var(--green-tint); }
+.global-search-results button em,
+.global-search-empty {
+  font-size: 12px;
+  color: var(--ink-mute);
+}
+
+.audio-settings {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+.audio-settings-label {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 11px;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: var(--ink-mute);
+  font-family: 'Cormorant Garamond', serif;
+  font-weight: 700;
+}
+.audio-rate-select,
+.audio-voice-select {
+  border: 1px solid var(--rule);
+  background: var(--paper);
+  color: var(--ink);
+  border-radius: 6px;
+  padding: 5px 8px;
+  font-family: 'Literata', Georgia, serif;
+  font-size: 12px;
+}
+.audio-voice-select { max-width: 170px; }
+
+.lesson-mini-quiz {
+  margin-top: 28px;
+  padding: 18px;
+  border: 1px solid var(--rule);
+  border-top: 2px solid var(--green);
+  border-radius: 6px;
+  background: rgba(227, 235, 222, 0.32);
+}
+.lesson-mini-head,
+.lesson-mini-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+.lesson-mini-kicker {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 11px;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: var(--green);
+  font-weight: 700;
+}
+.lesson-mini-head h3 {
+  margin: 4px 0 0;
+  font-family: 'Cormorant Garamond', serif;
+  font-size: 24px;
+}
+.lesson-mini-reset,
+.lesson-mini-check,
+.writing-actions button {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  border: 1px solid var(--rule);
+  border-radius: 6px;
+  background: var(--paper);
+  color: var(--ink);
+  padding: 7px 12px;
+  font-family: 'Literata', Georgia, serif;
+  font-weight: 700;
+  cursor: pointer;
+}
+.lesson-mini-check {
+  background: var(--green);
+  color: #fff;
+  border-color: var(--green);
+}
+.lesson-mini-check:disabled,
+.writing-actions button:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+.lesson-mini-list {
+  display: grid;
+  gap: 12px;
+  margin: 16px 0;
+}
+.lesson-mini-card {
+  background: var(--paper);
+  border: 1px solid var(--rule-soft);
+  border-radius: 6px;
+  padding: 14px;
+}
+.lesson-mini-meta {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--ink-mute);
+  font-size: 12px;
+}
+.lesson-mini-prompt {
+  margin: 8px 0 10px;
+  font-size: 17px;
+  font-weight: 700;
+  color: var(--ink);
+}
+.lesson-mini-choices {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.lesson-mini-choices button {
+  border: 1px solid var(--rule);
+  border-radius: 999px;
+  background: var(--paper);
+  padding: 6px 11px;
+  color: var(--ink);
+  font-family: 'Literata', Georgia, serif;
+  cursor: pointer;
+}
+.lesson-mini-choices button.active { border-color: var(--green); background: var(--green-tint); }
+.lesson-mini-choices button.correct { background: var(--green-tint); color: var(--green); }
+.lesson-mini-choices button.wrong { background: var(--sienna-tint); color: var(--sienna-deep); }
+.lesson-mini-answer {
+  margin-top: 8px;
+  color: var(--sienna-deep);
+  font-size: 14px;
+}
+
+.memoria-summary-strip {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin: 14px 0 18px;
+}
+.memoria-summary-strip span,
+.memoria-label-actions button,
+.memoria-srs-actions button {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  border: 1px solid var(--rule);
+  border-radius: 999px;
+  background: var(--paper);
+  color: var(--ink-mute);
+  padding: 5px 10px;
+  font-size: 12px;
+  font-family: 'Literata', Georgia, serif;
+}
+.memoria-label-actions {
+  display: flex;
+  gap: 6px;
+  margin-top: 10px;
+}
+.memoria-label-actions button {
+  width: 30px;
+  height: 30px;
+  justify-content: center;
+  padding: 0;
+  cursor: pointer;
+}
+.memoria-label-actions button.active,
+.memoria-list-remove.active-label {
+  color: var(--yellow);
+  border-color: var(--yellow-soft);
+  background: var(--yellow-tint);
+}
+.memoria-label-actions button.hard,
+.memoria-list-remove.active-hard {
+  color: var(--sienna-deep);
+  border-color: var(--sienna);
+  background: var(--sienna-tint);
+}
+.memoria-srs-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  justify-content: center;
+  margin-top: 12px;
+}
+.memoria-srs-actions button {
+  cursor: pointer;
+  font-weight: 700;
+}
+
+.writing-section-btn .section-icon-wrap,
+.writing-icon-wrap {
+  background: var(--sienna-tint);
+  color: var(--sienna-deep);
+}
+.writing-board {
+  border: 1px solid var(--rule);
+  border-top: 2px solid var(--green);
+  border-radius: 6px;
+  padding: 18px;
+  background: var(--paper-light);
+}
+.writing-prompt-row {
+  display: grid;
+  grid-template-columns: minmax(180px, 260px) 1fr;
+  gap: 16px;
+  align-items: end;
+  margin-bottom: 14px;
+}
+.writing-prompt-row label,
+.memoria-tools label {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+}
+.writing-prompt-row label span,
+.memoria-tools label span {
+  font-size: 11px;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: var(--ink-mute);
+  font-weight: 700;
+}
+.writing-prompt-row select,
+.writing-board textarea {
+  border: 1px solid var(--rule);
+  border-radius: 6px;
+  background: var(--paper);
+  color: var(--ink);
+  font-family: 'Literata', Georgia, serif;
+}
+.writing-prompt-row select { padding: 8px 10px; }
+.writing-prompt-row p {
+  margin: 0;
+  color: var(--ink-soft);
+  font-style: italic;
+}
+.writing-board textarea {
+  width: 100%;
+  padding: 14px;
+  resize: vertical;
+  font-size: 18px;
+  line-height: 1.6;
+  outline: none;
+}
+.writing-feedback-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(130px, 1fr));
+  gap: 8px;
+  margin-top: 12px;
+}
+.writing-feedback-grid span,
+.writing-tips span {
+  border: 1px solid var(--rule-soft);
+  border-radius: 6px;
+  padding: 8px 10px;
+  background: var(--paper);
+  color: var(--ink-soft);
+  font-size: 13px;
+}
+.writing-tips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 10px;
+}
+.writing-actions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-top: 14px;
+}
+.writing-actions button {
+  background: var(--green);
+  border-color: var(--green);
+  color: #fff;
+}
+.writing-history {
+  margin-top: 28px;
+}
+.writing-entry {
+  border-bottom: 1px solid var(--rule-soft);
+  padding: 14px 0;
+}
+.writing-entry-meta {
+  font-size: 12px;
+  color: var(--ink-mute);
+  text-transform: uppercase;
+  letter-spacing: 0.12em;
+}
+.writing-entry p {
+  margin: 6px 0;
+  color: var(--ink-soft);
+  font-style: italic;
+}
+.writing-entry blockquote {
+  margin: 0;
+  padding-left: 14px;
+  border-left: 2px solid var(--green);
+  color: var(--ink);
+}
+
+@media (max-width: 760px) {
+  .writing-prompt-row { grid-template-columns: 1fr; }
+  .audio-voice-select { max-width: 130px; }
+  .lesson-mini-head,
+  .lesson-mini-footer { align-items: stretch; }
 }
 `;
