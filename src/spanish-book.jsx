@@ -8508,6 +8508,7 @@ const styles = `
   --blue: #1f4f8b;
   --shadow: 0 1px 0 rgba(0,0,0,0.04), 0 12px 30px -18px rgba(60, 50, 30, 0.25);
   --font-scale: 1;
+  --translation-scale: 0.88;
 }
 
 .book-root {
@@ -8538,6 +8539,27 @@ const styles = `
 .chapter-intro,
 .chapter-subtitle {
   font-size: calc(1em * var(--font-scale)) !important;
+}
+
+/* Keep English translations visually quieter than the Spanish text. */
+.example-en,
+.lesson-ex-en,
+.gl-ex-en,
+.inline-en,
+.vu-ex-en,
+.phrase-en,
+.vocab-en,
+.poem-stanza-en,
+.song-lyric-en,
+.poem-vocab-en,
+.palabra-en,
+.dict-main-translation,
+.dict-example-en,
+.memoria-front-translation,
+.memoria-list-en,
+.memoria-translation {
+  font-size: calc(var(--translation-scale) * 1em * var(--font-scale)) !important;
+  line-height: 1.5;
 }
 
 /* Mobile bar — always visible (font controls + menu) */
