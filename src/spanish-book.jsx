@@ -7966,6 +7966,19 @@ function MemoriaView({ savedWords, onRemove, onClear, onUpdateWord }) {
   function toggleFlip(word) {
     setFlipped(prev => ({ ...prev, [word]: !prev[word] }));
   }
+
+  function confirmRemoveWord(word) {
+    if (window.confirm(`Do you want to remove "${word}" from Memoria?`)) {
+      onRemove?.(word);
+    }
+  }
+
+  function confirmClearWords() {
+    if (window.confirm('Do you want to remove all saved Memoria words?')) {
+      onClear?.();
+    }
+  }
+
   const sorted = [...savedWords].sort((a, b) => {
     const aDue = a.review?.seen && (a.review?.dueAt || 0) <= Date.now();
     const bDue = b.review?.seen && (b.review?.dueAt || 0) <= Date.now();
@@ -8207,7 +8220,7 @@ function MemoriaView({ savedWords, onRemove, onClear, onUpdateWord }) {
                 </div>
                 <button
                   className="memoria-remove"
-                  onClick={e => { e.stopPropagation(); onRemove(entry.word); }}
+                  onClick={e => { e.stopPropagation(); confirmRemoveWord(entry.word); }}
                   aria-label={`Remove ${entry.word}`}
                 >
                   <X size={13} />
@@ -8277,7 +8290,7 @@ function MemoriaView({ savedWords, onRemove, onClear, onUpdateWord }) {
                   </a>
                   <button
                     className="memoria-list-remove"
-                    onClick={() => onRemove(entry.word)}
+                    onClick={() => confirmRemoveWord(entry.word)}
                     aria-label={`Remove ${entry.word}`}
                   >
                     <X size={14} />
@@ -8291,7 +8304,7 @@ function MemoriaView({ savedWords, onRemove, onClear, onUpdateWord }) {
 
       {sorted.length > 0 && (
         <div className="memoria-actions">
-          <button className="memoria-clear-btn" onClick={onClear}>
+          <button className="memoria-clear-btn" onClick={confirmClearWords}>
             Borrar todo
           </button>
         </div>
