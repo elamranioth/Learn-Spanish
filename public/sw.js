@@ -1,4 +1,4 @@
-const CACHE_NAME = 'learn-spanish-v12';
+const CACHE_NAME = 'learn-spanish-v13';
 const basePath = self.location.pathname.replace(/sw\.js$/, '');
 const shellFiles = [
   basePath,
@@ -34,12 +34,16 @@ self.addEventListener('fetch', (event) => {
   event.respondWith(
     caches.match(request).then((cached) => {
       const fetchAndCache = fetch(request).then((response) => {
-        if (response && response.ok) {
+        if (response && response.ok && response.type !== 'opaque') {
           const copy = response.clone();
           caches.open(CACHE_NAME).then((cache) => cache.put(request, copy));
         }
         return response;
       });
+
+      if (request.mode === 'navigate') {
+        return fetchAndCache.catch(() => cached || caches.match(basePath));
+      }
 
       if (cached) {
         fetchAndCache.catch(() => {});
@@ -49,4 +53,10 @@ self.addEventListener('fetch', (event) => {
       return fetchAndCache.catch(() => caches.match(basePath));
     })
   );
+});
+
+self.addEventListener('message', (event) => {
+  if (event.data?.type === 'SKIP_WAITING') {
+    self.skipWaiting();
+  }
 });

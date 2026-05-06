@@ -21,7 +21,13 @@ The Vite base path is configured for GitHub Pages at `/Learn-Spanish/`.
 
 The `Palabras` section is generated from `spanish_vocab_grouped.docx` and preserves the document's three original vocabulary groups. It also includes topic decks for `Trabajo y Profesiones` and `Emociones y Sentimientos` that reuse existing entries instead of duplicating words.
 
-The vocabulary system supports Again/Hard/Good/Easy spaced repetition, active listening, example sentences, due-word review, and a virtualized full-list browser.
+The vocabulary system supports Again/Hard/Good/Easy spaced repetition, active listening, example sentences, due-word review, and a virtualized full-list browser. Palabras and Memoria now share the same review logic, so difficult vocabulary can move into saved review automatically.
+
+The study system uses a shared learning engine in `src/learning.js` for scheduling, the unified learner profile, global search, writing feedback, and the home review queue. Tests for that engine live in `src/learning.test.js` and run with:
+
+```bash
+npm test
+```
 
 The `Lectura` section includes `Canciones`, a songbook generated from `Canciones.docx` with repeated chorus ideas condensed into organized Spanish/English study sections.
 

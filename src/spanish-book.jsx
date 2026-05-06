@@ -1,6 +1,14 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { BookOpen, Menu, X, ChevronLeft, ChevronRight, ChevronDown, Bookmark, Languages, Quote, Lightbulb, NotebookPen, Sparkles, Volume2, RotateCcw, Check, Clock, Zap, BookText, Library, ListTree, MessageSquare, GraduationCap, Compass, Search, Star, AlertTriangle, PenLine, BarChart3, Headphones } from 'lucide-react';
 import { CANCIONES_SONGS } from './canciones.js';
+import {
+  LEARNER_PROFILE_KEY,
+  analyzeWritingDraft,
+  buildEnhancedSearchResults,
+  buildLearnerProfile,
+  buildUnifiedReviewQueue,
+  scheduleReview,
+} from './learning.js';
 
 /* =============================================================
    SPANISH — A Personal Reading Book
@@ -6437,7 +6445,6 @@ function FoldableStoriesBlock({ stories, chapterId, lessonStatuses = {}, onLesso
 // PALABRAS LAB - grouped vocabulary study deck
 // =============================================================
 const PALABRAS_PROGRESS_KEY = 'palabras-progress-v1';
-const DAY_MS = 24 * 60 * 60 * 1000;
 
 function palabraKey(groupId, entry) {
   return `${groupId}::${entry.rank}::${entry.spanish}`;
@@ -6576,32 +6583,7 @@ function clampInt(n, min, max) {
 }
 
 function schedulePalabraReview(previous, rating, now = Date.now()) {
-  const oldInterval = previous?.intervalDays || 0;
-  const oldEase = previous?.ease || 2.35;
-  const oldReps = previous?.reps || 0;
-  const ratingConfig = {
-    again: { label: 'Again', easeDelta: -0.18, minDays: 10 / 1440, multiplier: 0.2 },
-    hard: { label: 'Hard', easeDelta: -0.08, minDays: 1, multiplier: 1.15 },
-    good: { label: 'Good', easeDelta: 0.02, minDays: oldReps ? 2 : 1, multiplier: oldEase },
-    easy: { label: 'Easy', easeDelta: 0.12, minDays: oldReps ? 4 : 3, multiplier: oldEase + 0.7 },
-  }[rating] || { label: 'Good', easeDelta: 0, minDays: 1, multiplier: oldEase };
-  const ease = Math.max(1.35, Math.min(3.2, oldEase + ratingConfig.easeDelta));
-  const intervalDays = rating === 'again'
-    ? ratingConfig.minDays
-    : Math.max(ratingConfig.minDays, (oldInterval || 1) * ratingConfig.multiplier);
-
-  return {
-    ...previous,
-    ease,
-    intervalDays,
-    dueAt: now + intervalDays * DAY_MS,
-    reps: rating === 'again' ? 0 : oldReps + 1,
-    lapses: rating === 'again' ? (previous?.lapses || 0) + 1 : previous?.lapses || 0,
-    seen: true,
-    mastered: rating === 'easy' || intervalDays >= 7,
-    lastRating: ratingConfig.label,
-    reviewedAt: now,
-  };
+  return scheduleReview(previous, rating, now);
 }
 
 function getPalabraProgressStats(groups, progress, now = Date.now()) {
@@ -6669,7 +6651,7 @@ function makePalabraExample(entry, groupId) {
   };
 }
 
-function PalabrasLab({ onSaveWord, progress = {}, onProgressChange }) {
+function PalabrasLab({ onSaveWord, savedWords = [], progress = {}, onProgressChange, onUpdateSavedWord }) {
   const [groups, setGroups] = useState(null);
   const [activeGroupId, setActiveGroupId] = useState('');
   const [query, setQuery] = useState('');
@@ -6763,10 +6745,11 @@ function PalabrasLab({ onSaveWord, progress = {}, onProgressChange }) {
   function rateEntry(entry, rating) {
     const sourceGroupId = getEntryGroupId(activeGroup, entry);
     const key = palabraKey(sourceGroupId, entry);
+    const review = schedulePalabraReview(progress[key], rating);
     const next = {
       ...progress,
       [key]: {
-        ...schedulePalabraReview(progress[key], rating),
+        ...review,
         groupId: sourceGroupId,
         displayGroupId: activeGroup.id,
         topicId: activeGroup.isTopic ? activeGroup.id : undefined,
@@ -6777,6 +6760,24 @@ function PalabrasLab({ onSaveWord, progress = {}, onProgressChange }) {
     };
     onProgressChange?.(next);
     setRevealed((prev) => ({ ...prev, [`${activeGroup.id}-${entry.rank}-${entry.spanish}`]: true }));
+    const saved = savedWords.find((word) => normalizeVocabularyTerm(word.word) === normalizeVocabularyTerm(getDisplaySpanish(entry)));
+    if (saved) {
+      onUpdateSavedWord?.(saved.word, {
+        review,
+        difficult: rating === 'hard' || rating === 'again' ? true : saved.difficult,
+      });
+    } else if (rating === 'hard' || rating === 'again') {
+      onSaveWord?.({
+        word: getDisplaySpanish(entry),
+        translation: getDisplayEnglish(entry),
+        pos: activeGroup.isTopic ? `${activeGroup.title} topic` : activeGroup.title,
+        extras: [`Rank ${entry.rank}`, activeGroup.description].filter(Boolean),
+        tags: ['palabras', activeGroup.id, sourceGroupId, 'difficult'].filter(Boolean),
+        review,
+        difficult: true,
+        savedAt: Date.now(),
+      });
+    }
   }
 
   function playActiveListening() {
@@ -7003,7 +7004,7 @@ function LessonStatusControl({ status, onChange }) {
   );
 }
 
-function ChapterContent({ chapter, sectionId, onSaveWord, palabrasProgress, onPalabrasProgressChange, lessonStatuses = {}, onLessonStatusChange }) {
+function ChapterContent({ chapter, sectionId, onSaveWord, savedWords = [], onUpdateSavedWord, palabrasProgress, onPalabrasProgressChange, lessonStatuses = {}, onLessonStatusChange }) {
   const hasNestedLessonStatus = chapter.blocks.some((block) => block.type === 'foldable-grammar' || block.type === 'foldable-stories');
   return (
     <article className="chapter-body">
@@ -7148,8 +7149,10 @@ function ChapterContent({ chapter, sectionId, onSaveWord, palabrasProgress, onPa
               <PalabrasLab
                 key={i}
                 onSaveWord={onSaveWord}
+                savedWords={savedWords}
                 progress={palabrasProgress}
                 onProgressChange={onPalabrasProgressChange}
+                onUpdateSavedWord={onUpdateSavedWord}
               />
             );
           case 'phraselist':
@@ -8118,78 +8121,12 @@ function MemoriaView({ savedWords, onRemove, onClear, onUpdateWord }) {
   );
 }
 
-function collectBlockText(block) {
-  const parts = [block.title, block.heading, block.text];
-  for (const p of block.paragraphs || []) parts.push(p);
-  for (const p of block.pairs || []) parts.push(p.es, p.en);
-  for (const w of block.columns || []) parts.push(w.es, w.en);
-  for (const p of block.phrases || []) parts.push(p.es, p.en);
-  for (const w of block.words || []) parts.push(w.es, w.en);
-  for (const lesson of block.lessons || []) {
-    parts.push(lesson.title, lesson.subtitle, lesson.intro);
-    for (const section of lesson.sections || []) {
-      parts.push(section.heading, section.text, section.tip, section.takeaway);
-      for (const ex of section.examples || []) parts.push(ex.es, ex.en);
-    }
-  }
-  for (const story of block.stories || []) parts.push(story.title, ...(story.paragraphs || []));
-  for (const poem of block.poems || []) parts.push(poem.title, poem.attribution, poem.note);
-  for (const song of block.songs || []) parts.push(song.title, song.attribution, song.note);
-  return parts.filter(Boolean).join(' ');
-}
-
-function buildGlobalSearchResults(query, chapters, savedWords) {
-  const q = normalizeVocabularyTerm(query);
-  if (q.length < 2) return [];
-  const results = [];
-  for (const chapter of chapters) {
-    const haystack = normalizeVocabularyTerm([
-      chapter.title,
-      chapter.subtitle,
-      chapter.intro,
-      chapter.sectionLabel,
-      chapter.level,
-      ...(chapter.blocks || []).map(collectBlockText),
-    ].filter(Boolean).join(' '));
-    if (haystack.includes(q)) {
-      results.push({
-        type: 'chapter',
-        title: chapter.title,
-        meta: `${chapter.sectionLabel} - ${chapter.level}`,
-        chapter,
-      });
-    }
-  }
-  for (const entry of savedWords) {
-    const haystack = normalizeVocabularyTerm([entry.word, entry.translation, entry.pos, ...(entry.tags || [])].join(' '));
-    if (haystack.includes(q)) {
-      results.push({
-        type: 'memoria',
-        title: entry.word,
-        meta: entry.translation || 'Memoria',
-      });
-    }
-  }
-  return results.slice(0, 12);
-}
-
-function WritingPractice({ savedWords, chapters, onCountChange }) {
-  const [entries, setEntries] = useState([]);
+function WritingPractice({ savedWords, chapters, entries = [], onEntriesChange }) {
   const [promptIndex, setPromptIndex] = useState(0);
   const [draft, setDraft] = useState('');
 
-  useEffect(() => {
-    (async () => {
-      try {
-        const stored = await window.storage.get(WRITING_PRACTICE_KEY);
-        if (stored?.value) setEntries(JSON.parse(stored.value));
-      } catch (_) {}
-    })();
-  }, []);
-
   async function persist(next) {
-    setEntries(next);
-    onCountChange?.(next.length);
+    onEntriesChange?.(next);
     try { await window.storage.set(WRITING_PRACTICE_KEY, JSON.stringify(next)); } catch (_) {}
   }
 
@@ -8213,19 +8150,7 @@ function WritingPractice({ savedWords, chapters, onCountChange }) {
   }, [savedWords, chapters]);
 
   const prompt = prompts[promptIndex] || prompts[0];
-  const feedback = useMemo(() => {
-    const words = draft.trim() ? draft.trim().split(/\s+/).length : 0;
-    const sentences = (draft.match(/[.!?]/g) || []).length;
-    const accents = (draft.match(/[áéíóúñüÁÉÍÓÚÑÜ]/g) || []).length;
-    const commonSpanish = (draft.match(/\b(yo|tu|el|ella|nosotros|porque|para|con|sin|que|de|la|el|los|las|un|una|estoy|tengo|quiero|puedo)\b/gi) || []).length;
-    const targetUsed = prompt?.target && normalizeVocabularyTerm(draft).includes(normalizeVocabularyTerm(prompt.target));
-    const tips = [];
-    if (words < 20) tips.push('Add more detail.');
-    if (sentences < 2) tips.push('Use at least two complete sentences.');
-    if (!targetUsed && prompt?.target) tips.push('Use the prompt word or idea.');
-    if (accents === 0) tips.push('Check accents when needed.');
-    return { words, sentences, accents, commonSpanish, targetUsed, tips };
-  }, [draft, prompt]);
+  const feedback = useMemo(() => analyzeWritingDraft(draft, prompt), [draft, prompt]);
 
   function saveDraft() {
     if (!draft.trim()) return;
@@ -8272,7 +8197,8 @@ function WritingPractice({ savedWords, chapters, onCountChange }) {
           <span><strong>{feedback.words}</strong> words</span>
           <span><strong>{feedback.sentences}</strong> sentences</span>
           <span><strong>{feedback.accents}</strong> accents</span>
-          <span><strong>{feedback.commonSpanish}</strong> Spanish signals</span>
+          <span><strong>{feedback.connectors}</strong> connectors</span>
+          <span><strong>{feedback.score}</strong> score</span>
         </div>
         <div className="writing-tips">
           {feedback.tips.length ? feedback.tips.map((tip) => <span key={tip}>{tip}</span>) : <span>Good shape. Read it out loud once.</span>}
@@ -8307,6 +8233,8 @@ function HomeView({
   palabrasSummary,
   lessonSummary,
   memoriaSummary,
+  learnerProfile,
+  reviewQueue,
   writingCount,
   sectionProgress,
   recommendations,
@@ -8410,6 +8338,28 @@ function HomeView({
         </div>
       </section>
 
+      <section className="home-review-queue">
+        <div className="home-section-heading">
+          <BarChart3 size={18} />
+          Cola de repaso
+        </div>
+        <div className="home-review-list">
+          {reviewQueue.slice(0, 8).map((item, index) => (
+            <button
+              key={`${item.type}-${item.title}-${index}`}
+              onClick={() => item.chapter ? onSelectChapter(item.chapter) : item.type === 'writing' ? onOpenWriting() : onOpenMemoria()}
+            >
+              <span className={`review-type ${item.type}`}>{item.type}</span>
+              <strong>{item.title}</strong>
+              <em>{item.detail}</em>
+            </button>
+          ))}
+        </div>
+        <div className="home-review-summary">
+          {learnerProfile.vocabulary.due} vocabulary due · {learnerProfile.writing.needsPractice} writing rewrites · {learnerProfile.chapters.unvisited} unread chapters
+        </div>
+      </section>
+
       <section className="home-progress-map">
         <div className="home-section-heading">
           <Compass size={18} />
@@ -8469,7 +8419,8 @@ export default function SpanishBook() {
   const [showWriting, setShowWriting] = useState(false);
   const [globalSearch, setGlobalSearch] = useState('');
   const [audioSettings, setAudioSettingsState] = useState({ rate: 0.85, voiceURI: '' });
-  const [writingCount, setWritingCount] = useState(0);
+  const [writingEntries, setWritingEntries] = useState([]);
+  const [waitingWorker, setWaitingWorker] = useState(null);
 
   // --- Font size: persists across sessions, applied to body via CSS variable ---
   const [fontScale, setFontScale] = useState(1.0); // multiplier: 0.85 → 1.3
@@ -8527,10 +8478,22 @@ export default function SpanishBook() {
       } catch (_) {}
       try {
         const writing = await window.storage.get(WRITING_PRACTICE_KEY);
-        if (writing?.value) setWritingCount(JSON.parse(writing.value).length || 0);
+        if (writing?.value) setWritingEntries(JSON.parse(writing.value) || []);
       } catch (_) {}
     })();
   }, []);
+
+  useEffect(() => {
+    function handleUpdateReady(event) {
+      setWaitingWorker(event.detail?.worker || null);
+    }
+    window.addEventListener('learn-spanish-update-ready', handleUpdateReady);
+    return () => window.removeEventListener('learn-spanish-update-ready', handleUpdateReady);
+  }, []);
+
+  function activateAppUpdate() {
+    waitingWorker?.postMessage?.({ type: 'SKIP_WAITING' });
+  }
 
   // Apply fontScale to the document via CSS variable
   useEffect(() => {
@@ -8612,7 +8575,17 @@ export default function SpanishBook() {
 
   function handleSaveWord(entry) {
     setSavedWords(prev => {
-      if (prev.some(w => w.word === entry.word)) return prev;
+      if (prev.some(w => w.word === entry.word)) {
+        const next = prev.map((word) => word.word === entry.word ? {
+          ...word,
+          ...entry,
+          tags: Array.from(new Set([...(word.tags || []), ...(entry.tags || [])])),
+          extras: Array.from(new Set([...(word.extras || []), ...(entry.extras || [])])),
+          savedAt: word.savedAt || entry.savedAt || Date.now(),
+        } : word);
+        persistWords(next);
+        return next;
+      }
       const next = [entry, ...prev];
       persistWords(next);
       return next;
@@ -8712,8 +8685,8 @@ export default function SpanishBook() {
     return (unseen.length ? unseen : visibleFlatChapters).slice(0, 4);
   }, [visibleFlatChapters, visitedSet]);
   const searchResults = useMemo(
-    () => buildGlobalSearchResults(globalSearch, visibleFlatChapters, savedWords),
-    [globalSearch, visibleFlatChapters, savedWords]
+    () => buildEnhancedSearchResults(globalSearch, visibleFlatChapters, savedWords, writingEntries),
+    [globalSearch, visibleFlatChapters, savedWords, writingEntries]
   );
   const lessonSummary = useMemo(() => {
     const values = Object.values(lessonStatuses || {});
@@ -8723,6 +8696,21 @@ export default function SpanishBook() {
     };
   }, [lessonStatuses]);
   const memoriaSummary = useMemo(() => getMemoriaSummary(savedWords), [savedWords]);
+  const learnerProfile = useMemo(() => buildLearnerProfile({
+    chapters: visibleFlatChapters,
+    visitedChapters,
+    lessonStatuses,
+    palabrasProgress,
+    savedWords,
+    writingEntries,
+  }), [visibleFlatChapters, visitedChapters, lessonStatuses, palabrasProgress, savedWords, writingEntries]);
+  const reviewQueue = useMemo(() => buildUnifiedReviewQueue({
+    chapters: visibleFlatChapters,
+    lessonStatuses,
+    palabrasProgress,
+    savedWords,
+    writingEntries,
+  }), [visibleFlatChapters, lessonStatuses, palabrasProgress, savedWords, writingEntries]);
   const startChapter = recommendedChapters[0] || visibleFlatChapters[0];
   const palabrasSummary = useMemo(() => {
     const values = Object.values(palabrasProgress || {});
@@ -8743,6 +8731,10 @@ export default function SpanishBook() {
   const palabrasChapter = visibleFlatChapters.find((c) => c.id === 'palabras-5000');
   const verbChapter = visibleFlatChapters.find((c) => c.sectionId === 'verbos') || visibleFlatChapters.find((c) => c.sectionId === 'verbos2');
   const readingChapter = visibleFlatChapters.find((c) => c.sectionId === 'lectura');
+
+  useEffect(() => {
+    try { window.storage.set(LEARNER_PROFILE_KEY, JSON.stringify(learnerProfile)); } catch (_) {}
+  }, [learnerProfile]);
 
   function selectChapter(c) {
     setActiveChapterId(c.id);
@@ -8827,6 +8819,19 @@ export default function SpanishBook() {
         </div>
       )}
 
+      {waitingWorker && (
+        <div className="update-banner">
+          <div>
+            <span className="resume-banner-label">New version ready</span>
+            <span className="resume-banner-title">Refresh to use the latest study tools.</span>
+          </div>
+          <button className="resume-btn-primary" onClick={activateAppUpdate}>
+            Update
+            <ChevronRight size={14} />
+          </button>
+        </div>
+      )}
+
       <div className="book-shell">
         {/* SIDEBAR */}
         <aside className={`sidebar ${sidebarOpen ? 'open' : ''}`}>
@@ -8863,6 +8868,10 @@ export default function SpanishBook() {
                           setShowHome(false);
                           setShowWriting(false);
                           setShowMemoria(true);
+                        } else if (result.type === 'writing') {
+                          setShowHome(false);
+                          setShowMemoria(false);
+                          setShowWriting(true);
                         } else {
                           selectChapter(result.chapter);
                         }
@@ -8872,6 +8881,7 @@ export default function SpanishBook() {
                     >
                       <span>{result.title}</span>
                       <em>{result.meta}</em>
+                      {result.context && <small>{result.context}</small>}
                     </button>
                   )) : (
                     <div className="global-search-empty">No matches</div>
@@ -8984,7 +8994,7 @@ export default function SpanishBook() {
                     <div className="section-sublabel">Practica escrita</div>
                   </div>
                   <div className="section-meta">
-                    <div className="section-count writing-count">{writingCount}</div>
+                    <div className="section-count writing-count">{writingEntries.length}</div>
                   </div>
                 </button>
               </div>
@@ -9009,7 +9019,9 @@ export default function SpanishBook() {
                 palabrasSummary={palabrasSummary}
                 lessonSummary={lessonSummary}
                 memoriaSummary={memoriaSummary}
-                writingCount={writingCount}
+                learnerProfile={learnerProfile}
+                reviewQueue={reviewQueue}
+                writingCount={writingEntries.length}
                 sectionProgress={sectionProgress}
                 recommendations={recommendedChapters}
                 onStart={() => startChapter && selectChapter(startChapter)}
@@ -9031,13 +9043,16 @@ export default function SpanishBook() {
               <WritingPractice
                 savedWords={savedWords}
                 chapters={visibleFlatChapters}
-                onCountChange={setWritingCount}
+                entries={writingEntries}
+                onEntriesChange={setWritingEntries}
               />
             ) : activeChapter ? (
               <ChapterContent
                 chapter={activeChapter}
                 sectionId={activeSectionId}
                 onSaveWord={handleSaveWord}
+                savedWords={savedWords}
+                onUpdateSavedWord={handleUpdateWord}
                 palabrasProgress={palabrasProgress}
                 onPalabrasProgressChange={handlePalabrasProgressChange}
                 lessonStatuses={lessonStatuses}
@@ -13600,9 +13615,34 @@ const styles = `
 }
 .global-search-results button:hover { background: var(--green-tint); }
 .global-search-results button em,
+.global-search-results button small,
 .global-search-empty {
   font-size: 12px;
   color: var(--ink-mute);
+}
+.global-search-results button small {
+  display: block;
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-style: italic;
+}
+
+.update-banner {
+  position: fixed;
+  left: 50%;
+  top: 14px;
+  transform: translateX(-50%);
+  z-index: 80;
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  background: var(--paper);
+  border: 1px solid var(--green);
+  border-radius: 8px;
+  box-shadow: var(--shadow);
+  padding: 10px 12px;
 }
 
 .audio-settings {
@@ -13791,6 +13831,55 @@ const styles = `
 .memoria-srs-actions button {
   cursor: pointer;
   font-weight: 700;
+}
+
+.home-review-queue {
+  margin-top: 24px;
+}
+.home-review-list {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 10px;
+}
+.home-review-list button {
+  text-align: left;
+  border: 1px solid var(--rule);
+  border-radius: 6px;
+  background: var(--paper);
+  padding: 12px;
+  font-family: 'Literata', Georgia, serif;
+  color: var(--ink);
+  cursor: pointer;
+  display: grid;
+  gap: 5px;
+}
+.home-review-list button:hover {
+  border-color: var(--green);
+  background: var(--green-tint);
+}
+.home-review-list strong {
+  font-size: 16px;
+  line-height: 1.25;
+}
+.home-review-list em,
+.home-review-summary {
+  font-size: 13px;
+  color: var(--ink-mute);
+}
+.review-type {
+  width: fit-content;
+  border: 1px solid var(--rule);
+  border-radius: 999px;
+  padding: 2px 8px;
+  font-size: 10px;
+  letter-spacing: 0.15em;
+  text-transform: uppercase;
+  color: var(--green);
+  font-weight: 700;
+}
+.home-review-summary {
+  margin-top: 10px;
+  font-style: italic;
 }
 
 .writing-section-btn .section-icon-wrap,

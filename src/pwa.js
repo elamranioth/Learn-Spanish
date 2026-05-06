@@ -3,6 +3,30 @@ export function registerServiceWorker() {
 
   window.addEventListener('load', () => {
     const baseUrl = import.meta.env.BASE_URL || '/';
-    navigator.serviceWorker.register(`${baseUrl}sw.js`, { scope: baseUrl }).catch(() => {});
+    navigator.serviceWorker.register(`${baseUrl}sw.js`, { scope: baseUrl }).then((registration) => {
+      function notifyUpdate(worker) {
+        window.dispatchEvent(new CustomEvent('learn-spanish-update-ready', { detail: { worker } }));
+      }
+
+      if (registration.waiting && navigator.serviceWorker.controller) {
+        notifyUpdate(registration.waiting);
+      }
+
+      registration.addEventListener('updatefound', () => {
+        const worker = registration.installing;
+        if (!worker) return;
+        worker.addEventListener('statechange', () => {
+          if (worker.state === 'installed' && navigator.serviceWorker.controller) {
+            notifyUpdate(worker);
+          }
+        });
+      });
+    }).catch(() => {});
+
+    navigator.serviceWorker.addEventListener('controllerchange', () => {
+      if (window.__learnSpanishRefreshing) return;
+      window.__learnSpanishRefreshing = true;
+      window.location.reload();
+    });
   });
 }
