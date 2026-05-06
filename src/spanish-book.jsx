@@ -7852,7 +7852,6 @@ function DictionaryPopup({ savedWords, onSave, onRemove }) {
         )}
         {!popup.loading && popup.result && (
           <>
-            {popup.result.pos && <div className="dict-pos">{popup.result.pos}</div>}
             <div className={`dict-main-translation ${popup.result.isDefinition ? 'is-definition' : ''}`}>
               {popup.result.main}
             </div>
@@ -7904,7 +7903,6 @@ function DictionaryPopup({ savedWords, onSave, onRemove }) {
         <a className="dict-sd-link" href={`https://www.spanishdict.com/translate/${encodeURIComponent(popup.word)}`} target="_blank" rel="noopener noreferrer">
           <Languages size={12} />Ver en SpanishDict
         </a>
-        <span className="dict-source">{popup.result?.source || 'Dict'}</span>
       </div>
     </div>
   );
@@ -13173,7 +13171,9 @@ const styles = `
 /* ===== DICTIONARY POPUP ===== */
 .dict-popup {
   position: fixed;
-  width: 280px;
+  width: fit-content;
+  min-width: 210px;
+  max-width: min(320px, calc(100vw - 24px));
   transform: translateX(-50%);
   z-index: 9999;
   background: var(--paper-light);
@@ -13193,13 +13193,13 @@ const styles = `
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 12px 14px 10px;
+  padding: 10px 12px 9px;
   background: var(--ink);
   gap: 8px;
 }
 .dict-word {
   font-family: 'Cormorant Garamond', serif;
-  font-size: 22px;
+  font-size: 20px;
   font-weight: 600;
   font-style: italic;
   color: #ffffff;
@@ -13228,8 +13228,8 @@ const styles = `
 .dict-close-btn:hover { background: rgba(255,255,255,0.28); }
 
 .dict-body {
-  padding: 14px 16px 10px;
-  min-height: 44px;
+  padding: 12px 14px 10px;
+  min-height: 0;
 }
 .dict-loading {
   display: flex;
@@ -13297,7 +13297,7 @@ const styles = `
   align-items: center;
   justify-content: center;
   gap: 8px;
-  padding: 10px 14px;
+  padding: 8px 12px;
   border: none;
   border-top: 1px solid var(--rule-soft);
   border-bottom: 1px solid var(--rule-soft);
@@ -13852,7 +13852,7 @@ const styles = `
   .memoria-remove { opacity: 1; }
 }
 .dict-main-translation {
-  font-size: 21px;
+  font-size: 19px;
   font-weight: 700;
   color: var(--ink);
   line-height: 1.3;
@@ -13938,10 +13938,10 @@ const styles = `
 .dict-footer {
   display: flex;
   align-items: center;
-  justify-content: space-between;
-  padding: 8px 14px 10px;
+  justify-content: center;
+  padding: 7px 12px 9px;
   border-top: 1px solid var(--rule-soft);
-  margin-top: 6px;
+  margin-top: 0;
 }
 .dict-sd-link {
   display: inline-flex;
@@ -13955,13 +13955,6 @@ const styles = `
   touch-action: manipulation;
 }
 .dict-sd-link:hover { text-decoration: underline; }
-.dict-source {
-  font-size: 11px;
-  color: var(--ink-mute);
-  letter-spacing: 0.1em;
-  text-transform: uppercase;
-}
-
 /* ===== Study system upgrades ===== */
 .global-search {
   margin: 0;
