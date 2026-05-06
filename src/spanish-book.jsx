@@ -21,6 +21,9 @@ const LESSON_STATUS_KEY = 'lesson-status-v1';
 const AUDIO_SETTINGS_KEY = 'audio-settings-v1';
 const WRITING_PRACTICE_KEY = 'writing-practice-v1';
 const TRANSLATION_MODE_KEY = 'translation-mode-v1';
+const GOOGLE_CLIENT_ID_KEY = 'google-drive-client-id-v1';
+const GOOGLE_DRIVE_SYNC_FILE = 'learn-spanish-sync.json';
+const GOOGLE_DRIVE_SCOPE = 'https://www.googleapis.com/auth/drive.appdata';
 
 // Icon for each section — used in sidebar nav and chapter headers
 const SECTION_ICONS = {
@@ -7954,19 +7957,163 @@ function exportMemoriaCsv(words) {
   URL.revokeObjectURL(url);
 }
 
-function encodeSyncPayload(payload) {
-  const json = JSON.stringify(payload);
-  const bytes = new TextEncoder().encode(json);
-  let binary = '';
-  bytes.forEach((byte) => { binary += String.fromCharCode(byte); });
-  return btoa(binary);
+let _googleIdentityPromise = null;
+
+function loadGoogleIdentityScript() {
+  if (typeof window === 'undefined') return Promise.reject(new Error('No browser window'));
+  if (window.google?.accounts?.oauth2) return Promise.resolve(window.google);
+  if (!_googleIdentityPromise) {
+    _googleIdentityPromise = new Promise((resolve, reject) => {
+      const script = document.createElement('script');
+      script.src = 'https://accounts.google.com/gsi/client';
+      script.async = true;
+      script.defer = true;
+      script.onload = () => resolve(window.google);
+      script.onerror = () => reject(new Error('Could not load Google sign-in'));
+      document.head.appendChild(script);
+    });
+  }
+  return _googleIdentityPromise;
 }
 
-function decodeSyncPayload(code) {
-  const clean = String(code || '').trim();
-  const binary = atob(clean);
-  const bytes = Uint8Array.from(binary, (char) => char.charCodeAt(0));
-  return JSON.parse(new TextDecoder().decode(bytes));
+async function requestGoogleDriveToken(clientId) {
+  const google = await loadGoogleIdentityScript();
+  return new Promise((resolve, reject) => {
+    const tokenClient = google.accounts.oauth2.initTokenClient({
+      client_id: clientId,
+      scope: GOOGLE_DRIVE_SCOPE,
+      prompt: 'consent',
+      callback: (response) => {
+        if (response?.access_token) resolve(response.access_token);
+        else reject(new Error(response?.error || 'Google sign-in failed'));
+      },
+      error_callback: (error) => reject(new Error(error?.message || 'Google sign-in failed')),
+    });
+    tokenClient.requestAccessToken();
+  });
+}
+
+async function googleDriveFetch(accessToken, url, options = {}) {
+  const response = await fetch(url, {
+    ...options,
+    headers: {
+      ...(options.headers || {}),
+      Authorization: `Bearer ${accessToken}`,
+    },
+  });
+  if (!response.ok) {
+    const text = await response.text().catch(() => '');
+    throw new Error(text || `Google Drive HTTP ${response.status}`);
+  }
+  return response;
+}
+
+async function findGoogleSyncFile(accessToken) {
+  const params = new URLSearchParams({
+    spaces: 'appDataFolder',
+    fields: 'files(id,name,modifiedTime)',
+    q: `name='${GOOGLE_DRIVE_SYNC_FILE}' and trashed=false`,
+  });
+  const response = await googleDriveFetch(accessToken, `https://www.googleapis.com/drive/v3/files?${params}`);
+  const data = await response.json();
+  return (data.files || [])[0] || null;
+}
+
+async function readGoogleSyncPayload(accessToken, fileId) {
+  if (!fileId) return null;
+  const response = await googleDriveFetch(accessToken, `https://www.googleapis.com/drive/v3/files/${fileId}?alt=media`);
+  return response.json();
+}
+
+async function writeGoogleSyncPayload(accessToken, payload, fileId = null) {
+  const metadata = fileId ? {} : { name: GOOGLE_DRIVE_SYNC_FILE, parents: ['appDataFolder'] };
+  const boundary = `learn-spanish-${Date.now()}`;
+  const body = [
+    `--${boundary}`,
+    'Content-Type: application/json; charset=UTF-8',
+    '',
+    JSON.stringify(metadata),
+    `--${boundary}`,
+    'Content-Type: application/json; charset=UTF-8',
+    '',
+    JSON.stringify(payload),
+    `--${boundary}--`,
+  ].join('\r\n');
+  const url = fileId
+    ? `https://www.googleapis.com/upload/drive/v3/files/${fileId}?uploadType=multipart`
+    : 'https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart';
+  const method = fileId ? 'PATCH' : 'POST';
+  await googleDriveFetch(accessToken, url, {
+    method,
+    headers: { 'Content-Type': `multipart/related; boundary=${boundary}` },
+    body,
+  });
+}
+
+function mergeByNewestObject(localObj = {}, remoteObj = {}) {
+  const merged = { ...remoteObj };
+  for (const [key, localValue] of Object.entries(localObj || {})) {
+    const remoteValue = merged[key];
+    const localTime = localValue?.reviewedAt || localValue?.dueAt || 0;
+    const remoteTime = remoteValue?.reviewedAt || remoteValue?.dueAt || 0;
+    merged[key] = localTime >= remoteTime ? localValue : remoteValue;
+  }
+  return merged;
+}
+
+function mergeSavedWords(localWords = [], remoteWords = []) {
+  const byWord = new Map();
+  for (const word of [...remoteWords, ...localWords]) {
+    const key = normalizeDictionaryLookup(word.word);
+    const existing = byWord.get(key);
+    if (!existing) {
+      byWord.set(key, word);
+      continue;
+    }
+    const existingTime = Math.max(existing.savedAt || 0, existing.translatedAt || 0, existing.review?.reviewedAt || 0);
+    const wordTime = Math.max(word.savedAt || 0, word.translatedAt || 0, word.review?.reviewedAt || 0);
+    const newer = wordTime >= existingTime ? word : existing;
+    const older = wordTime >= existingTime ? existing : word;
+    byWord.set(key, {
+      ...older,
+      ...newer,
+      tags: Array.from(new Set([...(older.tags || []), ...(newer.tags || [])])),
+      extras: Array.from(new Set([...(older.extras || []), ...(newer.extras || [])])),
+      favorite: Boolean(older.favorite || newer.favorite),
+      difficult: Boolean(older.difficult || newer.difficult),
+      review: (newer.review?.reviewedAt || 0) >= (older.review?.reviewedAt || 0) ? newer.review : older.review,
+    });
+  }
+  return [...byWord.values()].sort((a, b) => (b.savedAt || 0) - (a.savedAt || 0));
+}
+
+function mergeLessonStatuses(localStatuses = {}, remoteStatuses = {}) {
+  const merged = { ...remoteStatuses, ...localStatuses };
+  for (const key of new Set([...Object.keys(localStatuses || {}), ...Object.keys(remoteStatuses || {})])) {
+    if (localStatuses[key] === 'understood' || remoteStatuses[key] === 'understood') merged[key] = 'understood';
+    else if (localStatuses[key] === 'read' || remoteStatuses[key] === 'read') merged[key] = 'read';
+  }
+  return merged;
+}
+
+function mergeSyncPayloads(localPayload, remotePayload) {
+  if (!remotePayload) return localPayload;
+  const localTime = Date.parse(localPayload.exportedAt || '') || 0;
+  const remoteTime = Date.parse(remotePayload.exportedAt || '') || 0;
+  const newerSettings = localTime >= remoteTime ? localPayload : remotePayload;
+  return {
+    ...newerSettings,
+    app: 'Learn Spanish',
+    version: 3,
+    exportedAt: new Date().toISOString(),
+    savedWords: mergeSavedWords(localPayload.savedWords, remotePayload.savedWords),
+    visitedChapters: Array.from(new Set([...(remotePayload.visitedChapters || []), ...(localPayload.visitedChapters || [])])),
+    palabrasProgress: mergeByNewestObject(localPayload.palabrasProgress, remotePayload.palabrasProgress),
+    lessonStatuses: mergeLessonStatuses(localPayload.lessonStatuses, remotePayload.lessonStatuses),
+    writingEntries: [...new Map([...(remotePayload.writingEntries || []), ...(localPayload.writingEntries || [])].map((entry) => [entry.id, entry])).values()]
+      .sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0))
+      .slice(0, 80),
+  };
 }
 
 function MemoriaView({ savedWords, onRemove, onClear, onUpdateWord }) {
@@ -8657,7 +8804,8 @@ export default function SpanishBook() {
   const [writingEntries, setWritingEntries] = useState([]);
   const [waitingWorker, setWaitingWorker] = useState(null);
   const [syncOpen, setSyncOpen] = useState(false);
-  const [syncCode, setSyncCode] = useState('');
+  const [googleClientId, setGoogleClientId] = useState(import.meta.env.VITE_GOOGLE_CLIENT_ID || '');
+  const [googleBusy, setGoogleBusy] = useState(false);
   const [syncMessage, setSyncMessage] = useState('');
 
   // --- Font size: persists across sessions, applied to body via CSS variable ---
@@ -8717,6 +8865,10 @@ export default function SpanishBook() {
       try {
         const mode = await window.storage.get(TRANSLATION_MODE_KEY);
         if (mode?.value === 'spanish' || mode?.value === 'both') setTranslationMode(mode.value);
+      } catch (_) {}
+      try {
+        const client = await window.storage.get(GOOGLE_CLIENT_ID_KEY);
+        if (client?.value && !import.meta.env.VITE_GOOGLE_CLIENT_ID) setGoogleClientId(client.value);
       } catch (_) {}
       try {
         const writing = await window.storage.get(WRITING_PRACTICE_KEY);
@@ -9073,25 +9225,43 @@ export default function SpanishBook() {
     if (nextFont >= 0.85 && nextFont <= 1.3) await window.storage.set('font-scale', String(nextFont));
   }
 
-  async function copySyncCode() {
-    const code = encodeSyncPayload(buildSyncPayload());
-    setSyncCode(code);
-    setSyncMessage(`Sync code ready: ${savedWords.length} words, ${Object.keys(palabrasProgress || {}).length} study cards.`);
+  async function saveGoogleClientId() {
+    const clean = googleClientId.trim();
+    if (!clean) {
+      setSyncMessage('Paste your Google OAuth Client ID first.');
+      return;
+    }
     try {
-      await navigator.clipboard.writeText(code);
-      setSyncMessage('Sync code copied. Open this website on another device, paste it here, and sync.');
+      await window.storage.set(GOOGLE_CLIENT_ID_KEY, clean);
+      setGoogleClientId(clean);
+      setSyncMessage('Google Client ID saved on this device.');
     } catch (_) {
-      setSyncMessage('Sync code created. Copy the code below manually.');
+      setSyncMessage('Could not save the Client ID in this browser.');
     }
   }
 
-  async function syncThisDevice() {
+  async function syncWithGoogleDrive() {
+    const clientId = googleClientId.trim();
+    if (!clientId) {
+      setSyncMessage('Paste and save your Google OAuth Client ID first.');
+      return;
+    }
+    setGoogleBusy(true);
+    setSyncMessage('Opening Google sign-in...');
     try {
-      const payload = decodeSyncPayload(syncCode);
-      await applySyncPayload(payload);
-      setSyncMessage(`Restored ${Array.isArray(payload.savedWords) ? payload.savedWords.length : 0} Memoria words into this browser.`);
-    } catch (_) {
-      setSyncMessage('That sync code did not work. Paste the full code and try again.');
+      await window.storage.set(GOOGLE_CLIENT_ID_KEY, clientId);
+      const token = await requestGoogleDriveToken(clientId);
+      setSyncMessage('Checking Google Drive...');
+      const file = await findGoogleSyncFile(token);
+      const remotePayload = await readGoogleSyncPayload(token, file?.id);
+      const mergedPayload = mergeSyncPayloads(buildSyncPayload(), remotePayload);
+      await applySyncPayload(mergedPayload);
+      await writeGoogleSyncPayload(token, mergedPayload, file?.id);
+      setSyncMessage(`Google Drive synced: ${mergedPayload.savedWords.length} words, ${Object.keys(mergedPayload.palabrasProgress || {}).length} reviews.`);
+    } catch (error) {
+      setSyncMessage(error?.message || 'Google Drive sync did not finish.');
+    } finally {
+      setGoogleBusy(false);
     }
   }
 
@@ -9190,23 +9360,33 @@ export default function SpanishBook() {
             <div className="sync-kicker">Device Sync</div>
             <h2>Sync your Spanish book across devices</h2>
             <p>
-              Copy your sync code on this device, then open the website on your phone, tablet, laptop, or another browser and paste it here.
+              Connect Google Drive and every device can sync the same private study file after you sign in.
             </p>
             <div className="sync-stats">
               <span>{savedWords.length} Memoria words</span>
               <span>{Object.keys(palabrasProgress || {}).length} Palabras reviews</span>
               <span>{Object.keys(lessonStatuses || {}).length} lesson marks</span>
             </div>
+            <label className="sync-client-field">
+              <span>Google OAuth Client ID</span>
+              <input
+                value={googleClientId}
+                onChange={(e) => setGoogleClientId(e.target.value)}
+                placeholder="1234567890-abc.apps.googleusercontent.com"
+                disabled={Boolean(import.meta.env.VITE_GOOGLE_CLIENT_ID)}
+              />
+            </label>
+            <p className="sync-help">
+              First time only: create a Google Cloud OAuth Client ID for this website origin, then paste it here.
+            </p>
             <div className="sync-actions">
-              <button onClick={copySyncCode}>Copy sync code</button>
-              <button onClick={syncThisDevice} disabled={!syncCode.trim()}>Sync this device</button>
+              {!import.meta.env.VITE_GOOGLE_CLIENT_ID && (
+                <button onClick={saveGoogleClientId}>Save Client ID</button>
+              )}
+              <button onClick={syncWithGoogleDrive} disabled={googleBusy || !googleClientId.trim()}>
+                {googleBusy ? 'Syncing...' : 'Sync with Google Drive'}
+              </button>
             </div>
-            <textarea
-              value={syncCode}
-              onChange={(e) => setSyncCode(e.target.value)}
-              placeholder="Paste sync code here..."
-              rows={7}
-            />
             {syncMessage && <div className="sync-message">{syncMessage}</div>}
           </div>
         </div>
@@ -10176,7 +10356,7 @@ const styles = `
 .sync-actions {
   justify-content: flex-start;
 }
-.sync-actions button:first-child {
+.sync-actions button:last-child {
   border-color: var(--green);
   background: var(--green);
   color: #fff;
@@ -10185,24 +10365,38 @@ const styles = `
   opacity: 0.45;
   cursor: not-allowed;
 }
-.sync-modal textarea {
+.sync-client-field {
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+  margin-top: 18px;
+}
+.sync-client-field span {
+  font-family: 'Cormorant Garamond', serif;
+  font-size: 11px;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+  color: var(--ink-mute);
+  font-weight: 700;
+}
+.sync-client-field input {
   width: 100%;
-  min-height: 150px;
-  margin-top: 14px;
-  resize: vertical;
   border: 1px solid var(--rule);
   border-radius: 8px;
   background: var(--paper-light);
   color: var(--ink);
-  padding: 12px;
+  padding: 11px 12px;
   font-family: ui-monospace, SFMono-Regular, Consolas, monospace;
-  font-size: 12px;
-  line-height: 1.5;
+  font-size: 13px;
   outline: none;
 }
-.sync-modal textarea:focus {
+.sync-client-field input:focus {
   border-color: var(--green);
   box-shadow: 0 0 0 3px rgba(47, 93, 58, 0.12);
+}
+.sync-help {
+  font-size: 13px;
+  margin-top: 8px !important;
 }
 .sync-message {
   margin-top: 10px;
