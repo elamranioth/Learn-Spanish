@@ -7954,6 +7954,21 @@ function exportMemoriaCsv(words) {
   URL.revokeObjectURL(url);
 }
 
+function encodeSyncPayload(payload) {
+  const json = JSON.stringify(payload);
+  const bytes = new TextEncoder().encode(json);
+  let binary = '';
+  bytes.forEach((byte) => { binary += String.fromCharCode(byte); });
+  return btoa(binary);
+}
+
+function decodeSyncPayload(code) {
+  const clean = String(code || '').trim();
+  const binary = atob(clean);
+  const bytes = Uint8Array.from(binary, (char) => char.charCodeAt(0));
+  return JSON.parse(new TextDecoder().decode(bytes));
+}
+
 function MemoriaView({ savedWords, onRemove, onClear, onUpdateWord }) {
   const [flipped, setFlipped] = useState({});
   const [view, setView] = useState('grid'); // 'grid' | 'list'
@@ -7962,21 +7977,24 @@ function MemoriaView({ savedWords, onRemove, onClear, onUpdateWord }) {
   const [reviewIndex, setReviewIndex] = useState(0);
   const [reviewFlipped, setReviewFlipped] = useState(false);
   const [tagDraft, setTagDraft] = useState('');
+  const [deleteRequest, setDeleteRequest] = useState(null);
 
   function toggleFlip(word) {
     setFlipped(prev => ({ ...prev, [word]: !prev[word] }));
   }
 
   function confirmRemoveWord(word) {
-    if (window.confirm(`Do you want to remove "${word}" from Memoria?`)) {
-      onRemove?.(word);
-    }
+    setDeleteRequest({ type: 'word', word });
   }
 
   function confirmClearWords() {
-    if (window.confirm('Do you want to remove all saved Memoria words?')) {
-      onClear?.();
-    }
+    setDeleteRequest({ type: 'clear' });
+  }
+
+  function applyDeleteRequest() {
+    if (deleteRequest?.type === 'word') onRemove?.(deleteRequest.word);
+    if (deleteRequest?.type === 'clear') onClear?.();
+    setDeleteRequest(null);
   }
 
   const sorted = [...savedWords].sort((a, b) => {
@@ -8309,6 +8327,30 @@ function MemoriaView({ savedWords, onRemove, onClear, onUpdateWord }) {
           </button>
         </div>
       )}
+
+      {deleteRequest && (
+        <div className="memoria-confirm-overlay" role="dialog" aria-modal="true" aria-label="Confirm Memoria deletion">
+          <div className="memoria-confirm-card">
+            <div className="memoria-confirm-kicker">Confirmar</div>
+            <h3>
+              {deleteRequest.type === 'word'
+                ? `Remove "${deleteRequest.word}"?`
+                : 'Remove all Memoria words?'}
+            </h3>
+            <p>
+              {deleteRequest.type === 'word'
+                ? 'This word will leave your saved cards, review queue, and list.'
+                : 'This clears every saved word in Memoria for this browser.'}
+            </p>
+            <div className="memoria-confirm-actions">
+              <button className="memoria-confirm-cancel" onClick={() => setDeleteRequest(null)}>Keep it</button>
+              <button className="memoria-confirm-danger" onClick={applyDeleteRequest}>
+                {deleteRequest.type === 'word' ? 'Remove word' : 'Clear all'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </article>
   );
 }
@@ -8614,6 +8656,9 @@ export default function SpanishBook() {
   const [translationMode, setTranslationMode] = useState('both');
   const [writingEntries, setWritingEntries] = useState([]);
   const [waitingWorker, setWaitingWorker] = useState(null);
+  const [syncOpen, setSyncOpen] = useState(false);
+  const [syncCode, setSyncCode] = useState('');
+  const [syncMessage, setSyncMessage] = useState('');
 
   // --- Font size: persists across sessions, applied to body via CSS variable ---
   const [fontScale, setFontScale] = useState(1.0); // multiplier: 0.85 → 1.3
@@ -8982,8 +9027,8 @@ export default function SpanishBook() {
     setResumeOffer(null);
   }
 
-  function exportStudyBackup() {
-    const payload = {
+  function buildStudyBackupPayload() {
+    return {
       app: 'Learn Spanish',
       version: 2,
       exportedAt: new Date().toISOString(),
@@ -8996,6 +9041,10 @@ export default function SpanishBook() {
       fontScale,
       translationMode,
     };
+  }
+
+  function exportStudyBackup() {
+    const payload = buildStudyBackupPayload();
     const blob = new Blob([JSON.stringify(payload, null, 2)], { type: 'application/json' });
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
@@ -9005,39 +9054,65 @@ export default function SpanishBook() {
     URL.revokeObjectURL(url);
   }
 
+  async function applyStudyBackupPayload(payload) {
+    const nextWords = Array.isArray(payload.savedWords) ? payload.savedWords : [];
+    const nextVisited = Array.isArray(payload.visitedChapters) ? payload.visitedChapters : [];
+    const nextPalabras = payload.palabrasProgress && typeof payload.palabrasProgress === 'object' ? payload.palabrasProgress : {};
+    const nextStatuses = payload.lessonStatuses && typeof payload.lessonStatuses === 'object' ? payload.lessonStatuses : {};
+    const nextWriting = Array.isArray(payload.writingEntries) ? payload.writingEntries : [];
+    const nextAudio = payload.audioSettings && typeof payload.audioSettings === 'object' ? payload.audioSettings : audioSettings;
+    const nextFont = Number(payload.fontScale);
+    const nextMode = payload.translationMode === 'spanish' ? 'spanish' : 'both';
+
+    setSavedWords(nextWords);
+    setVisitedChapters(nextVisited);
+    setPalabrasProgress(nextPalabras);
+    setLessonStatuses(nextStatuses);
+    setWritingEntries(nextWriting);
+    setAudioSettingsState(nextAudio);
+    setAudioSettings(nextAudio);
+    setTranslationMode(nextMode);
+    if (nextFont >= 0.85 && nextFont <= 1.3) setFontScale(nextFont);
+
+    await persistWords(nextWords);
+    await persistPalabrasProgress(nextPalabras);
+    await persistLessonStatuses(nextStatuses);
+    await window.storage.set('visited-chapters', JSON.stringify(nextVisited));
+    await window.storage.set(WRITING_PRACTICE_KEY, JSON.stringify(nextWriting));
+    await window.storage.set(AUDIO_SETTINGS_KEY, JSON.stringify(nextAudio));
+    await window.storage.set(TRANSLATION_MODE_KEY, nextMode);
+    if (nextFont >= 0.85 && nextFont <= 1.3) await window.storage.set('font-scale', String(nextFont));
+  }
+
   async function importStudyBackup(file) {
     if (!file) return;
     try {
       const payload = JSON.parse(await file.text());
-      const nextWords = Array.isArray(payload.savedWords) ? payload.savedWords : [];
-      const nextVisited = Array.isArray(payload.visitedChapters) ? payload.visitedChapters : [];
-      const nextPalabras = payload.palabrasProgress && typeof payload.palabrasProgress === 'object' ? payload.palabrasProgress : {};
-      const nextStatuses = payload.lessonStatuses && typeof payload.lessonStatuses === 'object' ? payload.lessonStatuses : {};
-      const nextWriting = Array.isArray(payload.writingEntries) ? payload.writingEntries : [];
-      const nextAudio = payload.audioSettings && typeof payload.audioSettings === 'object' ? payload.audioSettings : audioSettings;
-      const nextFont = Number(payload.fontScale);
-      const nextMode = payload.translationMode === 'spanish' ? 'spanish' : 'both';
-
-      setSavedWords(nextWords);
-      setVisitedChapters(nextVisited);
-      setPalabrasProgress(nextPalabras);
-      setLessonStatuses(nextStatuses);
-      setWritingEntries(nextWriting);
-      setAudioSettingsState(nextAudio);
-      setAudioSettings(nextAudio);
-      setTranslationMode(nextMode);
-      if (nextFont >= 0.85 && nextFont <= 1.3) setFontScale(nextFont);
-
-      await persistWords(nextWords);
-      await persistPalabrasProgress(nextPalabras);
-      await persistLessonStatuses(nextStatuses);
-      await window.storage.set('visited-chapters', JSON.stringify(nextVisited));
-      await window.storage.set(WRITING_PRACTICE_KEY, JSON.stringify(nextWriting));
-      await window.storage.set(AUDIO_SETTINGS_KEY, JSON.stringify(nextAudio));
-      await window.storage.set(TRANSLATION_MODE_KEY, nextMode);
-      if (nextFont >= 0.85 && nextFont <= 1.3) await window.storage.set('font-scale', String(nextFont));
+      await applyStudyBackupPayload(payload);
     } catch (_) {
       alert('No pude importar este backup. Revisa que sea un archivo JSON de Learn Spanish.');
+    }
+  }
+
+  async function copySyncBackup() {
+    const code = encodeSyncPayload(buildStudyBackupPayload());
+    setSyncCode(code);
+    setSyncMessage(`Sync backup ready: ${savedWords.length} words, ${Object.keys(palabrasProgress || {}).length} study cards.`);
+    try {
+      await navigator.clipboard.writeText(code);
+      setSyncMessage('Sync backup copied. Open another browser, paste it here, and restore.');
+    } catch (_) {
+      setSyncMessage('Sync backup created. Copy the code below manually.');
+    }
+  }
+
+  async function restoreSyncBackup() {
+    try {
+      const payload = decodeSyncPayload(syncCode);
+      await applyStudyBackupPayload(payload);
+      setSyncMessage(`Restored ${Array.isArray(payload.savedWords) ? payload.savedWords.length : 0} Memoria words into this browser.`);
+    } catch (_) {
+      setSyncMessage('That sync code did not work. Paste the full code and try again.');
     }
   }
 
@@ -9126,6 +9201,37 @@ export default function SpanishBook() {
           </button>
         </div>
       </div>
+
+      {syncOpen && (
+        <div className="sync-modal-overlay" role="dialog" aria-modal="true" aria-label="Sync backup">
+          <div className="sync-modal">
+            <button className="sync-close" onClick={() => setSyncOpen(false)} aria-label="Close sync">
+              <X size={15} />
+            </button>
+            <div className="sync-kicker">Sync Backup</div>
+            <h2>Move your Memoria to another browser</h2>
+            <p>
+              Copy this sync backup here, open the website in another browser, paste the code in this same panel, and restore.
+            </p>
+            <div className="sync-stats">
+              <span>{savedWords.length} Memoria words</span>
+              <span>{Object.keys(palabrasProgress || {}).length} Palabras reviews</span>
+              <span>{Object.keys(lessonStatuses || {}).length} lesson marks</span>
+            </div>
+            <div className="sync-actions">
+              <button onClick={copySyncBackup}>Copy my sync backup</button>
+              <button onClick={restoreSyncBackup} disabled={!syncCode.trim()}>Restore from code</button>
+            </div>
+            <textarea
+              value={syncCode}
+              onChange={(e) => setSyncCode(e.target.value)}
+              placeholder="Paste sync backup code here..."
+              rows={7}
+            />
+            {syncMessage && <div className="sync-message">{syncMessage}</div>}
+          </div>
+        </div>
+      )}
 
       {/* Resume reading banner */}
       {resumeOffer && (
@@ -9292,6 +9398,9 @@ export default function SpanishBook() {
             <div className="sidebar-footer">
               <div className="sidebar-backup-tools">
                 <button type="button" onClick={exportStudyBackup}>Backup</button>
+                <button type="button" onClick={() => { setSyncOpen(true); setSyncMessage(''); }}>
+                  Sync
+                </button>
                 <label>
                   Import
                   <input
@@ -10040,6 +10149,7 @@ const styles = `
 }
 .sidebar-backup-tools {
   display: flex;
+  flex-wrap: wrap;
   gap: 8px;
   margin-bottom: 12px;
 }
@@ -10070,6 +10180,81 @@ const styles = `
 }
 .sidebar-backup-tools input {
   display: none;
+}
+.sync-modal {
+  position: relative;
+  width: min(620px, calc(100vw - 36px));
+  border-top-color: var(--green);
+}
+.sync-close {
+  position: absolute;
+  top: 12px;
+  right: 12px;
+  width: 30px;
+  height: 30px;
+  border: 1px solid var(--rule);
+  border-radius: 50%;
+  background: var(--paper-light);
+  color: var(--ink-mute);
+  display: grid;
+  place-items: center;
+  cursor: pointer;
+}
+.sync-stats {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin: 16px 0 4px;
+}
+.sync-stats span {
+  border: 1px solid var(--rule);
+  border-radius: 999px;
+  padding: 4px 10px;
+  color: var(--green);
+  background: var(--green-tint);
+  font-size: 13px;
+  font-family: 'Literata', Georgia, serif;
+}
+.sync-actions {
+  justify-content: flex-start;
+}
+.sync-actions button:first-child {
+  border-color: var(--green);
+  background: var(--green);
+  color: #fff;
+}
+.sync-actions button:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+.sync-modal textarea {
+  width: 100%;
+  min-height: 150px;
+  margin-top: 14px;
+  resize: vertical;
+  border: 1px solid var(--rule);
+  border-radius: 8px;
+  background: var(--paper-light);
+  color: var(--ink);
+  padding: 12px;
+  font-family: ui-monospace, SFMono-Regular, Consolas, monospace;
+  font-size: 12px;
+  line-height: 1.5;
+  outline: none;
+}
+.sync-modal textarea:focus {
+  border-color: var(--green);
+  box-shadow: 0 0 0 3px rgba(47, 93, 58, 0.12);
+}
+.sync-message {
+  margin-top: 10px;
+  padding: 9px 11px;
+  border: 1px solid var(--rule);
+  border-radius: 7px;
+  background: var(--paper-light);
+  color: var(--ink-mute);
+  font-size: 14px;
+  line-height: 1.4;
 }
 .sig {
   font-family: 'Caveat', cursive;
@@ -13691,6 +13876,92 @@ const styles = `
 }
 .memoria-list-sd:hover { color: var(--green); border-color: var(--green); }
 .memoria-list-remove:hover { color: var(--red); border-color: var(--red); }
+
+.memoria-confirm-overlay,
+.sync-modal-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 10000;
+  display: grid;
+  place-items: center;
+  padding: 18px;
+  background: rgba(28, 28, 26, 0.42);
+  backdrop-filter: blur(2px);
+}
+.memoria-confirm-card,
+.sync-modal {
+  width: min(420px, calc(100vw - 36px));
+  background: var(--paper);
+  border: 1px solid var(--rule);
+  border-top: 3px solid var(--sienna);
+  border-radius: 8px;
+  box-shadow: var(--shadow);
+  padding: 22px;
+  color: var(--ink);
+}
+.memoria-confirm-kicker,
+.sync-kicker {
+  font-family: 'Cormorant Garamond', serif;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.22em;
+  text-transform: uppercase;
+  color: var(--sienna);
+  margin-bottom: 8px;
+}
+.memoria-confirm-card h3,
+.sync-modal h2 {
+  margin: 0 0 8px;
+  font-family: 'Cormorant Garamond', serif;
+  font-size: 28px;
+  line-height: 1.1;
+}
+.memoria-confirm-card p,
+.sync-modal p {
+  margin: 0;
+  color: var(--ink-mute);
+  line-height: 1.5;
+}
+.memoria-confirm-actions,
+.sync-actions {
+  display: flex;
+  gap: 10px;
+  justify-content: flex-end;
+  margin-top: 20px;
+}
+.memoria-confirm-actions button,
+.sync-actions button {
+  border: 1px solid var(--rule);
+  border-radius: 7px;
+  padding: 9px 14px;
+  background: var(--paper-light);
+  color: var(--ink);
+  font-family: 'Cormorant Garamond', serif;
+  font-size: 16px;
+  font-weight: 700;
+  cursor: pointer;
+}
+.memoria-confirm-danger {
+  border-color: var(--red) !important;
+  background: rgba(176,48,48,0.1) !important;
+  color: var(--red) !important;
+}
+.memoria-confirm-cancel:hover,
+.sync-actions button:hover {
+  border-color: var(--green);
+  color: var(--green);
+  background: var(--green-tint);
+}
+.sync-modal {
+  width: min(620px, calc(100vw - 36px));
+  border-top-color: var(--green);
+}
+.sync-kicker {
+  color: var(--green);
+}
+.sync-actions {
+  justify-content: flex-start;
+}
 
 @media (max-width: 700px) {
   .memoria-list-row { padding: 14px 4px; gap: 10px; }
