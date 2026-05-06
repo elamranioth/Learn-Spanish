@@ -9027,7 +9027,7 @@ export default function SpanishBook() {
     setResumeOffer(null);
   }
 
-  function buildStudyBackupPayload() {
+  function buildSyncPayload() {
     return {
       app: 'Learn Spanish',
       version: 2,
@@ -9043,18 +9043,7 @@ export default function SpanishBook() {
     };
   }
 
-  function exportStudyBackup() {
-    const payload = buildStudyBackupPayload();
-    const blob = new Blob([JSON.stringify(payload, null, 2)], { type: 'application/json' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = `learn-spanish-backup-${new Date().toISOString().slice(0, 10)}.json`;
-    a.click();
-    URL.revokeObjectURL(url);
-  }
-
-  async function applyStudyBackupPayload(payload) {
+  async function applySyncPayload(payload) {
     const nextWords = Array.isArray(payload.savedWords) ? payload.savedWords : [];
     const nextVisited = Array.isArray(payload.visitedChapters) ? payload.visitedChapters : [];
     const nextPalabras = payload.palabrasProgress && typeof payload.palabrasProgress === 'object' ? payload.palabrasProgress : {};
@@ -9084,32 +9073,22 @@ export default function SpanishBook() {
     if (nextFont >= 0.85 && nextFont <= 1.3) await window.storage.set('font-scale', String(nextFont));
   }
 
-  async function importStudyBackup(file) {
-    if (!file) return;
-    try {
-      const payload = JSON.parse(await file.text());
-      await applyStudyBackupPayload(payload);
-    } catch (_) {
-      alert('No pude importar este backup. Revisa que sea un archivo JSON de Learn Spanish.');
-    }
-  }
-
-  async function copySyncBackup() {
-    const code = encodeSyncPayload(buildStudyBackupPayload());
+  async function copySyncCode() {
+    const code = encodeSyncPayload(buildSyncPayload());
     setSyncCode(code);
-    setSyncMessage(`Sync backup ready: ${savedWords.length} words, ${Object.keys(palabrasProgress || {}).length} study cards.`);
+    setSyncMessage(`Sync code ready: ${savedWords.length} words, ${Object.keys(palabrasProgress || {}).length} study cards.`);
     try {
       await navigator.clipboard.writeText(code);
-      setSyncMessage('Sync backup copied. Open another browser, paste it here, and restore.');
+      setSyncMessage('Sync code copied. Open this website on another device, paste it here, and sync.');
     } catch (_) {
-      setSyncMessage('Sync backup created. Copy the code below manually.');
+      setSyncMessage('Sync code created. Copy the code below manually.');
     }
   }
 
-  async function restoreSyncBackup() {
+  async function syncThisDevice() {
     try {
       const payload = decodeSyncPayload(syncCode);
-      await applyStudyBackupPayload(payload);
+      await applySyncPayload(payload);
       setSyncMessage(`Restored ${Array.isArray(payload.savedWords) ? payload.savedWords.length : 0} Memoria words into this browser.`);
     } catch (_) {
       setSyncMessage('That sync code did not work. Paste the full code and try again.');
@@ -9203,15 +9182,15 @@ export default function SpanishBook() {
       </div>
 
       {syncOpen && (
-        <div className="sync-modal-overlay" role="dialog" aria-modal="true" aria-label="Sync backup">
+        <div className="sync-modal-overlay" role="dialog" aria-modal="true" aria-label="Device sync">
           <div className="sync-modal">
             <button className="sync-close" onClick={() => setSyncOpen(false)} aria-label="Close sync">
               <X size={15} />
             </button>
-            <div className="sync-kicker">Sync Backup</div>
-            <h2>Move your Memoria to another browser</h2>
+            <div className="sync-kicker">Device Sync</div>
+            <h2>Sync your Spanish book across devices</h2>
             <p>
-              Copy this sync backup here, open the website in another browser, paste the code in this same panel, and restore.
+              Copy your sync code on this device, then open the website on your phone, tablet, laptop, or another browser and paste it here.
             </p>
             <div className="sync-stats">
               <span>{savedWords.length} Memoria words</span>
@@ -9219,13 +9198,13 @@ export default function SpanishBook() {
               <span>{Object.keys(lessonStatuses || {}).length} lesson marks</span>
             </div>
             <div className="sync-actions">
-              <button onClick={copySyncBackup}>Copy my sync backup</button>
-              <button onClick={restoreSyncBackup} disabled={!syncCode.trim()}>Restore from code</button>
+              <button onClick={copySyncCode}>Copy sync code</button>
+              <button onClick={syncThisDevice} disabled={!syncCode.trim()}>Sync this device</button>
             </div>
             <textarea
               value={syncCode}
               onChange={(e) => setSyncCode(e.target.value)}
-              placeholder="Paste sync backup code here..."
+              placeholder="Paste sync code here..."
               rows={7}
             />
             {syncMessage && <div className="sync-message">{syncMessage}</div>}
@@ -9396,23 +9375,13 @@ export default function SpanishBook() {
             </nav>
 
             <div className="sidebar-footer">
-              <div className="sidebar-backup-tools">
-                <button type="button" onClick={exportStudyBackup}>Backup</button>
-                <button type="button" onClick={() => { setSyncOpen(true); setSyncMessage(''); }}>
-                  Sync
-                </button>
-                <label>
-                  Import
-                  <input
-                    type="file"
-                    accept="application/json,.json"
-                    onChange={(e) => {
-                      importStudyBackup(e.target.files?.[0]);
-                      e.target.value = '';
-                    }}
-                  />
-                </label>
-              </div>
+              <button
+                type="button"
+                className="sidebar-sync-btn"
+                onClick={() => { setSyncOpen(true); setSyncMessage(''); }}
+              >
+                Sync
+              </button>
               <div className="sig">— para Othman</div>
             </div>
           </div>
@@ -10147,39 +10116,28 @@ const styles = `
   border-top: 1px solid var(--rule);
   padding: 14px 22px 22px;
 }
-.sidebar-backup-tools {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 8px;
-  margin-bottom: 12px;
-}
-.sidebar-backup-tools button,
-.sidebar-backup-tools label {
-  flex: 1;
+.sidebar-sync-btn {
+  width: 100%;
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  border: 1px solid var(--rule);
+  border: 1px solid var(--green);
   border-radius: 6px;
-  background: var(--paper);
-  color: var(--ink-mute);
-  padding: 8px 10px;
+  background: var(--green-tint);
+  color: var(--green);
+  padding: 11px 12px;
+  margin-bottom: 12px;
   font-family: 'Cormorant Garamond', serif;
-  font-size: 12px;
+  font-size: 14px;
   font-weight: 700;
-  letter-spacing: 0.12em;
+  letter-spacing: 0.18em;
   text-transform: uppercase;
   cursor: pointer;
   touch-action: manipulation;
 }
-.sidebar-backup-tools button:hover,
-.sidebar-backup-tools label:hover {
-  color: var(--green);
-  border-color: var(--green);
-  background: var(--green-tint);
-}
-.sidebar-backup-tools input {
-  display: none;
+.sidebar-sync-btn:hover {
+  background: var(--green);
+  color: #fff;
 }
 .sync-modal {
   position: relative;
