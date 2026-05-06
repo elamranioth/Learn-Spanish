@@ -131,9 +131,32 @@ export function buildEnhancedSearchResults(query, chapters, savedWords = [], wri
 
 function findSnippet(text, query) {
   const raw = String(text || '').replace(/\s+/g, ' ').trim();
-  const idx = normalizeTerm(raw).indexOf(normalizeTerm(query));
+  const normalizedQuery = normalizeTerm(query);
+  const directIdx = raw.toLowerCase().indexOf(String(query || '').toLowerCase());
+  if (directIdx >= 0) {
+    return raw.slice(Math.max(0, directIdx - 45), directIdx + 95).trim();
+  }
+
+  let normalized = '';
+  const rawIndexByNormalizedIndex = [];
+  for (let i = 0; i < raw.length; i++) {
+    const normalizedChar = raw[i]
+      .toLowerCase()
+      .normalize('NFD')
+      .replace(/[\u0300-\u036f]/g, '')
+      .replace(/[¿?¡!.,;:()"']/g, '');
+    if (!normalizedChar) continue;
+    for (const ch of normalizedChar) {
+      normalized += ch;
+      rawIndexByNormalizedIndex.push(i);
+    }
+  }
+
+  const idx = normalized.indexOf(normalizedQuery);
   if (idx < 0) return raw.slice(0, 120);
-  return raw.slice(Math.max(0, idx - 45), idx + 95).trim();
+  const rawStart = rawIndexByNormalizedIndex[Math.max(0, idx - 45)] ?? 0;
+  const rawEnd = rawIndexByNormalizedIndex[Math.min(rawIndexByNormalizedIndex.length - 1, idx + normalizedQuery.length + 95)] ?? raw.length;
+  return raw.slice(rawStart, rawEnd).trim();
 }
 
 export function analyzeWritingDraft(draft, prompt = {}) {
@@ -145,12 +168,16 @@ export function analyzeWritingDraft(draft, prompt = {}) {
   const connectors = (text.match(/\b(pero|porque|aunque|entonces|tambien|también|ademas|además|sin embargo|por eso|cuando|mientras)\b/gi) || []).length;
   const verbs = (text.match(/\b(soy|estoy|tengo|quiero|puedo|voy|hago|digo|veo|vivo|trabajo|estudio|fui|era|tenia|tenía|hablo|aprendo)\b/gi) || []).length;
   const targetUsed = prompt?.target ? normalized.includes(normalizeTerm(prompt.target)) : true;
+  const likelyEnglish = (text.match(/\b(the|and|but|because|with|from|about|today|question|answer|write|spanish)\b/gi) || []).length;
+  const accentCandidates = (text.match(/\b(tambien|ademas|tenia|dias|mas|esta|si|tu|el)\b/gi) || []).length;
   const tips = [];
 
   if (words < 20) tips.push('Add more detail.');
   if (sentences < 2) tips.push('Use at least two complete sentences.');
   if (!targetUsed) tips.push('Use the prompt word or idea.');
   if (accents === 0) tips.push('Check accents when needed.');
+  if (accentCandidates > 0) tips.push('Look for missing accents: también, además, tenía, días, más, está, sí, tú, él.');
+  if (likelyEnglish > 0) tips.push('Replace the English words with Spanish before saving.');
   if (connectors < 1 && words >= 20) tips.push('Add a connector like porque, aunque, or entonces.');
   if (verbs < 2 && words >= 15) tips.push('Use more conjugated verbs.');
 
@@ -160,10 +187,12 @@ export function analyzeWritingDraft(draft, prompt = {}) {
     Math.min(sentences * 8, 20) +
     Math.min(connectors * 6, 12) +
     Math.min(verbs * 4, 16) +
-    (targetUsed ? 10 : -10)
+    (targetUsed ? 10 : -10) -
+    Math.min(likelyEnglish * 8, 24) -
+    Math.min(accentCandidates * 3, 12)
   ));
 
-  return { words, sentences, accents, connectors, verbs, targetUsed, tips, score };
+  return { words, sentences, accents, connectors, verbs, targetUsed, likelyEnglish, accentCandidates, tips, score };
 }
 
 export function buildLearnerProfile({ chapters = [], visitedChapters = [], lessonStatuses = {}, palabrasProgress = {}, savedWords = [], writingEntries = [] } = {}, now = Date.now()) {
@@ -174,8 +203,8 @@ export function buildLearnerProfile({ chapters = [], visitedChapters = [], lesso
   return {
     chapters: {
       total: chapters.length,
-      visited: visitedChapters.length,
-      unvisited: Math.max(0, chapters.length - visitedChapters.length),
+      visited: chapters.filter((chapter) => visitedChapters.includes(chapter.id)).length,
+      unvisited: Math.max(0, chapters.length - chapters.filter((chapter) => visitedChapters.includes(chapter.id)).length),
     },
     lessons: {
       read: lessonValues.filter((status) => status === 'read' || status === 'understood').length,

@@ -1,4 +1,4 @@
-const CACHE_NAME = 'learn-spanish-v16';
+const CACHE_NAME = 'learn-spanish-v17';
 const basePath = self.location.pathname.replace(/sw\.js$/, '');
 const shellFiles = [
   basePath,
@@ -50,7 +50,7 @@ self.addEventListener('fetch', (event) => {
         return cached;
       }
 
-      return fetchAndCache.catch(() => caches.match(basePath));
+      return fetchAndCache.catch(() => new Response('', { status: 504, statusText: 'Offline' }));
     })
   );
 });

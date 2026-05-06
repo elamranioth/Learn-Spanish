@@ -20,6 +20,7 @@ const LEVELS = ['A1', 'A2', 'B1', 'B2'];
 const LESSON_STATUS_KEY = 'lesson-status-v1';
 const AUDIO_SETTINGS_KEY = 'audio-settings-v1';
 const WRITING_PRACTICE_KEY = 'writing-practice-v1';
+const TRANSLATION_MODE_KEY = 'translation-mode-v1';
 
 // Icon for each section — used in sidebar nav and chapter headers
 const SECTION_ICONS = {
@@ -5553,6 +5554,13 @@ function warmupAudio() {
   } catch (_) {}
 }
 
+function stopAllAudio() {
+  try {
+    window.speechSynthesis?.cancel();
+    window.dispatchEvent?.(new CustomEvent('learn-spanish-audio-stop'));
+  } catch (_) {}
+}
+
 function speak(text, opts = {}) {
   if (typeof window === 'undefined' || !window.speechSynthesis || !text) {
     if (opts.onerror) opts.onerror({ error: 'no-speechSynthesis' });
@@ -5710,7 +5718,7 @@ function KaraokeText({ text, paragraphClass = 'reading-paragraph', firstParagrap
 
     if (playing) {
       stopRef.current = true;
-      window.speechSynthesis?.cancel();
+      stopAllAudio();
       clearTimers();
       setPlaying(false);
       setActiveWordIdx(-1);
@@ -5719,7 +5727,7 @@ function KaraokeText({ text, paragraphClass = 'reading-paragraph', firstParagrap
 
     if (sentences.length === 0) return;
 
-    window.speechSynthesis?.cancel();
+    stopAllAudio();
     clearTimers();
     stopRef.current = false;
     setPlaying(true);
@@ -5862,10 +5870,18 @@ function KaraokeText({ text, paragraphClass = 'reading-paragraph', firstParagrap
 
   // Cleanup on unmount
   useEffect(() => {
+    function handleGlobalStop() {
+      stopRef.current = true;
+      clearTimers();
+      setPlaying(false);
+      setActiveWordIdx(-1);
+    }
+    window.addEventListener?.('learn-spanish-audio-stop', handleGlobalStop);
     return () => {
       stopRef.current = true;
       clearTimers();
-      if (playing) window.speechSynthesis?.cancel();
+      window.removeEventListener?.('learn-spanish-audio-stop', handleGlobalStop);
+      window.speechSynthesis?.cancel();
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
@@ -5932,6 +5948,12 @@ function KaraokeText({ text, paragraphClass = 'reading-paragraph', firstParagrap
 
 function SpeakBtn({ text, size = 'sm', className = '' }) {
   const [playing, setPlaying] = useState(false);
+  useEffect(() => {
+    function handleGlobalStop() { setPlaying(false); }
+    window.addEventListener?.('learn-spanish-audio-stop', handleGlobalStop);
+    return () => window.removeEventListener?.('learn-spanish-audio-stop', handleGlobalStop);
+  }, []);
+
   function handleClick(e) {
     e.stopPropagation();
     if (typeof window === 'undefined' || !window.speechSynthesis) {
@@ -5942,10 +5964,11 @@ function SpeakBtn({ text, size = 'sm', className = '' }) {
     // click handler to unlock the audio engine. Warmup primes it.
     warmupAudio();
     if (playing) {
-      window.speechSynthesis?.cancel();
+      stopAllAudio();
       setPlaying(false);
       return;
     }
+    stopAllAudio();
     setPlaying(true);
     speak(text, {
       onend: () => setPlaying(false),
@@ -6598,6 +6621,18 @@ function getDisplayEnglish(entry) {
   return entry.topicEnglish || entry.english;
 }
 
+let _palabrasGroupsPromise = null;
+
+function loadPalabrasGroups() {
+  if (!_palabrasGroupsPromise) {
+    _palabrasGroupsPromise = import('./vocab-groups.json').then((module) => {
+      const loadedGroups = module.default || [];
+      return [...loadedGroups, ...buildTopicVocabularyGroups(loadedGroups)];
+    });
+  }
+  return _palabrasGroupsPromise;
+}
+
 function clampInt(n, min, max) {
   return Math.max(min, Math.min(max, Math.round(n)));
 }
@@ -6684,10 +6719,8 @@ function PalabrasLab({ onSaveWord, savedWords = [], progress = {}, onProgressCha
   const [listenMode, setListenMode] = useState(false);
   useEffect(() => {
     let alive = true;
-    import('./vocab-groups.json').then((module) => {
+    loadPalabrasGroups().then((mergedGroups) => {
       if (!alive) return;
-      const loadedGroups = module.default || [];
-      const mergedGroups = [...loadedGroups, ...buildTopicVocabularyGroups(loadedGroups)];
       setGroups(mergedGroups);
       setActiveGroupId((current) => current || mergedGroups[0]?.id || '');
     });
@@ -7449,6 +7482,21 @@ function getDictionaryLookupVariants(value) {
   if (base.endsWith('s') && base.length > 3) variants.add(base.slice(0, -1));
   if (base.endsWith('a') && base.length > 3) variants.add(`${base.slice(0, -1)}o`);
   if (base.endsWith('as') && base.length > 4) variants.add(`${base.slice(0, -2)}o`);
+
+  const addVerbGuess = (suffix, endings) => {
+    if (!base.endsWith(suffix) || base.length <= suffix.length + 1) return;
+    const stem = base.slice(0, -suffix.length);
+    endings.forEach((ending) => variants.add(`${stem}${ending}`));
+  };
+  [
+    ['e', ['ar']], ['aste', ['ar']], ['o', ['ar']], ['amos', ['ar']], ['aron', ['ar']],
+    ['aba', ['ar']], ['abas', ['ar']], ['abamos', ['ar']], ['aban', ['ar']],
+    ['ando', ['ar']], ['ado', ['ar']],
+    ['i', ['er', 'ir']], ['iste', ['er', 'ir']], ['io', ['er', 'ir']], ['imos', ['er', 'ir']], ['ieron', ['er', 'ir']],
+    ['ia', ['er', 'ir']], ['ias', ['er', 'ir']], ['iamos', ['er', 'ir']], ['ian', ['er', 'ir']],
+    ['iendo', ['er', 'ir']], ['ido', ['er', 'ir']],
+  ].forEach(([suffix, endings]) => addVerbGuess(suffix, endings));
+
   return [...variants].filter(Boolean);
 }
 
@@ -7602,10 +7650,9 @@ function DictionaryPopup({ savedWords, onSave, onRemove }) {
 
   useEffect(() => {
     let alive = true;
-    import('./vocab-groups.json').then((module) => {
+    loadPalabrasGroups().then((loadedGroups) => {
       if (!alive) return;
-      const loadedGroups = module.default || [];
-      setVocabularyGroups([...loadedGroups, ...buildTopicVocabularyGroups(loadedGroups)]);
+      setVocabularyGroups(loadedGroups);
     }).catch(() => {
       if (alive) setVocabularyGroups([]);
     });
@@ -7619,7 +7666,15 @@ function DictionaryPopup({ savedWords, onSave, onRemove }) {
       const clean = cleanWord(word);
       if (!clean || clean.length < 2) return;
       setFloatingBtn(null);
-      const stored = findStoredDictionaryEntry(clean, savedWordsRef.current, vocabularyGroupsRef.current);
+      let stored = findStoredDictionaryEntry(clean, savedWordsRef.current, vocabularyGroupsRef.current);
+      if (!stored && vocabularyGroupsRef.current.length === 0) {
+        try {
+          const loadedGroups = await loadPalabrasGroups();
+          vocabularyGroupsRef.current = loadedGroups;
+          setVocabularyGroups(loadedGroups);
+          stored = findStoredDictionaryEntry(clean, savedWordsRef.current, loadedGroups);
+        } catch (_) {}
+      }
       if (stored) {
         setPopup({
           word: stored.matchedWord || clean,
@@ -7724,7 +7779,7 @@ function DictionaryPopup({ savedWords, onSave, onRemove }) {
         className="dict-floating-btn"
         style={{
           left: floatingBtn.x,
-          top: floatingBtn.y + window.scrollY,
+          top: floatingBtn.y,
         }}
         onClick={(e) => {
           e.stopPropagation();
@@ -7743,8 +7798,8 @@ function DictionaryPopup({ savedWords, onSave, onRemove }) {
   const POPUP_W = 290;
   const safeX = Math.max(POPUP_W / 2 + 8, Math.min(popup.x, window.innerWidth - POPUP_W / 2 - 8));
   const belowViewport = popup.y + 220 > window.innerHeight;
-  const topStyle = belowViewport ? 'auto' : popup.y + window.scrollY;
-  const bottomStyle = belowViewport ? window.innerHeight - popup.y - window.scrollY + 12 : 'auto';
+  const topStyle = belowViewport ? 'auto' : popup.y;
+  const bottomStyle = belowViewport ? Math.max(12, window.innerHeight - popup.y + 12) : 'auto';
   const popupVariants = new Set(getDictionaryLookupVariants(popup.word));
   const savedMatch = savedWords.find(w => popupVariants.has(normalizeDictionaryLookup(w.word)));
   const isSaved = Boolean(savedMatch);
@@ -8265,11 +8320,11 @@ function WritingPractice({ savedWords, chapters, entries = [], onEntriesChange }
     const chapterPrompts = chapters.slice(0, 6).map((chapter) => ({
       label: chapter.title,
       text: `Write a short Spanish paragraph about "${chapter.title}".`,
-      target: chapter.title,
+      target: '',
     }));
     return [
-      { label: 'Diario', text: 'Write 5 Spanish sentences about your day.', target: 'today' },
-      { label: 'Pregunta', text: 'Write a question and answer it in Spanish.', target: 'question' },
+      { label: 'Diario', text: 'Write 5 Spanish sentences about your day.', target: '' },
+      { label: 'Pregunta', text: 'Write a question and answer it in Spanish.', target: '' },
       ...wordPrompts,
       ...chapterPrompts,
     ];
@@ -8545,6 +8600,7 @@ export default function SpanishBook() {
   const [showWriting, setShowWriting] = useState(false);
   const [globalSearch, setGlobalSearch] = useState('');
   const [audioSettings, setAudioSettingsState] = useState({ rate: 0.85, voiceURI: '' });
+  const [translationMode, setTranslationMode] = useState('both');
   const [writingEntries, setWritingEntries] = useState([]);
   const [waitingWorker, setWaitingWorker] = useState(null);
 
@@ -8601,6 +8657,10 @@ export default function SpanishBook() {
           setAudioSettingsState(parsed);
           setAudioSettings(parsed);
         }
+      } catch (_) {}
+      try {
+        const mode = await window.storage.get(TRANSLATION_MODE_KEY);
+        if (mode?.value === 'spanish' || mode?.value === 'both') setTranslationMode(mode.value);
       } catch (_) {}
       try {
         const writing = await window.storage.get(WRITING_PRACTICE_KEY);
@@ -8668,6 +8728,14 @@ export default function SpanishBook() {
     setAudioSettingsState(next);
     setAudioSettings(next);
     try { window.storage.set(AUDIO_SETTINGS_KEY, JSON.stringify(next)); } catch (_) {}
+  }
+
+  function toggleTranslationMode() {
+    setTranslationMode((current) => {
+      const next = current === 'spanish' ? 'both' : 'spanish';
+      try { window.storage.set(TRANSLATION_MODE_KEY, next); } catch (_) {}
+      return next;
+    });
   }
 
   // Background-translate a word and update the saved entry with the result.
@@ -8903,6 +8971,65 @@ export default function SpanishBook() {
     setResumeOffer(null);
   }
 
+  function exportStudyBackup() {
+    const payload = {
+      app: 'Learn Spanish',
+      version: 2,
+      exportedAt: new Date().toISOString(),
+      savedWords,
+      visitedChapters,
+      palabrasProgress,
+      lessonStatuses,
+      writingEntries,
+      audioSettings,
+      fontScale,
+      translationMode,
+    };
+    const blob = new Blob([JSON.stringify(payload, null, 2)], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `learn-spanish-backup-${new Date().toISOString().slice(0, 10)}.json`;
+    a.click();
+    URL.revokeObjectURL(url);
+  }
+
+  async function importStudyBackup(file) {
+    if (!file) return;
+    try {
+      const payload = JSON.parse(await file.text());
+      const nextWords = Array.isArray(payload.savedWords) ? payload.savedWords : [];
+      const nextVisited = Array.isArray(payload.visitedChapters) ? payload.visitedChapters : [];
+      const nextPalabras = payload.palabrasProgress && typeof payload.palabrasProgress === 'object' ? payload.palabrasProgress : {};
+      const nextStatuses = payload.lessonStatuses && typeof payload.lessonStatuses === 'object' ? payload.lessonStatuses : {};
+      const nextWriting = Array.isArray(payload.writingEntries) ? payload.writingEntries : [];
+      const nextAudio = payload.audioSettings && typeof payload.audioSettings === 'object' ? payload.audioSettings : audioSettings;
+      const nextFont = Number(payload.fontScale);
+      const nextMode = payload.translationMode === 'spanish' ? 'spanish' : 'both';
+
+      setSavedWords(nextWords);
+      setVisitedChapters(nextVisited);
+      setPalabrasProgress(nextPalabras);
+      setLessonStatuses(nextStatuses);
+      setWritingEntries(nextWriting);
+      setAudioSettingsState(nextAudio);
+      setAudioSettings(nextAudio);
+      setTranslationMode(nextMode);
+      if (nextFont >= 0.85 && nextFont <= 1.3) setFontScale(nextFont);
+
+      await persistWords(nextWords);
+      await persistPalabrasProgress(nextPalabras);
+      await persistLessonStatuses(nextStatuses);
+      await window.storage.set('visited-chapters', JSON.stringify(nextVisited));
+      await window.storage.set(WRITING_PRACTICE_KEY, JSON.stringify(nextWriting));
+      await window.storage.set(AUDIO_SETTINGS_KEY, JSON.stringify(nextAudio));
+      await window.storage.set(TRANSLATION_MODE_KEY, nextMode);
+      if (nextFont >= 0.85 && nextFont <= 1.3) await window.storage.set('font-scale', String(nextFont));
+    } catch (_) {
+      alert('No pude importar este backup. Revisa que sea un archivo JSON de Learn Spanish.');
+    }
+  }
+
   function renderGlobalSearch(extraClass = '') {
     return (
       <div className={`global-search ${extraClass}`}>
@@ -8949,7 +9076,7 @@ export default function SpanishBook() {
   }
 
   return (
-    <div className="book-root">
+    <div className={`book-root translation-mode-${translationMode}`}>
       <DictionaryPopup savedWords={savedWords} onSave={handleSaveWord} onRemove={handleRemoveWord} />
       <style>{styles}</style>
 
@@ -8962,6 +9089,23 @@ export default function SpanishBook() {
           <span className="mobile-brand-script">Español</span>
         </div>
         {renderGlobalSearch('header-search')}
+        <button
+          className={`top-tool-btn ${translationMode === 'spanish' ? 'active' : ''}`}
+          onClick={toggleTranslationMode}
+          aria-label={translationMode === 'spanish' ? 'Show English translations' : 'Hide English translations'}
+          title={translationMode === 'spanish' ? 'Mostrar ingles' : 'Solo espanol'}
+        >
+          <Languages size={15} />
+          <span>{translationMode === 'spanish' ? 'ES' : 'EN'}</span>
+        </button>
+        <button
+          className="top-tool-btn audio-stop"
+          onClick={stopAllAudio}
+          aria-label="Stop all audio"
+          title="Detener audio"
+        >
+          <Headphones size={15} />
+        </button>
         <div className="font-controls">
           <button className="font-btn" onClick={() => bumpFont(-0.05)} aria-label="Smaller text" disabled={fontScale <= 0.85}>
             <span className="font-btn-small">A</span>
@@ -9135,6 +9279,20 @@ export default function SpanishBook() {
             </nav>
 
             <div className="sidebar-footer">
+              <div className="sidebar-backup-tools">
+                <button type="button" onClick={exportStudyBackup}>Backup</button>
+                <label>
+                  Import
+                  <input
+                    type="file"
+                    accept="application/json,.json"
+                    onChange={(e) => {
+                      importStudyBackup(e.target.files?.[0]);
+                      e.target.value = '';
+                    }}
+                  />
+                </label>
+              </div>
               <div className="sig">— para Othman</div>
             </div>
           </div>
@@ -9335,6 +9493,22 @@ const styles = `
   font-size: calc(var(--translation-scale) * 1em * var(--font-scale)) !important;
   line-height: 1.5;
 }
+.translation-mode-spanish .example-en,
+.translation-mode-spanish .inline-en,
+.translation-mode-spanish .lesson-ex-en,
+.translation-mode-spanish .vu-ex-en,
+.translation-mode-spanish .gl-ex-en,
+.translation-mode-spanish .phrase-en,
+.translation-mode-spanish .poem-stanza-en,
+.translation-mode-spanish .song-lyric-en,
+.translation-mode-spanish .poem-vocab-en,
+.translation-mode-spanish .vocab-en,
+.translation-mode-spanish .glossary-en,
+.translation-mode-spanish .dict-example-en,
+.translation-mode-spanish .memoria-front-translation,
+.translation-mode-spanish .memoria-list-en {
+  display: none !important;
+}
 
 /* Mobile bar — always visible (font controls + menu) */
 .mobile-bar {
@@ -9375,6 +9549,36 @@ const styles = `
   border: 1px solid var(--rule);
   border-radius: 8px;
   padding: 2px;
+}
+.top-tool-btn {
+  flex: 0 0 auto;
+  height: 36px;
+  min-width: 38px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 5px;
+  border: 1px solid var(--rule);
+  border-radius: 8px;
+  background: var(--paper);
+  color: var(--ink-mute);
+  font-family: 'Cormorant Garamond', serif;
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  cursor: pointer;
+  touch-action: manipulation;
+}
+.top-tool-btn:hover,
+.top-tool-btn.active {
+  border-color: var(--green);
+  color: var(--green);
+  background: var(--green-tint);
+}
+.top-tool-btn.audio-stop:hover {
+  border-color: var(--sienna);
+  color: var(--sienna-deep);
+  background: var(--sienna-tint);
 }
 .font-btn {
   width: 32px;
@@ -9491,14 +9695,14 @@ const styles = `
 .resume-btn-dismiss:hover { background: rgba(255,255,255,0.28); }
 
 @media (max-width: 700px) {
-  .resume-banner { padding: 12px 14px; top: 48px; }
+  .resume-banner { padding: 12px 14px; top: 98px; }
   .resume-banner-title { font-size: 18px; }
   .resume-btn-primary { font-size: 13px; padding: 7px 12px; }
 }
 
 /* ===== Floating Translate button (appears on text selection) ===== */
 .dict-floating-btn {
-  position: absolute;
+  position: fixed;
   transform: translate(-50%, -100%);
   z-index: 9998;
   display: inline-flex;
@@ -9822,6 +10026,39 @@ const styles = `
 .sidebar-footer {
   border-top: 1px solid var(--rule);
   padding: 14px 22px 22px;
+}
+.sidebar-backup-tools {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 12px;
+}
+.sidebar-backup-tools button,
+.sidebar-backup-tools label {
+  flex: 1;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid var(--rule);
+  border-radius: 6px;
+  background: var(--paper);
+  color: var(--ink-mute);
+  padding: 8px 10px;
+  font-family: 'Cormorant Garamond', serif;
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  cursor: pointer;
+  touch-action: manipulation;
+}
+.sidebar-backup-tools button:hover,
+.sidebar-backup-tools label:hover {
+  color: var(--green);
+  border-color: var(--green);
+  background: var(--green-tint);
+}
+.sidebar-backup-tools input {
+  display: none;
 }
 .sig {
   font-family: 'Caveat', cursive;
@@ -12935,7 +13172,7 @@ const styles = `
 
 /* ===== DICTIONARY POPUP ===== */
 .dict-popup {
-  position: absolute;
+  position: fixed;
   width: 280px;
   transform: translateX(-50%);
   z-index: 9999;
