@@ -14,6 +14,7 @@ import {
   cleanDictionaryWord,
   findStoredDictionaryEntry as findStoredDictionaryEntrySmart,
   getDictionaryLookupVariants as getDictionaryLookupVariantsSmart,
+  normalizeDictionaryExact as normalizeDictionaryExactSmart,
   normalizeDictionaryLookup as normalizeDictionaryLookupSmart,
   translateWord as translateWordSmart,
 } from './spanish-dictionary.js';
@@ -7827,7 +7828,9 @@ function DictionaryPopup({ savedWords, onSave, onRemove }) {
   const topStyle = belowViewport ? 'auto' : popup.y;
   const bottomStyle = belowViewport ? Math.max(12, window.innerHeight - popup.y + 12) : 'auto';
   const popupVariants = new Set(getDictionaryLookupVariantsSmart(popup.word));
-  const savedMatch = savedWords.find(w => popupVariants.has(normalizeDictionaryLookupSmart(w.word)));
+  const popupExact = normalizeDictionaryExactSmart(popup.word);
+  const savedMatch = savedWords.find(w => normalizeDictionaryExactSmart(w.word) === popupExact) ||
+    savedWords.find(w => popupVariants.has(normalizeDictionaryLookupSmart(w.word)));
   const isSaved = Boolean(savedMatch);
 
   function handleSaveToggle() {
@@ -8087,7 +8090,7 @@ function mergeByNewestObject(localObj = {}, remoteObj = {}) {
 function mergeSavedWords(localWords = [], remoteWords = []) {
   const byWord = new Map();
   for (const word of [...remoteWords, ...localWords]) {
-    const key = normalizeDictionaryLookupSmart(word.word);
+    const key = normalizeDictionaryExactSmart(word.word);
     const existing = byWord.get(key);
     if (!existing) {
       byWord.set(key, word);

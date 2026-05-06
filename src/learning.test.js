@@ -10,6 +10,7 @@ import {
 import {
   findStoredDictionaryEntry,
   getDictionaryLookupVariants,
+  normalizeDictionaryExact,
   normalizeDictionaryLookup,
 } from './spanish-dictionary.js';
 
@@ -45,6 +46,16 @@ test('dictionary lookup connects inflected Spanish forms to stored words', () =>
   const saved = [{ word: 'familia', translation: 'family' }, { word: 'poder', translation: 'can / to be able' }];
   assert.equal(findStoredDictionaryEntry('familias', saved)?.main, 'family');
   assert.equal(findStoredDictionaryEntry('puede', saved)?.main, 'can / to be able');
+});
+
+test('dictionary lookup preserves meaning for accent-only word pairs', () => {
+  assert.equal(normalizeDictionaryExact('Sí'), 'sí');
+  assert.equal(normalizeDictionaryLookup('Sí'), 'si');
+  assert.deepEqual(getDictionaryLookupVariants('Sí'), ['sí']);
+
+  const saved = [{ word: 'si', translation: 'if' }, { word: 'sí', translation: 'yes' }];
+  assert.equal(findStoredDictionaryEntry('Sí', saved)?.main, 'yes');
+  assert.equal(findStoredDictionaryEntry('si', saved)?.main, 'if');
 });
 
 test('writing analysis rewards richer Spanish drafts', () => {

@@ -109,6 +109,39 @@ const IRREGULAR_LEMMAS = {
   dieron: ['dar'],
 };
 
+const ACCENT_DISTINCT_WORDS = new Set([
+  'si', 'sí',
+  'tu', 'tú',
+  'el', 'él',
+  'mi', 'mí',
+  'te', 'té',
+  'se', 'sé',
+  'de', 'dé',
+  'mas', 'más',
+  'esta', 'está',
+]);
+
+const EXACT_TRANSLATIONS = {
+  si: { main: 'if', pos: 'conjunction', source: 'Local dictionary', stored: true },
+  'sí': { main: 'yes', pos: 'affirmation', source: 'Local dictionary', stored: true },
+  tu: { main: 'your', pos: 'possessive adjective', source: 'Local dictionary', stored: true },
+  'tú': { main: 'you', pos: 'subject pronoun', source: 'Local dictionary', stored: true },
+  el: { main: 'the', pos: 'article', source: 'Local dictionary', stored: true },
+  'él': { main: 'he', pos: 'subject pronoun', source: 'Local dictionary', stored: true },
+  mi: { main: 'my', pos: 'possessive adjective', source: 'Local dictionary', stored: true },
+  'mí': { main: 'me', pos: 'prepositional pronoun', source: 'Local dictionary', stored: true },
+  te: { main: 'you / to you', pos: 'object pronoun', source: 'Local dictionary', stored: true },
+  'té': { main: 'tea', pos: 'noun', source: 'Local dictionary', stored: true },
+  se: { main: 'himself / herself / themselves', pos: 'reflexive pronoun', source: 'Local dictionary', stored: true },
+  'sé': { main: 'I know', pos: 'verb form of saber', source: 'Local dictionary', stored: true },
+  de: { main: 'of / from', pos: 'preposition', source: 'Local dictionary', stored: true },
+  'dé': { main: 'give', pos: 'subjunctive/command form of dar', source: 'Local dictionary', stored: true },
+  mas: { main: 'but', pos: 'formal conjunction', source: 'Local dictionary', stored: true },
+  'más': { main: 'more', pos: 'adverb', source: 'Local dictionary', stored: true },
+  esta: { main: 'this', pos: 'demonstrative adjective', source: 'Local dictionary', stored: true },
+  'está': { main: 'is', pos: 'verb form of estar', source: 'Local dictionary', stored: true },
+};
+
 export function cleanDictionaryWord(raw) {
   return String(raw || '')
     .replace(/Ã¡/g, 'á')
@@ -127,9 +160,13 @@ export function cleanDictionaryWord(raw) {
 }
 
 export function normalizeDictionaryLookup(value) {
-  return cleanDictionaryWord(value)
+  return normalizeDictionaryExact(value)
     .normalize('NFD')
-    .replace(/[\u0300-\u036f]/g, '')
+    .replace(/[\u0300-\u036f]/g, '');
+}
+
+export function normalizeDictionaryExact(value) {
+  return cleanDictionaryWord(value)
     .replace(/\s+/g, ' ')
     .replace(/^(el|la|los|las|un|una|unos|unas)\s+/, '')
     .trim();
@@ -142,9 +179,12 @@ function addVerbGuess(variants, base, suffix, endings) {
 }
 
 export function getDictionaryLookupVariants(value) {
+  const exact = normalizeDictionaryExact(value);
   const base = normalizeDictionaryLookup(value);
-  const variants = new Set([base]);
+  const keepAccentExact = ACCENT_DISTINCT_WORDS.has(exact);
+  const variants = new Set(keepAccentExact ? [exact] : [exact, base]);
   if (!base) return [];
+  if (keepAccentExact) return [...variants].filter(Boolean);
 
   for (const lemma of IRREGULAR_LEMMAS[base] || []) variants.add(lemma);
 
@@ -184,8 +224,10 @@ export function getDisplayEnglish(entry) {
 }
 
 export function findStoredDictionaryEntry(word, savedWords = [], vocabularyGroups = []) {
+  const exact = normalizeDictionaryExact(word);
   const variants = new Set(getDictionaryLookupVariants(word));
-  const savedMatch = savedWords.find((entry) => variants.has(normalizeDictionaryLookup(entry.word)));
+  const savedMatch = savedWords.find((entry) => normalizeDictionaryExact(entry.word) === exact) ||
+    savedWords.find((entry) => variants.has(normalizeDictionaryLookup(entry.word)));
   if (savedMatch) {
     return {
       main: savedMatch.translation || 'Saved in Memoria',
@@ -200,7 +242,8 @@ export function findStoredDictionaryEntry(word, savedWords = [], vocabularyGroup
   for (const group of vocabularyGroups || []) {
     for (const entry of group.entries || []) {
       const labels = [entry.spanish, entry.topicTerm, getDisplaySpanish(entry)];
-      if (labels.some((label) => variants.has(normalizeDictionaryLookup(label)))) {
+      if (labels.some((label) => normalizeDictionaryExact(label) === exact) ||
+          labels.some((label) => variants.has(normalizeDictionaryLookup(label)))) {
         return {
           main: getDisplayEnglish(entry),
           extras: entry.topicEnglish && entry.topicEnglish !== entry.english ? [entry.english].filter(Boolean) : [],
@@ -219,6 +262,8 @@ export function findStoredDictionaryEntry(word, savedWords = [], vocabularyGroup
 export async function translateWord(word) {
   const errors = [];
   const clean = cleanDictionaryWord(word);
+  const exact = normalizeDictionaryExact(clean);
+  if (EXACT_TRANSLATIONS[exact]) return { ...EXACT_TRANSLATIONS[exact], matchedWord: exact };
   const candidates = [...new Set([clean, ...getDictionaryLookupVariants(clean)])].filter(Boolean).slice(0, 4);
   const timeout = (ms) => (typeof AbortSignal !== 'undefined' && AbortSignal.timeout) ? AbortSignal.timeout(ms) : undefined;
 
