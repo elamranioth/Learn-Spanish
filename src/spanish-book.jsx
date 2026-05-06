@@ -5595,24 +5595,43 @@ function speak(text, opts = {}) {
 }
 
 // =============================================================
-// KARAOKE TEXT — highlights each word as the audio reads it
-// Uses speechSynthesis onboundary events. Falls back gracefully
-// on browsers that don't fire word boundaries reliably.
+// CLICKABLE SPANISH TEXT + KARAOKE TEXT
+// Spanish words expose data-dict-word so the dictionary popup can
+// open from one tap while audio highlighting stays synchronized.
 // =============================================================
+const DICTIONARY_TOKEN_RE = /([\p{L}\p{N}]+)|([^\p{L}\p{N}]+)/gu;
+
+function tokenizeDictionaryText(text) {
+  const result = [];
+  const source = String(text || '');
+  let m;
+  DICTIONARY_TOKEN_RE.lastIndex = 0;
+  while ((m = DICTIONARY_TOKEN_RE.exec(source)) !== null) {
+    result.push({ text: m[0], isWord: !!m[1], charStart: m.index });
+  }
+  return result;
+}
+
+function InlineDictionaryText({ text }) {
+  const tokens = useMemo(() => tokenizeDictionaryText(text), [text]);
+  return (
+    <>
+      {tokens.map((tok, i) => (
+        tok.isWord ? (
+          <span key={i} className="dict-word-token" data-dict-word={tok.text}>
+            {tok.text}
+          </span>
+        ) : (
+          <span key={i}>{tok.text}</span>
+        )
+      ))}
+    </>
+  );
+}
+
 function KaraokeText({ text, paragraphClass = 'reading-paragraph', firstParagraph = false }) {
   // 1. Tokenize text — words separated from whitespace/punctuation
-  const tokens = useMemo(() => {
-    const result = [];
-    let charPos = 0;
-    const regex = /([0-9a-zA-ZáéíóúñüÁÉÍÓÚÑÜ]+)|([^0-9a-zA-ZáéíóúñüÁÉÍÓÚÑÜ]+)/g;
-    let m;
-    while ((m = regex.exec(text)) !== null) {
-      const isWord = !!m[1];
-      result.push({ text: m[0], isWord, charStart: charPos });
-      charPos += m[0].length;
-    }
-    return result;
-  }, [text]);
+  const tokens = useMemo(() => tokenizeDictionaryText(text), [text]);
 
   // 2. Group tokens into sentences (split on . ! ? ; :) for natural prosody
   //    Each sentence carries: spoken text, the words inside it (with commaAfter flag)
@@ -5875,7 +5894,7 @@ function KaraokeText({ text, paragraphClass = 'reading-paragraph', firstParagrap
         >
           <Volume2 size={12} />
         </button>
-        {text}
+        <InlineDictionaryText text={text} />
       </p>
     );
   }
@@ -5901,6 +5920,7 @@ function KaraokeText({ text, paragraphClass = 'reading-paragraph', firstParagrap
             key={i}
             ref={el => wordRefs.current[i] = el}
             className={`kt-word ${isActive ? 'kt-active' : ''}`}
+            data-dict-word={tok.text}
           >
             {tok.text}
           </span>
@@ -6022,7 +6042,7 @@ function ExamplePair({ es, en, esClass = 'vu-ex-es', enClass = 'vu-ex-en' }) {
     return (
       <div className={`${esClass} inline-pair`}>
         <SpeakBtn text={es} />
-        {es} <span className={`${enClass} inline-en`}>({en})</span>
+        <InlineDictionaryText text={es} /> <span className={`${enClass} inline-en`}>({en})</span>
       </div>
     );
   }
@@ -6030,7 +6050,7 @@ function ExamplePair({ es, en, esClass = 'vu-ex-es', enClass = 'vu-ex-en' }) {
     <>
       <div className={esClass}>
         <SpeakBtn text={es} />
-        {es}
+        <InlineDictionaryText text={es} />
       </div>
       <div className={enClass}>{en}</div>
     </>
@@ -6045,7 +6065,7 @@ function GrammarSection({ s }) {
   return (
     <div className="gl-section">
       {s.heading && <h3 className="gl-heading">{s.heading}</h3>}
-      {s.text && <p className="gl-text">{s.text}</p>}
+      {s.text && <p className="gl-text"><InlineDictionaryText text={s.text} /></p>}
       {s.table && (
         <div className="lesson-table-wrap">
           <table className="lesson-table gl-table">
@@ -7030,7 +7050,7 @@ function ChapterContent({ chapter, sectionId, onSaveWord, savedWords = [], onUpd
         <div className="chapter-rule" />
       </header>
 
-      {chapter.intro && <p className="chapter-intro drop-cap">{chapter.intro}</p>}
+      {chapter.intro && <p className="chapter-intro drop-cap"><InlineDictionaryText text={chapter.intro} /></p>}
 
       {chapter.blocks.map((block, i) => {
         switch (block.type) {
@@ -7082,10 +7102,7 @@ function ChapterContent({ chapter, sectionId, onSaveWord, savedWords = [], onUpd
             return (
               <section key={i} className="block reading-block">
                 {block.paragraphs.map((p, j) => (
-                  <p key={j} className="reading-paragraph">
-                    <SpeakBtn text={p} className="paragraph-speak" />
-                    {p}
-                  </p>
+                  <KaraokeText key={j} text={p} paragraphClass="reading-paragraph" />
                 ))}
               </section>
             );
@@ -7165,7 +7182,7 @@ function ChapterContent({ chapter, sectionId, onSaveWord, savedWords = [], onUpd
                       <div className="phrase-content">
                         <p className="phrase-es">
                           <SpeakBtn text={p.es} className="paragraph-speak" />
-                          {p.es}
+                          <InlineDictionaryText text={p.es} />
                         </p>
                         <p className="phrase-en">{p.en}</p>
                       </div>
@@ -7349,9 +7366,9 @@ function ChapterContent({ chapter, sectionId, onSaveWord, savedWords = [], onUpd
             return (
               <section key={i} className="block lesson-section">
                 {block.heading && <h2 className="lesson-heading">{block.heading}</h2>}
-                {block.text && <p className="lesson-text">{block.text}</p>}
+                {block.text && <p className="lesson-text"><InlineDictionaryText text={block.text} /></p>}
                 {block.paragraphs && block.paragraphs.map((p, pi) => (
-                  <p key={pi} className="lesson-text">{p}</p>
+                  <p key={pi} className="lesson-text"><InlineDictionaryText text={p} /></p>
                 ))}
                 {block.table && (
                   <div className="lesson-table-wrap">
@@ -7414,6 +7431,58 @@ function ChapterContent({ chapter, sectionId, onSaveWord, savedWords = [], onUpd
 // =============================================================
 function _cleanWord(raw) {
   return raw.trim().replace(/[«»""''¡!¿?.,;:()[\]{}<>*_/\\—–\-]+/g, '').trim().toLowerCase();
+}
+
+function normalizeDictionaryLookup(value) {
+  return _cleanWord(String(value || ''))
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .replace(/\s+/g, ' ')
+    .replace(/^(el|la|los|las|un|una|unos|unas)\s+/, '')
+    .trim();
+}
+
+function getDictionaryLookupVariants(value) {
+  const base = normalizeDictionaryLookup(value);
+  const variants = new Set([base]);
+  if (base.endsWith('es') && base.length > 4) variants.add(base.slice(0, -2));
+  if (base.endsWith('s') && base.length > 3) variants.add(base.slice(0, -1));
+  if (base.endsWith('a') && base.length > 3) variants.add(`${base.slice(0, -1)}o`);
+  if (base.endsWith('as') && base.length > 4) variants.add(`${base.slice(0, -2)}o`);
+  return [...variants].filter(Boolean);
+}
+
+function findStoredDictionaryEntry(word, savedWords = [], vocabularyGroups = []) {
+  const variants = new Set(getDictionaryLookupVariants(word));
+  const savedMatch = savedWords.find((entry) => variants.has(normalizeDictionaryLookup(entry.word)));
+  if (savedMatch) {
+    return {
+      main: savedMatch.translation || 'Saved in Memoria',
+      extras: savedMatch.extras || [],
+      pos: savedMatch.pos || 'Memoria',
+      source: 'Memoria',
+      stored: true,
+      matchedWord: savedMatch.word,
+    };
+  }
+
+  for (const group of vocabularyGroups || []) {
+    for (const entry of group.entries || []) {
+      const labels = [entry.spanish, entry.topicTerm, getDisplaySpanish(entry)];
+      if (labels.some((label) => variants.has(normalizeDictionaryLookup(label)))) {
+        return {
+          main: getDisplayEnglish(entry),
+          extras: entry.topicEnglish && entry.topicEnglish !== entry.english ? [entry.english].filter(Boolean) : [],
+          pos: group.title || entry.sourceGroupTitle || 'Palabras',
+          source: 'Palabras',
+          stored: true,
+          matchedWord: getDisplaySpanish(entry),
+        };
+      }
+    }
+  }
+
+  return null;
 }
 
 async function translateWord(word) {
@@ -7510,7 +7579,10 @@ async function translateWord(word) {
 
 function DictionaryPopup({ savedWords, onSave, onRemove }) {
   const [popup, setPopup] = useState(null);
+  const [vocabularyGroups, setVocabularyGroups] = useState([]);
   const popupRef = React.useRef(null);
+  const savedWordsRef = React.useRef(savedWords);
+  const vocabularyGroupsRef = React.useRef(vocabularyGroups);
 
   const cleanWord = _cleanWord;
   const translate = translateWord;
@@ -7521,17 +7593,66 @@ function DictionaryPopup({ savedWords, onSave, onRemove }) {
   const [floatingBtn, setFloatingBtn] = useState(null); // {word, x, y}
 
   useEffect(() => {
+    savedWordsRef.current = savedWords;
+  }, [savedWords]);
+
+  useEffect(() => {
+    vocabularyGroupsRef.current = vocabularyGroups;
+  }, [vocabularyGroups]);
+
+  useEffect(() => {
+    let alive = true;
+    import('./vocab-groups.json').then((module) => {
+      if (!alive) return;
+      const loadedGroups = module.default || [];
+      setVocabularyGroups([...loadedGroups, ...buildTopicVocabularyGroups(loadedGroups)]);
+    }).catch(() => {
+      if (alive) setVocabularyGroups([]);
+    });
+    return () => { alive = false; };
+  }, []);
+
+  useEffect(() => {
     let lastSelection = '';
 
     async function openPopupForWord(word, x, y) {
+      const clean = cleanWord(word);
+      if (!clean || clean.length < 2) return;
       setFloatingBtn(null);
-      setPopup({ word, x, y, loading: true, result: null, error: false });
-      try {
-        const result = await translate(word);
-        setPopup(prev => prev && prev.word === word ? { ...prev, loading: false, result, error: !result } : prev);
-      } catch (_) {
-        setPopup(prev => prev && prev.word === word ? { ...prev, loading: false, error: true } : prev);
+      const stored = findStoredDictionaryEntry(clean, savedWordsRef.current, vocabularyGroupsRef.current);
+      if (stored) {
+        setPopup({
+          word: stored.matchedWord || clean,
+          x,
+          y,
+          loading: false,
+          result: stored,
+          error: false,
+        });
+        return;
       }
+
+      setPopup({ word: clean, x, y, loading: true, result: null, error: false });
+      try {
+        const result = await translate(clean);
+        setPopup(prev => prev && prev.word === clean ? { ...prev, loading: false, result, error: !result } : prev);
+      } catch (_) {
+        setPopup(prev => prev && prev.word === clean ? { ...prev, loading: false, error: true } : prev);
+      }
+    }
+
+    function handleDictionaryWordClick(e) {
+      const target = e.target.closest && e.target.closest('[data-dict-word]');
+      if (!target) return;
+      const word = cleanWord(target.dataset.dictWord || target.textContent || '');
+      if (!word || word.length < 2) return;
+      const selection = window.getSelection?.();
+      if (selection && !selection.isCollapsed && cleanWord(selection.toString()).length > 1) return;
+      e.stopPropagation();
+      const rect = target.getBoundingClientRect();
+      const x = rect.left + rect.width / 2;
+      const y = rect.bottom + 10;
+      openPopupForWord(word, x, y);
     }
 
     function handleSelectionChange() {
@@ -7572,7 +7693,8 @@ function DictionaryPopup({ savedWords, onSave, onRemove }) {
       // dismiss everything.
       const insidePopup = popupRef.current && popupRef.current.contains(e.target);
       const insideBtn = e.target.closest && e.target.closest('.dict-floating-btn');
-      if (!insidePopup && !insideBtn) {
+      const insideWord = e.target.closest && e.target.closest('[data-dict-word]');
+      if (!insidePopup && !insideBtn && !insideWord) {
         setPopup(null);
         setFloatingBtn(null);
         lastSelection = '';
@@ -7583,9 +7705,11 @@ function DictionaryPopup({ savedWords, onSave, onRemove }) {
     window.__bookOpenPopup = openPopupForWord;
 
     document.addEventListener('selectionchange', handleSelectionChange);
+    document.addEventListener('pointerup', handleDictionaryWordClick);
     document.addEventListener('pointerdown', handleOutsideClick);
     return () => {
       document.removeEventListener('selectionchange', handleSelectionChange);
+      document.removeEventListener('pointerup', handleDictionaryWordClick);
       document.removeEventListener('pointerdown', handleOutsideClick);
       delete window.__bookOpenPopup;
     };
@@ -7621,11 +7745,13 @@ function DictionaryPopup({ savedWords, onSave, onRemove }) {
   const belowViewport = popup.y + 220 > window.innerHeight;
   const topStyle = belowViewport ? 'auto' : popup.y + window.scrollY;
   const bottomStyle = belowViewport ? window.innerHeight - popup.y - window.scrollY + 12 : 'auto';
-  const isSaved = savedWords.some(w => w.word === popup.word);
+  const popupVariants = new Set(getDictionaryLookupVariants(popup.word));
+  const savedMatch = savedWords.find(w => popupVariants.has(normalizeDictionaryLookup(w.word)));
+  const isSaved = Boolean(savedMatch);
 
   function handleSaveToggle() {
     if (isSaved) {
-      onRemove(popup.word);
+      onRemove(savedMatch.word);
     } else {
       // Allow saving even without a translation — the SpanishDict link still works
       onSave({
@@ -12635,7 +12761,19 @@ const styles = `
   border-radius: 3px;
   padding: 0 1px;
   margin: 0 -1px;
-  transition: background-color 120ms ease, color 120ms ease;
+  cursor: help;
+  transition: background-color 120ms ease, color 120ms ease, box-shadow 120ms ease;
+  -webkit-tap-highlight-color: rgba(47, 99, 62, 0.16);
+}
+.dict-word-token {
+  border-radius: 3px;
+  cursor: help;
+  -webkit-tap-highlight-color: rgba(47, 99, 62, 0.16);
+}
+.kt-word:hover,
+.dict-word-token:hover {
+  background: rgba(47, 99, 62, 0.1);
+  box-shadow: 0 0 0 2px rgba(47, 99, 62, 0.1);
 }
 .kt-word.kt-active {
   background: #fef3a8;
