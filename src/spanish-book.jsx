@@ -30,6 +30,7 @@ const LESSON_STATUS_KEY = 'lesson-status-v1';
 const AUDIO_SETTINGS_KEY = 'audio-settings-v1';
 const WRITING_PRACTICE_KEY = 'writing-practice-v1';
 const TRANSLATION_MODE_KEY = 'translation-mode-v1';
+const STUDY_TIME_KEY = 'study-time-v1';
 const GOOGLE_CLIENT_ID_KEY = 'google-drive-client-id-v1';
 const GOOGLE_DRIVE_SYNC_FILE = 'learn-spanish-sync.json';
 const GOOGLE_DRIVE_SCOPE = 'https://www.googleapis.com/auth/drive.appdata';
@@ -8122,6 +8123,48 @@ function mergeLessonStatuses(localStatuses = {}, remoteStatuses = {}) {
   return merged;
 }
 
+function getStudyDateKey(now = new Date()) {
+  return now.toISOString().slice(0, 10);
+}
+
+function normalizeStudyTimeState(value = {}) {
+  const today = getStudyDateKey();
+  const date = value.date === today ? value.date : today;
+  const todaySeconds = value.date === today ? Math.max(0, Number(value.todaySeconds) || 0) : 0;
+  return {
+    totalSeconds: Math.max(0, Number(value.totalSeconds) || 0),
+    todaySeconds,
+    date,
+    byChapter: value.byChapter && typeof value.byChapter === 'object' ? value.byChapter : {},
+    updatedAt: value.updatedAt || Date.now(),
+  };
+}
+
+function mergeStudyTime(localTime = {}, remoteTime = {}) {
+  const local = normalizeStudyTimeState(localTime);
+  const remote = normalizeStudyTimeState(remoteTime);
+  const byChapter = {};
+  for (const key of new Set([...Object.keys(remote.byChapter || {}), ...Object.keys(local.byChapter || {})])) {
+    byChapter[key] = Math.max(Number(local.byChapter?.[key]) || 0, Number(remote.byChapter?.[key]) || 0);
+  }
+  return {
+    totalSeconds: Math.max(local.totalSeconds, remote.totalSeconds),
+    todaySeconds: Math.max(local.todaySeconds, remote.todaySeconds),
+    date: getStudyDateKey(),
+    byChapter,
+    updatedAt: Math.max(Number(local.updatedAt) || 0, Number(remote.updatedAt) || 0, Date.now()),
+  };
+}
+
+function formatStudyDuration(totalSeconds = 0) {
+  const seconds = Math.max(0, Math.floor(Number(totalSeconds) || 0));
+  const hours = Math.floor(seconds / 3600);
+  const minutes = Math.floor((seconds % 3600) / 60);
+  if (hours > 0) return `${hours}h ${String(minutes).padStart(2, '0')}m`;
+  if (minutes > 0) return `${minutes}m`;
+  return `${seconds}s`;
+}
+
 function mergeSyncPayloads(localPayload, remotePayload) {
   if (!remotePayload) return localPayload;
   const localTime = Date.parse(localPayload.exportedAt || '') || 0;
@@ -8136,6 +8179,7 @@ function mergeSyncPayloads(localPayload, remotePayload) {
     visitedChapters: Array.from(new Set([...(remotePayload.visitedChapters || []), ...(localPayload.visitedChapters || [])])),
     palabrasProgress: mergeByNewestObject(localPayload.palabrasProgress, remotePayload.palabrasProgress),
     lessonStatuses: mergeLessonStatuses(localPayload.lessonStatuses, remotePayload.lessonStatuses),
+    studyTime: mergeStudyTime(localPayload.studyTime, remotePayload.studyTime),
     writingEntries: [...new Map([...(remotePayload.writingEntries || []), ...(localPayload.writingEntries || [])].map((entry) => [entry.id, entry])).values()]
       .sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0))
       .slice(0, 80),
@@ -8833,6 +8877,9 @@ export default function SpanishBook() {
   const [googleClientId, setGoogleClientId] = useState(import.meta.env.VITE_GOOGLE_CLIENT_ID || '');
   const [googleBusy, setGoogleBusy] = useState(false);
   const [syncMessage, setSyncMessage] = useState('');
+  const [studyTime, setStudyTime] = useState(() => normalizeStudyTimeState());
+  const [studySessionSeconds, setStudySessionSeconds] = useState(0);
+  const studyPersistTickRef = React.useRef(0);
 
   // --- Font size: persists across sessions, applied to body via CSS variable ---
   const [fontScale, setFontScale] = useState(1.0); // multiplier: 0.85 → 1.3
@@ -8899,6 +8946,10 @@ export default function SpanishBook() {
       try {
         const writing = await window.storage.get(WRITING_PRACTICE_KEY);
         if (writing?.value) setWritingEntries(JSON.parse(writing.value) || []);
+      } catch (_) {}
+      try {
+        const time = await window.storage.get(STUDY_TIME_KEY);
+        if (time?.value) setStudyTime(normalizeStudyTimeState(JSON.parse(time.value)));
       } catch (_) {}
     })();
   }, []);
@@ -9159,6 +9210,60 @@ export default function SpanishBook() {
   const palabrasChapter = visibleFlatChapters.find((c) => c.id === 'palabras-5000');
   const verbChapter = visibleFlatChapters.find((c) => c.sectionId === 'verbos') || visibleFlatChapters.find((c) => c.sectionId === 'verbos2');
   const readingChapter = visibleFlatChapters.find((c) => c.sectionId === 'lectura');
+  const isStudyTimerRunning = Boolean(activeChapter && !showHome && !showMemoria && !showWriting);
+  const studyTimerLabel = isStudyTimerRunning
+    ? `${activeChapter.sectionLabel || 'Lesson'} - ${activeChapter.title}`
+    : 'Open a lesson to count';
+
+  useEffect(() => {
+    if (!isStudyTimerRunning || !activeChapter?.id) return undefined;
+    let alive = true;
+    const tick = () => {
+      if (!alive || document.hidden) return;
+      const now = Date.now();
+      setStudySessionSeconds((seconds) => seconds + 1);
+      setStudyTime((current) => {
+        const base = normalizeStudyTimeState(current);
+        const next = {
+          ...base,
+          totalSeconds: base.totalSeconds + 1,
+          todaySeconds: base.todaySeconds + 1,
+          byChapter: {
+            ...base.byChapter,
+            [activeChapter.id]: (Number(base.byChapter?.[activeChapter.id]) || 0) + 1,
+          },
+          updatedAt: now,
+        };
+        studyPersistTickRef.current += 1;
+        if (studyPersistTickRef.current >= 15) {
+          studyPersistTickRef.current = 0;
+          try { window.storage.set(STUDY_TIME_KEY, JSON.stringify(next)); } catch (_) {}
+        }
+        return next;
+      });
+    };
+    const timer = window.setInterval(tick, 1000);
+    return () => {
+      alive = false;
+      window.clearInterval(timer);
+    };
+  }, [isStudyTimerRunning, activeChapter?.id]);
+
+  useEffect(() => {
+    try { window.storage.set(STUDY_TIME_KEY, JSON.stringify(studyTime)); } catch (_) {}
+  }, [showHome, showMemoria, showWriting, activeChapterId]);
+
+  useEffect(() => {
+    const persistStudyTime = () => {
+      try { window.storage.set(STUDY_TIME_KEY, JSON.stringify(studyTime)); } catch (_) {}
+    };
+    window.addEventListener('pagehide', persistStudyTime);
+    window.addEventListener('beforeunload', persistStudyTime);
+    return () => {
+      window.removeEventListener('pagehide', persistStudyTime);
+      window.removeEventListener('beforeunload', persistStudyTime);
+    };
+  }, [studyTime]);
 
   useEffect(() => {
     try { window.storage.set(LEARNER_PROFILE_KEY, JSON.stringify(learnerProfile)); } catch (_) {}
@@ -9218,6 +9323,7 @@ export default function SpanishBook() {
       audioSettings,
       fontScale,
       translationMode,
+      studyTime,
     };
   }
 
@@ -9230,6 +9336,7 @@ export default function SpanishBook() {
     const nextAudio = payload.audioSettings && typeof payload.audioSettings === 'object' ? payload.audioSettings : audioSettings;
     const nextFont = Number(payload.fontScale);
     const nextMode = payload.translationMode === 'spanish' ? 'spanish' : 'both';
+    const nextStudyTime = normalizeStudyTimeState(payload.studyTime || studyTime);
 
     setSavedWords(nextWords);
     setVisitedChapters(nextVisited);
@@ -9239,6 +9346,7 @@ export default function SpanishBook() {
     setAudioSettingsState(nextAudio);
     setAudioSettings(nextAudio);
     setTranslationMode(nextMode);
+    setStudyTime(nextStudyTime);
     if (nextFont >= 0.85 && nextFont <= 1.3) setFontScale(nextFont);
 
     await persistWords(nextWords);
@@ -9248,6 +9356,7 @@ export default function SpanishBook() {
     await window.storage.set(WRITING_PRACTICE_KEY, JSON.stringify(nextWriting));
     await window.storage.set(AUDIO_SETTINGS_KEY, JSON.stringify(nextAudio));
     await window.storage.set(TRANSLATION_MODE_KEY, nextMode);
+    await window.storage.set(STUDY_TIME_KEY, JSON.stringify(nextStudyTime));
     if (nextFont >= 0.85 && nextFont <= 1.3) await window.storage.set('font-scale', String(nextFont));
   }
 
@@ -9349,6 +9458,11 @@ export default function SpanishBook() {
         </button>
         <div className="mobile-title">
           <span className="mobile-brand-script">Español</span>
+        </div>
+        <div className={`study-timer ${isStudyTimerRunning ? 'running' : ''}`} title={studyTimerLabel}>
+          <Clock size={14} />
+          <span className="study-timer-main">{formatStudyDuration(studyTime.todaySeconds)}</span>
+          <span className="study-timer-sub">{formatStudyDuration(studySessionSeconds)}</span>
         </div>
         {renderGlobalSearch('header-search')}
         <button
@@ -9824,6 +9938,42 @@ const styles = `
   font-family: 'Caveat', cursive;
   font-size: 26px;
   color: var(--green);
+}
+.study-timer {
+  flex: 0 0 auto;
+  min-width: 96px;
+  height: 36px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: 0 10px;
+  border: 1px solid var(--rule);
+  border-radius: 999px;
+  background: var(--paper);
+  color: var(--ink-mute);
+  font-family: 'Cormorant Garamond', serif;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+}
+.study-timer.running {
+  border-color: var(--green);
+  color: var(--green);
+  background: var(--green-tint);
+}
+.study-timer-main {
+  font-size: 16px;
+  line-height: 1;
+}
+.study-timer-sub {
+  padding-left: 6px;
+  border-left: 1px solid var(--rule);
+  font-size: 11px;
+  color: var(--ink-mute);
+}
+.study-timer.running .study-timer-sub {
+  color: var(--green);
+  border-left-color: rgba(48, 103, 65, 0.24);
 }
 .mobile-btn {
   background: transparent;
@@ -14568,8 +14718,13 @@ const styles = `
   .mobile-bar {
     flex-wrap: wrap;
   }
-  .font-controls {
+  .study-timer {
+    order: 2;
     margin-left: auto;
+    min-width: 88px;
+  }
+  .font-controls {
+    order: 2;
   }
   .header-search {
     order: 3;
