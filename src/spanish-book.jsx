@@ -2,6 +2,7 @@ import React, { useState, useEffect, useMemo } from 'react';
 import { BookOpen, Menu, X, ChevronLeft, ChevronRight, ChevronDown, Bookmark, Languages, Quote, Lightbulb, NotebookPen, Sparkles, Volume2, RotateCcw, Check, Clock, Zap, BookText, Library, ListTree, MessageSquare, GraduationCap, Compass, Search, Star, AlertTriangle, PenLine, BarChart3, Headphones } from 'lucide-react';
 import { AppMessages, showAppMessage } from './app-messages.jsx';
 import { CANCIONES_SONGS } from './canciones.js';
+import { RANKED_EXPRESSIONS_GROUPS } from './ranked-expressions.js';
 import {
   LEARNER_PROFILE_KEY,
   analyzeWritingDraft,
@@ -5170,6 +5171,19 @@ const SECTIONS = [
           },
         ],
       },
+      ...RANKED_EXPRESSIONS_GROUPS.map((group) => ({
+        id: group.id,
+        level: group.level,
+        title: group.title,
+        subtitle: group.subtitle,
+        intro: group.intro,
+        blocks: [
+          {
+            type: 'phraselist',
+            phrases: group.phrases,
+          },
+        ],
+      })),
     ],
   },
   {
@@ -7429,13 +7443,19 @@ function ChapterContent({ chapter, sectionId, onSaveWord, savedWords = [], onUpd
                 <ul className="phrase-list">
                   {block.phrases.map((p, j) => (
                     <li key={j} className="phrase-item">
-                      <span className="phrase-num">{String(j + 1).padStart(2, '0')}</span>
+                      <span className="phrase-num">{String(p.rank || j + 1).padStart(2, '0')}</span>
                       <div className="phrase-content">
                         <p className="phrase-es">
                           <SpeakBtn text={p.es} className="paragraph-speak" />
                           <InlineDictionaryText text={p.es} />
                         </p>
                         <p className="phrase-en">{p.en}</p>
+                        {p.example && (
+                          <p className="phrase-example">
+                            <span>Ejemplo</span>
+                            <InlineDictionaryText text={p.example} />
+                          </p>
+                        )}
                       </div>
                     </li>
                   ))}
@@ -11715,7 +11735,7 @@ const styles = `
   font-size: 14px;
   color: var(--sienna);
   letter-spacing: 0.1em;
-  min-width: 28px;
+  min-width: 36px;
   padding-top: 4px;
   border-right: 1px solid var(--rule);
   text-align: right;
@@ -11723,6 +11743,24 @@ const styles = `
 }
 .phrase-es { margin: 0; font-size: 18px; color: var(--ink); }
 .phrase-en { margin: 4px 0 0; font-size: 16px; font-style: italic; color: var(--ink-mute); }
+.phrase-example {
+  margin: 8px 0 0;
+  padding-left: 12px;
+  border-left: 2px solid var(--forest);
+  color: var(--ink);
+  font-size: 15px;
+  line-height: 1.55;
+}
+.phrase-example span:first-child {
+  display: block;
+  margin-bottom: 2px;
+  font-family: 'Inter', sans-serif;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: var(--forest);
+}
 
 /* Steps */
 .steps-list {
