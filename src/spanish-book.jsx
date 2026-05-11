@@ -2,6 +2,7 @@ import React, { useState, useEffect, useMemo } from 'react';
 import { BookOpen, Menu, X, ChevronLeft, ChevronRight, ChevronDown, Bookmark, Languages, Quote, Lightbulb, NotebookPen, Sparkles, Volume2, RotateCcw, Check, Clock, Zap, BookText, Library, ListTree, MessageSquare, GraduationCap, Compass, Search, Star, AlertTriangle, PenLine, BarChart3, Headphones } from 'lucide-react';
 import { AppMessages, showAppMessage } from './app-messages.jsx';
 import { CANCIONES_SONGS } from './canciones.js';
+import { COMPOUND_TENSES_SUBJUNCTIVE_LESSON } from './compound-tenses-subjunctive.js';
 import {
   LEARNER_PROFILE_KEY,
   analyzeWritingDraft,
@@ -314,196 +315,7 @@ const SECTIONS = [
           },
         ],
       },
-      {
-        id: 'tiempos-compuestos',
-        level: 'B1',
-        title: 'Tiempos compuestos',
-        subtitle: 'indicativo primero, subjuntivo segundo, comparacion al final',
-        intro: 'A simple tense says when an action happens. A compound tense says that an action is already complete from some point of view. Spanish builds this whole floor of grammar with one machine: haber + participio. First learn the fact forms in indicativo. Then learn the doubt/desire/condition forms in subjuntivo. At the end, compare them side by side.',
-        blocks: [
-          {
-            type: 'lesson-section',
-            heading: 'Before the two lessons: the machine',
-            paragraphs: [
-              'Think of haber as the clock and the participle as the completed action. Haber changes; the participle stays still. That is the entire machine.',
-              'Use haber, not tener. Say he hablado, habia comido, habremos terminado, haya visto. The participle does not agree with the subject in these compound tenses: ellas han comprado, not han compradas.',
-            ],
-            table: {
-              headers: ['Part', 'Job', 'Examples'],
-              rows: [
-                ['haber', 'shows time, person, and mood', 'he, habia, hube, habre, habria, haya, hubiera'],
-                ['participio', 'shows the completed action', 'hablado, comido, vivido, hecho, visto'],
-                ['pronouns', 'go before haber', 'Lo he visto. / Se lo habia explicado.'],
-              ],
-            },
-          },
-          {
-            type: 'lesson-section',
-            heading: 'Participios: the pieces you attach to haber',
-            text: 'Regular participles are easy: -ar becomes -ado; -er and -ir become -ido. The irregulars below appear constantly, so learn them as vocabulary.',
-            table: {
-              headers: ['Infinitivo', 'Participio', 'Example'],
-              rows: [
-                ['hablar', 'hablado', 'He hablado con Ana.'],
-                ['comer', 'comido', 'Habiamos comido antes.'],
-                ['vivir', 'vivido', 'Habran vivido alli.'],
-                ['hacer', 'hecho', 'No creo que lo haya hecho.'],
-                ['ver', 'visto', 'Si lo hubiera visto, te habria llamado.'],
-                ['decir / escribir / poner', 'dicho / escrito / puesto', 'Me lo habian dicho. / Lo he escrito. / Lo has puesto.'],
-                ['abrir / volver / romper', 'abierto / vuelto / roto', 'La tienda ha abierto. / Ha vuelto. / Se ha roto.'],
-              ],
-            },
-          },
-          {
-            type: 'lesson-section',
-            heading: 'Lesson 1: Indicativo - completed facts',
-            text: 'Use the indicativo when the speaker presents the completed action as fact, report, timeline, prediction, or strong assertion. This is the factual side of tiempos compuestos.',
-            table: {
-              headers: ['Tense', 'Formula with hablar', 'Core idea'],
-              rows: [
-                ['Present perfect', 'he hablado', 'what has happened and still matters now'],
-                ['Past perfect', 'habia hablado', 'what had happened before another past moment'],
-                ['Preterite perfect', 'hube hablado', 'formal/literary immediate completion before another past action'],
-                ['Future perfect', 'habre hablado', 'what will have happened by a future point; also probability'],
-                ['Conditional perfect', 'habria hablado', 'what would have happened; also probability about the past'],
-              ],
-            },
-          },
-          {
-            type: 'lesson-section',
-            heading: '1. Present perfect indicative - he hablado',
-            text: 'Use it for a past action connected to the present: recent actions, life experience, unfinished time periods, or results that matter now.',
-            examples: [
-              { es: 'He terminado el informe.', en: 'I have finished the report. (connected to now)' },
-              { es: 'Nunca he visto esa pelicula.', en: 'I have never seen that movie.' },
-              { es: 'Esta semana hemos estudiado mucho.', en: 'This week we have studied a lot.' },
-            ],
-          },
-          {
-            type: 'lesson-section',
-            heading: '2. Past perfect indicative - habia hablado',
-            text: 'Use it for the past before the past. It tells the reader which action happened first.',
-            examples: [
-              { es: 'Cuando empezo la reunion, ya habia leido el expediente.', en: 'When the meeting started, I had already read the file.' },
-              { es: 'Ya lo habiamos discutido.', en: 'We had already discussed it.' },
-              { es: 'No habian recibido la notificacion.', en: 'They had not received the notice.' },
-            ],
-          },
-          {
-            type: 'lesson-section',
-            heading: '3. Preterite perfect indicative - hube hablado',
-            text: 'This tense exists, but it is rare in normal speech. You mainly recognize it in formal writing, older literature, or very polished narrative after words like apenas, en cuanto, cuando, tan pronto como.',
-            examples: [
-              { es: 'Apenas hubo terminado la audiencia, el juez se retiro.', en: 'As soon as the hearing had ended, the judge withdrew.' },
-              { es: 'En cuanto hube leido la carta, respondi.', en: 'As soon as I had read the letter, I replied.' },
-              { es: 'Cuando termine, sali.', en: 'Modern ordinary alternative: when I finished, I left.' },
-            ],
-          },
-          {
-            type: 'tip',
-            text: 'Priority rule: master he hablado and habia hablado first. Recognize hube hablado, but do not make it your daily speaking tense.',
-          },
-          {
-            type: 'lesson-section',
-            heading: '4. Future perfect indicative - habre hablado',
-            text: 'Use it for something completed before a future deadline. It can also make a guess about the past: habre salido means he probably left / he must have left.',
-            examples: [
-              { es: 'Para manana habremos preparado los documentos.', en: 'By tomorrow we will have prepared the documents.' },
-              { es: 'Cuando llegues, habre terminado.', en: 'When you arrive, I will have finished.' },
-              { es: 'Donde esta Ana? Habra ido al banco.', en: 'Where is Ana? She must have gone to the bank.' },
-            ],
-          },
-          {
-            type: 'lesson-section',
-            heading: '5. Conditional perfect indicative - habria hablado',
-            text: 'Use it for an unreal result in the past: what would have happened but did not. It also appears as a polite/probable guess about the past.',
-            examples: [
-              { es: 'Habria aceptado, pero no me llamaron.', en: 'I would have accepted, but they did not call me.' },
-              { es: 'Si me hubieras avisado, habria preparado todo.', en: 'If you had informed me, I would have prepared everything.' },
-              { es: 'Habria unas veinte personas en la sala.', en: 'There must have been around twenty people in the room.' },
-            ],
-          },
-          {
-            type: 'lesson-section',
-            heading: 'Lesson 2: Subjuntivo - completed actions inside non-fact',
-            text: 'The subjuntivo uses the same machine, but haber is now in subjunctive mood. Use it when the completed action is inside doubt, denial, emotion, desire, recommendation, possibility, condition, or a non-specific reference.',
-            table: {
-              headers: ['Tense', 'Formula with hablar', 'Core idea'],
-              rows: [
-                ['Present perfect subjunctive', 'haya hablado', 'completed action after a present trigger'],
-                ['Past perfect subjunctive', 'hubiera / hubiese hablado', 'unreal past, regret, or past doubt'],
-                ['Future perfect subjunctive', 'hubiere hablado', 'rare formal/legal future condition'],
-              ],
-            },
-          },
-          {
-            type: 'lesson-section',
-            heading: '1. Present perfect subjunctive - haya hablado',
-            text: 'Use it when a present trigger looks back at a completed action, or forward to an action that must be completed by a future point.',
-            examples: [
-              { es: 'Dudo que hayan recibido el aviso.', en: 'I doubt they have received the notice.' },
-              { es: 'Me alegra que hayas entendido.', en: 'I am glad you understood / have understood.' },
-              { es: 'Necesito que lo hayas revisado antes del lunes.', en: 'I need you to have reviewed it before Monday.' },
-            ],
-          },
-          {
-            type: 'lesson-section',
-            heading: '2. Past perfect subjunctive - hubiera hablado / hubiese hablado',
-            text: 'This is the tense of impossible past doors: things you wish had happened, doubted had happened, or imagine as a condition for a result that did not happen.',
-            examples: [
-              { es: 'Si hubiera firmado antes, el tramite habria avanzado.', en: 'If he had signed earlier, the process would have moved forward.' },
-              { es: 'No pense que hubieras leido todo.', en: 'I did not think you had read everything.' },
-              { es: 'Ojala hubiera sabido la verdad.', en: 'I wish I had known the truth.' },
-            ],
-          },
-          {
-            type: 'lesson-section',
-            heading: '3. Future perfect subjunctive - hubiere hablado',
-            text: 'This form is rare in modern conversation. Keep it as a recognition form for legal, contractual, official, or older literary Spanish. In ordinary Spanish, haya hablado often replaces it.',
-            examples: [
-              { es: 'Quien hubiere incumplido la obligacion respondera por los danos.', en: 'Whoever has breached the obligation shall be liable for the damages. (legal/formal)' },
-              { es: 'Cuando se hubiere presentado la solicitud, se abrira el expediente.', en: 'When the application has been submitted, the file will be opened. (formal)' },
-              { es: 'Cuando se haya presentado la solicitud, se abrira el expediente.', en: 'Modern ordinary alternative.' },
-            ],
-          },
-          {
-            type: 'lesson-section',
-            heading: 'Final comparison: fact or frame?',
-            text: 'The tense often looks similar in English. The real Spanish question is: does the speaker assert the completed action as fact, or place it inside doubt, emotion, possibility, desire, or an unreal condition?',
-            table: {
-              headers: ['Topic', 'Indicativo', 'Subjuntivo', 'Difference'],
-              rows: [
-                ['Present perfect', 'Se que ha terminado.', 'Dudo que haya terminado.', 'fact vs doubt'],
-                ['Emotion', 'Ha venido.', 'Me alegra que haya venido.', 'event vs emotional frame'],
-                ['Past perfect', 'Sabia que habian firmado.', 'No creia que hubieran firmado.', 'past fact vs past doubt'],
-                ['Unreal past', 'Habia leido el contrato.', 'Si hubiera leido el contrato, no habria firmado.', 'real timeline vs impossible condition'],
-                ['Future completion', 'Para el lunes habremos terminado.', 'Es posible que hayamos terminado para el lunes.', 'firm projection vs possibility'],
-                ['Legal future', 'Habra incumplido.', 'Si hubiere incumplido, respondera.', 'probability/future completion vs formal condition'],
-              ],
-            },
-          },
-          {
-            type: 'lesson-section',
-            heading: 'Final practice',
-            text: 'Choose the form by listening for the frame: fact, doubt, past-before-past, future deadline, or unreal condition.',
-            table: {
-              headers: ['Sentence', 'Answer', 'Reason'],
-              rows: [
-                ['Se que ella ___ el trabajo. (terminar)', 'ha terminado', 'Se que presents a fact.'],
-                ['Dudo que ella ___ el trabajo. (terminar)', 'haya terminado', 'Dudo que triggers subjunctive.'],
-                ['Cuando llegue, ellos ya ___ . (salir)', 'habian salido', 'one past action before another'],
-                ['No pense que ellos ya ___ . (salir)', 'hubieran / hubiesen salido', 'past doubt about a prior action'],
-                ['Para manana nosotros ___ todo. (preparar)', 'habremos preparado', 'completed before a future deadline'],
-                ['Si me lo ___ , yo habria ayudado. (decir)', 'hubieras / hubieses dicho', 'unreal past condition'],
-              ],
-            },
-          },
-          {
-            type: 'takeaway',
-            text: 'The creative shortcut: imagine two shelves. The Indicativo shelf stores completed facts: he hablado, habia hablado, habre hablado. The Subjuntivo shelf stores completed actions seen through a frame: doubt, emotion, desire, possibility, or impossible condition: haya hablado, hubiera hablado. Same machine, different shelf.',
-          },
-        ],
-      },
+      COMPOUND_TENSES_SUBJUNCTIVE_LESSON,
     ],
   },
   {
@@ -7613,6 +7425,20 @@ function ChapterContent({ chapter, sectionId, onSaveWord, savedWords = [], onUpd
                 ))}
               </section>
             );
+          case 'subjunctive-hero':
+            return <SubjunctiveHeroBlock key={i} block={block} />;
+          case 'golden-rule':
+            return <GoldenRuleBlock key={i} block={block} />;
+          case 'subjunctive-tense-cards':
+            return <SubjunctiveTenseCardsBlock key={i} cards={block.cards} />;
+          case 'trigger-grid':
+            return <TriggerGridBlock key={i} block={block} />;
+          case 'conditional-pattern':
+            return <ConditionalPatternBlock key={i} block={block} />;
+          case 'tips-grid':
+            return <TipsGridBlock key={i} tips={block.tips} />;
+          case 'choice-quiz':
+            return <ChoiceQuizBlock key={i} block={block} />;
           case 'lesson-section':
             return (
               <section key={i} className="block lesson-section">
@@ -7667,6 +7493,208 @@ function ChapterContent({ chapter, sectionId, onSaveWord, savedWords = [], onUpd
         <LessonMiniQuiz source={chapter} title={`Practica: ${chapter.title}`} />
       )}
     </article>
+  );
+}
+
+function SubjunctiveHeroBlock({ block }) {
+  return (
+    <section className="block subj-hero-block">
+      <div className="subj-hero-eyebrow">{block.eyebrow}</div>
+      <h2>{block.title}</h2>
+      <p className="subj-hero-accent">{block.accent}</p>
+      <div className="subj-hero-formula">{block.formula}</div>
+      <ul>
+        {block.points.map((point) => (
+          <li key={point}><InlineDictionaryText text={point} /></li>
+        ))}
+      </ul>
+    </section>
+  );
+}
+
+function GoldenRuleBlock({ block }) {
+  return (
+    <section className="block golden-rule-block">
+      <div className="golden-rule-label">{block.title}</div>
+      <p><InlineDictionaryText text={block.text} /></p>
+      <div className="golden-rule-examples">
+        {block.examples.map((ex, index) => (
+          <div key={index} className="golden-rule-pair">
+            <div><span>No</span><RenderForm raw={ex.bad} /></div>
+            <div><span>Sí</span><RenderForm raw={ex.good} /></div>
+          </div>
+        ))}
+      </div>
+    </section>
+  );
+}
+
+function SubjunctiveTenseCardsBlock({ cards }) {
+  const [active, setActive] = useState(0);
+
+  return (
+    <section className="block subj-tense-block">
+      <div className="subj-tense-tabs">
+        {cards.map((card, index) => (
+          <button
+            key={card.title}
+            className={`${card.tone} ${active === index ? 'active' : ''}`}
+            onClick={() => setActive(index)}
+          >
+            <span>{index + 1}</span>
+            {card.title}
+          </button>
+        ))}
+      </div>
+      <div className={`subj-tense-card ${cards[active].tone}`}>
+        <div className="subj-tense-head">
+          <div>
+            <h2>{cards[active].title}</h2>
+            <p>{cards[active].english}</p>
+          </div>
+          <span>{cards[active].mainClause}</span>
+        </div>
+        <div className="subj-tense-formula"><RenderForm raw={cards[active].formula} /></div>
+        <p className="subj-tense-use"><InlineDictionaryText text={cards[active].use} /></p>
+        <div className="subj-tense-grid">
+          <table>
+            <tbody>
+              {cards[active].forms.map(([pronoun, form]) => (
+                <tr key={`${pronoun}-${form}`}>
+                  <td>{pronoun}</td>
+                  <td><RenderForm raw={form} /></td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+          <div className="subj-tense-examples">
+            {cards[active].examples.map((ex) => (
+              <div key={ex.es}>
+                <ExamplePair es={ex.es} en={ex.en} esClass="lesson-ex-es" enClass="lesson-ex-en" />
+              </div>
+            ))}
+          </div>
+        </div>
+      </div>
+    </section>
+  );
+}
+
+function TriggerGridBlock({ block }) {
+  return (
+    <section className="block trigger-grid-block">
+      <h2 className="lesson-heading">{block.heading}</h2>
+      <p className="lesson-text"><InlineDictionaryText text={block.text} /></p>
+      <div className="trigger-grid">
+        {block.categories.map((cat) => (
+          <article key={cat.title} className="trigger-card">
+            <h3>{cat.title}</h3>
+            <div className="trigger-expression">{cat.trigger}</div>
+            {cat.examples.map((ex) => (
+              <div key={ex.es} className="trigger-example">
+                <ExamplePair es={ex.es} en={ex.en} esClass="lesson-ex-es" enClass="lesson-ex-en" />
+              </div>
+            ))}
+          </article>
+        ))}
+      </div>
+    </section>
+  );
+}
+
+function ConditionalPatternBlock({ block }) {
+  return (
+    <section className="block conditional-pattern-block">
+      <h2>{block.heading}</h2>
+      <div className="conditional-formula"><RenderForm raw={block.formula} /></div>
+      <p><InlineDictionaryText text={block.text} /></p>
+      <div className="conditional-examples">
+        {block.examples.map((ex, index) => (
+          <article key={ex.es}>
+            <div className="conditional-num">{String(index + 1).padStart(2, '0')}</div>
+            <ExamplePair es={ex.es} en={ex.en} esClass="lesson-ex-es" enClass="lesson-ex-en" />
+            <p>{ex.note}</p>
+          </article>
+        ))}
+      </div>
+    </section>
+  );
+}
+
+function TipsGridBlock({ tips }) {
+  return (
+    <section className="block tips-grid-block">
+      {tips.map((tip) => (
+        <article key={tip.title} className="subj-tip-card">
+          <Lightbulb size={18} />
+          <h3>{tip.title}</h3>
+          <p><InlineDictionaryText text={tip.text} /></p>
+        </article>
+      ))}
+    </section>
+  );
+}
+
+function ChoiceQuizBlock({ block }) {
+  const [answers, setAnswers] = useState({});
+  const [finished, setFinished] = useState(false);
+
+  const score = block.questions.reduce((total, q, index) => (
+    normalizeForCompare(answers[index]) === normalizeForCompare(q.answer) ? total + 1 : total
+  ), 0);
+
+  function restart() {
+    setAnswers({});
+    setFinished(false);
+  }
+
+  return (
+    <section className="block contextual-quiz-block">
+      <div className="contextual-quiz-head">
+        <div>
+          <div className="lesson-mini-kicker"><Sparkles size={13} /> Prueba contextual</div>
+          <h2>{block.title}</h2>
+        </div>
+        <button onClick={restart}>
+          <RotateCcw size={14} />
+          Reiniciar
+        </button>
+      </div>
+      <div className="contextual-quiz-list">
+        {block.questions.map((q, index) => {
+          const selected = answers[index];
+          const isCorrect = selected && normalizeForCompare(selected) === normalizeForCompare(q.answer);
+          return (
+            <article key={q.prompt} className={`contextual-quiz-card ${selected ? (isCorrect ? 'correct' : 'wrong') : ''}`}>
+              <div className="contextual-quiz-num">{String(index + 1).padStart(2, '0')}</div>
+              <p>{q.prompt}</p>
+              <div className="contextual-quiz-choices">
+                {q.choices.map((choice) => (
+                  <button
+                    key={choice}
+                    className={selected === choice ? 'active' : ''}
+                    onClick={() => setAnswers((prev) => ({ ...prev, [index]: choice }))}
+                  >
+                    {choice}
+                  </button>
+                ))}
+              </div>
+              {selected && (
+                <div className="contextual-quiz-feedback">
+                  <strong>{isCorrect ? 'Correcto.' : `Correcto: ${q.answer}.`}</strong>
+                  <span>{q.explanation}</span>
+                </div>
+              )}
+            </article>
+          );
+        })}
+      </div>
+      <div className="contextual-quiz-score">
+        <span>{Object.keys(answers).length} / {block.questions.length} respondidas</span>
+        <button onClick={() => setFinished(true)}>Ver resultado</button>
+        {finished && <strong>{score} / {block.questions.length}</strong>}
+      </div>
+    </section>
   );
 }
 
@@ -13306,6 +13334,363 @@ const styles = `
   line-height: 1.45;
 }
 
+.subj-hero-block {
+  background: #1f2533;
+  color: #fff;
+  border: 1px solid #31394a;
+  border-radius: 8px;
+  padding: 30px;
+  position: relative;
+  overflow: hidden;
+}
+.subj-hero-block::after {
+  content: '';
+  position: absolute;
+  right: 24px;
+  top: 24px;
+  width: 92px;
+  height: 92px;
+  border: 1px solid rgba(234, 204, 130, 0.35);
+  transform: rotate(12deg);
+}
+.subj-hero-eyebrow,
+.golden-rule-label {
+  font-family: 'Inter', sans-serif;
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+}
+.subj-hero-eyebrow { color: #eacc82; margin-bottom: 10px; }
+.subj-hero-block h2 {
+  font-family: 'Cormorant Garamond', serif;
+  font-size: 38px;
+  line-height: 1.08;
+  margin: 0 0 10px;
+  max-width: 650px;
+}
+.subj-hero-accent {
+  color: #eacc82;
+  font-size: 20px;
+  font-weight: 700;
+  margin: 0 0 18px;
+}
+.subj-hero-formula,
+.conditional-formula {
+  display: inline-block;
+  background: rgba(255, 255, 255, 0.08);
+  border: 1px solid rgba(234, 204, 130, 0.35);
+  border-radius: 6px;
+  padding: 10px 13px;
+  font-weight: 800;
+  margin-bottom: 16px;
+}
+.subj-hero-block ul {
+  margin: 0;
+  padding-left: 20px;
+  display: grid;
+  gap: 8px;
+  max-width: 650px;
+}
+.golden-rule-block {
+  border: 1px solid #d8c489;
+  border-left: 5px solid #b8892f;
+  background: #fffaf0;
+  border-radius: 0 8px 8px 0;
+  padding: 22px;
+}
+.golden-rule-label { color: #8a621c; margin-bottom: 8px; }
+.golden-rule-block p {
+  margin: 0 0 14px;
+  font-size: 19px;
+  line-height: 1.55;
+}
+.golden-rule-examples {
+  display: grid;
+  gap: 10px;
+}
+.golden-rule-pair {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+}
+.golden-rule-pair div {
+  background: #fff;
+  border: 1px solid var(--rule);
+  border-radius: 6px;
+  padding: 10px 12px;
+  font-weight: 800;
+}
+.golden-rule-pair span {
+  display: block;
+  color: var(--ink-mute);
+  font-family: 'Inter', sans-serif;
+  font-size: 10px;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  margin-bottom: 4px;
+}
+.subj-tense-tabs {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+  margin-bottom: 14px;
+}
+.subj-tense-tabs button {
+  border: 1px solid var(--rule);
+  background: var(--paper-light);
+  color: var(--ink);
+  border-radius: 8px;
+  padding: 12px 14px;
+  text-align: left;
+  font-family: 'Literata', Georgia, serif;
+  font-weight: 800;
+  cursor: pointer;
+}
+.subj-tense-tabs span {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 23px;
+  height: 23px;
+  border-radius: 50%;
+  margin-right: 8px;
+  font-size: 12px;
+  background: #fff;
+}
+.subj-tense-tabs .plum.active { border-color: #6e4a7e; background: #f2e8f5; color: #4e2a5f; }
+.subj-tense-tabs .rose.active { border-color: #a34d66; background: #fae8ee; color: #752d42; }
+.subj-tense-card {
+  border: 1px solid var(--rule);
+  border-top: 5px solid #6e4a7e;
+  border-radius: 8px;
+  padding: 22px;
+  background: #fff;
+}
+.subj-tense-card.rose { border-top-color: #a34d66; }
+.subj-tense-head {
+  display: flex;
+  justify-content: space-between;
+  gap: 16px;
+  align-items: start;
+  margin-bottom: 14px;
+}
+.subj-tense-head h2 {
+  font-family: 'Cormorant Garamond', serif;
+  font-size: 30px;
+  line-height: 1.1;
+  margin: 0;
+}
+.subj-tense-head p { margin: 4px 0 0; color: var(--ink-mute); font-style: italic; }
+.subj-tense-head > span {
+  border: 1px solid var(--rule);
+  border-radius: 999px;
+  padding: 6px 10px;
+  color: var(--green);
+  white-space: nowrap;
+  font-size: 13px;
+  font-weight: 800;
+}
+.subj-tense-formula {
+  background: var(--paper-light);
+  border: 1px solid var(--rule);
+  border-radius: 6px;
+  padding: 11px 13px;
+  font-weight: 800;
+  margin-bottom: 12px;
+}
+.subj-tense-use {
+  font-size: 18px;
+  line-height: 1.55;
+  margin: 0 0 16px;
+}
+.subj-tense-grid {
+  display: grid;
+  grid-template-columns: minmax(240px, 0.8fr) 1fr;
+  gap: 20px;
+}
+.subj-tense-grid table {
+  width: 100%;
+  border-collapse: collapse;
+}
+.subj-tense-grid td {
+  border-bottom: 1px solid var(--rule-soft);
+  padding: 8px;
+}
+.subj-tense-grid td:first-child {
+  color: var(--ink-mute);
+  font-style: italic;
+}
+.subj-tense-grid td:last-child {
+  font-weight: 800;
+}
+.subj-tense-examples,
+.conditional-examples,
+.trigger-grid {
+  display: grid;
+  gap: 12px;
+}
+.subj-tense-examples > div,
+.trigger-example,
+.conditional-examples article {
+  border: 1px solid var(--rule);
+  border-radius: 7px;
+  padding: 12px;
+  background: var(--paper-light);
+}
+.trigger-grid {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+.trigger-card {
+  border: 1px solid var(--rule);
+  border-radius: 8px;
+  padding: 18px;
+  background: #fff;
+}
+.trigger-card h3,
+.subj-tip-card h3 {
+  font-family: 'Cormorant Garamond', serif;
+  font-size: 24px;
+  margin: 0 0 8px;
+}
+.trigger-expression {
+  color: var(--sienna-deep);
+  font-size: 14px;
+  font-weight: 800;
+  line-height: 1.4;
+  margin-bottom: 12px;
+}
+.conditional-pattern-block {
+  background: #20352a;
+  color: #fff;
+  border-radius: 8px;
+  padding: 24px;
+}
+.conditional-pattern-block h2 {
+  font-family: 'Cormorant Garamond', serif;
+  font-size: 32px;
+  margin: 0 0 12px;
+}
+.conditional-pattern-block p {
+  line-height: 1.6;
+}
+.conditional-formula {
+  color: #f1d28c;
+}
+.conditional-num {
+  font-family: 'Inter', sans-serif;
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 0.18em;
+  color: #f1d28c;
+  margin-bottom: 7px;
+}
+.conditional-examples article {
+  background: rgba(255,255,255,0.07);
+  border-color: rgba(255,255,255,0.16);
+}
+.conditional-examples .lesson-ex-es,
+.conditional-examples .lesson-ex-en { color: #fff; }
+.tips-grid-block {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 14px;
+}
+.subj-tip-card {
+  border: 1px solid var(--rule);
+  border-radius: 8px;
+  padding: 18px;
+  background: #fffaf0;
+}
+.subj-tip-card svg { color: #b8892f; }
+.subj-tip-card p { margin: 0; line-height: 1.55; }
+.contextual-quiz-block {
+  border: 1px solid #31394a;
+  border-radius: 8px;
+  padding: 22px;
+  background: #1f2533;
+  color: #fff;
+}
+.contextual-quiz-head,
+.contextual-quiz-score {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 14px;
+  flex-wrap: wrap;
+}
+.contextual-quiz-head h2 {
+  font-family: 'Cormorant Garamond', serif;
+  font-size: 30px;
+  margin: 4px 0 0;
+}
+.contextual-quiz-head button,
+.contextual-quiz-score button {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  border: 1px solid rgba(255,255,255,0.25);
+  border-radius: 999px;
+  background: rgba(255,255,255,0.08);
+  color: #fff;
+  padding: 8px 13px;
+  font-family: 'Literata', Georgia, serif;
+  cursor: pointer;
+}
+.contextual-quiz-list {
+  display: grid;
+  gap: 12px;
+  margin: 18px 0;
+}
+.contextual-quiz-card {
+  position: relative;
+  border: 1px solid rgba(255,255,255,0.16);
+  border-radius: 8px;
+  padding: 16px;
+  background: rgba(255,255,255,0.06);
+}
+.contextual-quiz-card.correct { border-color: #74c69d; }
+.contextual-quiz-card.wrong { border-color: #ff9f9f; }
+.contextual-quiz-num {
+  color: #eacc82;
+  font-family: 'Inter', sans-serif;
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 0.18em;
+}
+.contextual-quiz-card p {
+  margin: 8px 0 12px;
+  font-size: 19px;
+}
+.contextual-quiz-choices {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+}
+.contextual-quiz-choices button {
+  border: 1px solid rgba(255,255,255,0.18);
+  border-radius: 7px;
+  background: rgba(255,255,255,0.07);
+  color: #fff;
+  padding: 10px 12px;
+  font-family: 'Literata', Georgia, serif;
+  text-align: left;
+  cursor: pointer;
+}
+.contextual-quiz-choices button.active {
+  border-color: #eacc82;
+  background: rgba(234,204,130,0.16);
+}
+.contextual-quiz-feedback {
+  margin-top: 12px;
+  padding-top: 11px;
+  border-top: 1px solid rgba(255,255,255,0.13);
+  display: grid;
+  gap: 4px;
+  line-height: 1.45;
+}
+.contextual-quiz-score strong { color: #eacc82; font-size: 20px; }
+
 @media (max-width: 700px) {
   .lesson-heading { font-size: 21px; }
   .lesson-text { font-size: 18px; }
@@ -13316,6 +13701,17 @@ const styles = `
   .lesson-table thead th { font-size: 12px; letter-spacing: 0.14em; }
   .lesson-ex-es { font-size: 19px; }
   .lesson-ex-en { font-size: 16px; }
+  .subj-hero-block { padding: 22px; }
+  .subj-hero-block h2 { font-size: 30px; }
+  .golden-rule-pair,
+  .subj-tense-tabs,
+  .subj-tense-grid,
+  .trigger-grid,
+  .tips-grid-block,
+  .contextual-quiz-choices {
+    grid-template-columns: 1fr;
+  }
+  .subj-tense-head { flex-direction: column; }
 }
 
 /* ===== VERB PRACTICE QUIZ ===== */
