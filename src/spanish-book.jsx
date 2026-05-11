@@ -314,6 +314,140 @@ const SECTIONS = [
           },
         ],
       },
+      {
+        id: 'tiempos-compuestos',
+        level: 'B1',
+        title: 'Tiempos Compuestos: Haber + Participio',
+        subtitle: 'perfect tenses in indicativo and subjuntivo',
+        intro: 'Once the five simple tenses feel familiar, Spanish opens a second layer: compound tenses. They all use the same engine - haber + past participle. Learn the engine once, then you can say what has happened, had happened, will have happened, would have happened, or may have happened.',
+        blocks: [
+          {
+            type: 'lesson-section',
+            heading: 'The core machine',
+            paragraphs: [
+              'A compound tense is not a new verb idea. It is a completed action placed inside a time frame. English does the same thing with "have": I have eaten, I had eaten, I would have eaten.',
+              'Spanish builds these forms with haber, never tener. The participle stays fixed: he comprado, hemos comprado, ellas han comprado. Do not write "han compradas" in compound tenses.',
+            ],
+            table: {
+              headers: ['Piece', 'What it does', 'Examples'],
+              rows: [
+                ['haber', 'carries tense, person, and mood', 'he, había, habré, habría, haya, hubiera'],
+                ['past participle', 'carries the completed action', 'hablado, comido, vivido, hecho, visto'],
+                ['word order', 'object pronouns go before haber', 'Lo he visto. / Se lo había explicado.'],
+              ],
+            },
+          },
+          {
+            type: 'lesson-section',
+            heading: 'Past participles you need first',
+            text: 'Regular participles are simple: -ar becomes -ado, and -er/-ir become -ido. A small group of common verbs is irregular enough to memorize early.',
+            table: {
+              headers: ['Infinitive', 'Participle', 'Example'],
+              rows: [
+                ['hablar', 'hablado', 'He hablado con Ana.'],
+                ['comer', 'comido', 'Habíamos comido antes.'],
+                ['vivir', 'vivido', 'Habrán vivido allí.'],
+                ['hacer', 'hecho', 'No creo que lo haya hecho.'],
+                ['ver', 'visto', 'Si lo hubiera visto, te habría llamado.'],
+                ['decir / escribir / poner', 'dicho / escrito / puesto', 'Me lo habían dicho. / Lo he escrito. / Lo has puesto.'],
+                ['abrir / volver / romper', 'abierto / vuelto / roto', 'La tienda ha abierto. / Ha vuelto. / Se ha roto.'],
+              ],
+            },
+          },
+          {
+            type: 'lesson-section',
+            heading: 'Indicativo: completed actions presented as facts',
+            text: 'Use indicative compound tenses when you present the action as real, factual, reported, or strongly asserted.',
+            table: {
+              headers: ['English name', 'Spanish name', 'Formula', 'Core use'],
+              rows: [
+                ['Present perfect', 'pretérito perfecto compuesto', 'he/has/ha/hemos/habéis/han + participio', 'past action connected to now'],
+                ['Past perfect', 'pluscuamperfecto', 'había/habías/había/habíamos/habíais/habían + participio', 'past before another past action'],
+                ['Preterite perfect', 'pretérito anterior', 'hube/hubiste/hubo... + participio', 'rare literary/formal immediate past-before-past'],
+                ['Future perfect', 'futuro compuesto', 'habré/habrás/habrá... + participio', 'completed before a future point; also probability'],
+                ['Conditional perfect', 'condicional compuesto', 'habría/habrías/habría... + participio', 'unreal past result; also probability about the past'],
+              ],
+            },
+          },
+          {
+            type: 'lesson-section',
+            heading: 'Indicativo examples',
+            examples: [
+              { es: 'He terminado el informe.', en: 'I have finished the report. (connected to now)' },
+              { es: 'Cuando empezó la reunión, ya había leído el expediente.', en: 'When the meeting started, I had already read the file. (past before past)' },
+              { es: 'Apenas hubo terminado, salió.', en: 'As soon as he had finished, he left. (formal/literary)' },
+              { es: 'Para mañana habremos preparado los documentos.', en: 'By tomorrow we will have prepared the documents.' },
+              { es: 'Habríamos firmado, pero faltaba una autorización.', en: 'We would have signed, but an authorization was missing.' },
+              { es: '¿Dónde está Ana? Habrá ido al banco.', en: 'Where is Ana? She must have gone to the bank. (probability)' },
+            ],
+          },
+          {
+            type: 'tip',
+            text: 'Do not spend too much study energy on the pretérito anterior at first. Recognize forms like "hubo terminado" in books or formal texts, but in normal speech you will usually use pretérito or pluscuamperfecto instead.',
+          },
+          {
+            type: 'lesson-section',
+            heading: 'Subjuntivo: completed actions inside doubt, emotion, desire, or condition',
+            text: 'The subjunctive compound tenses still use haber + participle. What changes is the mood of haber. You use them when the completed action is inside a trigger: doubt, denial, emotion, desire, recommendation, uncertainty, purpose, condition, or non-specific reference.',
+            table: {
+              headers: ['English name', 'Spanish name', 'Formula', 'Core use'],
+              rows: [
+                ['Present perfect subjunctive', 'pretérito perfecto de subjuntivo', 'haya/hayas/haya/hayamos/hayáis/hayan + participio', 'completed action connected to now or future completion after a trigger'],
+                ['Past perfect subjunctive', 'pluscuamperfecto de subjuntivo', 'hubiera/hubiese + participio', 'unreal past condition, regret, or past doubt'],
+                ['Future perfect subjunctive', 'futuro compuesto de subjuntivo', 'hubiere + participio', 'rare modern form; mostly legal, formal, or literary'],
+              ],
+            },
+          },
+          {
+            type: 'lesson-section',
+            heading: 'Subjuntivo examples',
+            examples: [
+              { es: 'Dudo que hayan recibido el aviso.', en: 'I doubt they have received the notice.' },
+              { es: 'Me alegra que hayas entendido.', en: 'I am glad you understood / have understood.' },
+              { es: 'Necesito que lo hayas revisado antes del lunes.', en: 'I need you to have reviewed it before Monday.' },
+              { es: 'Si hubiera tenido tiempo, habría estudiado.', en: 'If I had had time, I would have studied.' },
+              { es: 'No pensé que hubieras leído todo.', en: 'I did not think you had read everything.' },
+              { es: 'Ojalá hubiera sabido la verdad.', en: 'I wish I had known the truth.' },
+            ],
+          },
+          {
+            type: 'lesson-section',
+            heading: 'The decision: indicativo or subjuntivo?',
+            text: 'Do not choose by English translation alone. Choose by how the speaker frames the action.',
+            table: {
+              headers: ['If the sentence...', 'Use', 'Example'],
+              rows: [
+                ['asserts the completed action as fact', 'indicativo', 'Sé que ha terminado.'],
+                ['doubts, denies, wants, fears, or reacts emotionally', 'subjuntivo', 'Dudo que haya terminado.'],
+                ['places one real past action before another', 'pluscuamperfecto indicativo', 'Sabía que habían firmado.'],
+                ['imagines an unreal past condition', 'pluscuamperfecto subjuntivo + condicional compuesto', 'Si hubieran llamado, habría aceptado.'],
+                ['describes completion before a future deadline as a firm projection', 'futuro compuesto', 'Para el lunes habremos terminado.'],
+                ['describes future completion after possibility or desire', 'perfecto de subjuntivo', 'Es posible que hayamos terminado para el lunes.'],
+              ],
+            },
+          },
+          {
+            type: 'lesson-section',
+            heading: 'Mini practice',
+            text: 'Cover the answers first. The goal is not speed; the goal is to hear whether the clause is factual or subjective.',
+            table: {
+              headers: ['Prompt', 'Best answer', 'Why'],
+              rows: [
+                ['Sé que ella ___ el trabajo. (terminar)', 'ha terminado', 'Sé que asserts a fact.'],
+                ['Dudo que ella ___ el trabajo. (terminar)', 'haya terminado', 'Dudo que triggers subjunctive.'],
+                ['Cuando llegué, ellos ya ___ . (salir)', 'habían salido', 'one past action before another'],
+                ['No pensé que ellos ya ___ . (salir)', 'hubieran / hubiesen salido', 'past doubt about a prior action'],
+                ['Para mañana nosotros ___ todo. (preparar)', 'habremos preparado', 'completed before a future deadline'],
+                ['Si me lo ___ , yo habría ayudado. (decir)', 'hubieras / hubieses dicho', 'unreal past condition'],
+              ],
+            },
+          },
+          {
+            type: 'takeaway',
+            text: 'The whole system is one pattern: haber tells you the time and mood; the participle tells you the completed action. If the speaker presents the completion as fact, use indicativo. If the completion lives inside doubt, emotion, desire, uncertainty, or an unreal condition, use subjuntivo.',
+          },
+        ],
+      },
     ],
   },
   {
