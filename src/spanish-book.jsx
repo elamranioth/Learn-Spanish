@@ -2,6 +2,7 @@ import React, { useState, useEffect, useMemo } from 'react';
 import { BookOpen, Menu, X, ChevronLeft, ChevronRight, ChevronDown, Bookmark, Languages, Quote, Lightbulb, NotebookPen, Sparkles, Volume2, RotateCcw, Check, Clock, Zap, BookText, Library, ListTree, MessageSquare, GraduationCap, Compass, Search, Star, AlertTriangle, PenLine, BarChart3, Headphones } from 'lucide-react';
 import { AppMessages, showAppMessage } from './app-messages.jsx';
 import { CANCIONES_SONGS } from './canciones.js';
+import { COMPOUND_TENSES_INDICATIVE_LESSON } from './compound-tenses-indicative.js';
 import { COMPOUND_TENSES_SUBJUNCTIVE_LESSON } from './compound-tenses-subjunctive.js';
 import {
   LEARNER_PROFILE_KEY,
@@ -315,6 +316,7 @@ const SECTIONS = [
           },
         ],
       },
+      COMPOUND_TENSES_INDICATIVE_LESSON,
       COMPOUND_TENSES_SUBJUNCTIVE_LESSON,
     ],
   },
@@ -7117,6 +7119,14 @@ function ChapterContent({ chapter, sectionId, onSaveWord, savedWords = [], onUpd
 
       {chapter.blocks.map((block, i) => {
         switch (block.type) {
+          case 'indicative-hero':
+            return <IndicativeHeroBlock key={i} block={block} />;
+          case 'indicative-tense-cards':
+            return <IndicativeTenseCardsBlock key={i} block={block} />;
+          case 'participio-section':
+            return <ParticipleSectionBlock key={i} block={block} />;
+          case 'indicative-timeline':
+            return <IndicativeTimelineBlock key={i} block={block} />;
           case 'conjugation':
             return (
               <section key={i} className="block">
@@ -7493,6 +7503,127 @@ function ChapterContent({ chapter, sectionId, onSaveWord, savedWords = [], onUpd
         <LessonMiniQuiz source={chapter} title={`Practica: ${chapter.title}`} />
       )}
     </article>
+  );
+}
+
+function IndicativeHeroBlock({ block }) {
+  return (
+    <section className="block indicative-hero-block">
+      <div className="indicative-eyebrow">{block.eyebrow}</div>
+      <h2>{block.title}</h2>
+      <p><InlineDictionaryText text={block.text} /></p>
+      <div className="indicative-formula">
+        {block.formula.map((part, index) => (
+          <span key={`${part}-${index}`} className={part === '+' || part === '=' ? 'operator' : ''}>
+            {part}
+          </span>
+        ))}
+      </div>
+      <div className="indicative-tags">
+        {block.tags.map((tag) => <span key={tag}>{tag}</span>)}
+      </div>
+    </section>
+  );
+}
+
+function IndicativeTenseCardsBlock({ block }) {
+  const [active, setActive] = useState(0);
+
+  return (
+    <section className="block indicative-tense-block">
+      <h2 className="lesson-heading">{block.title}</h2>
+      <div className="indicative-card-grid">
+        {block.cards.map((card, index) => (
+          <article
+            key={card.title}
+            className={`indicative-card ${card.tone} ${active === index ? 'active' : ''}`}
+            onClick={() => setActive(index)}
+          >
+            <header className="indicative-card-head">
+              <div className="indicative-card-mark">{String(index + 1).padStart(2, '0')}</div>
+              <div>
+                <h3>{card.title}</h3>
+                <p>{card.english}</p>
+              </div>
+            </header>
+            <p className="indicative-card-use"><InlineDictionaryText text={card.use} /></p>
+            <table className="indicative-conj-table">
+              <tbody>
+                {card.forms.map(([pronoun, form]) => (
+                  <tr key={`${card.title}-${pronoun}`}>
+                    <td>{pronoun}</td>
+                    <td><RenderForm raw={form} /></td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+            <div className="indicative-example">
+              <ExamplePair es={card.example.es} en={card.example.en} esClass="lesson-ex-es" enClass="lesson-ex-en" />
+            </div>
+          </article>
+        ))}
+      </div>
+    </section>
+  );
+}
+
+function ParticipleSectionBlock({ block }) {
+  return (
+    <section className="block participle-workshop-block">
+      <h2 className="lesson-heading">{block.title}</h2>
+      <p className="lesson-text"><InlineDictionaryText text={block.text} /></p>
+      <div className="participle-workshop-grid">
+        <article>
+          <h3>Participios regulares</h3>
+          <table>
+            <tbody>
+              {block.regular.map(([left, right]) => (
+                <tr key={`${left}-${right}`}>
+                  <td>{left}</td>
+                  <td><RenderForm raw={right} /></td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </article>
+        <article>
+          <h3>Participios irregulares</h3>
+          <table>
+            <tbody>
+              {block.irregular.map(([left, right]) => (
+                <tr key={`${left}-${right}`}>
+                  <td>{left}</td>
+                  <td><RenderForm raw={right} /></td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </article>
+      </div>
+    </section>
+  );
+}
+
+function IndicativeTimelineBlock({ block }) {
+  return (
+    <section className="block indicative-timeline-block">
+      <h2 className="lesson-heading">{block.title}</h2>
+      <div className="indicative-timeline-wrap">
+        <div className="indicative-timeline-line">
+          {block.events.map((event) => (
+            <div
+              key={event.label}
+              className={`indicative-timeline-event ${event.lane} ${event.tone}`}
+              style={{ left: `${event.position}%` }}
+            >
+              <span className="timeline-dot" />
+              <strong>{event.label}</strong>
+              <em>{event.sub}</em>
+            </div>
+          ))}
+        </div>
+      </div>
+    </section>
   );
 }
 
@@ -13334,6 +13465,249 @@ const styles = `
   line-height: 1.45;
 }
 
+.indicative-hero-block {
+  border: 1px solid var(--ink);
+  border-left: 5px solid var(--ink);
+  border-radius: 8px;
+  padding: 28px;
+  background: #fff;
+}
+.indicative-eyebrow {
+  font-family: 'Inter', sans-serif;
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+  color: var(--ink-mute);
+  margin-bottom: 10px;
+}
+.indicative-hero-block h2 {
+  font-family: 'Cormorant Garamond', serif;
+  font-size: 38px;
+  line-height: 1.08;
+  margin: 0 0 12px;
+}
+.indicative-hero-block p {
+  font-size: 19px;
+  line-height: 1.55;
+  max-width: 680px;
+  margin: 0 0 16px;
+}
+.indicative-formula,
+.indicative-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
+}
+.indicative-formula {
+  margin-bottom: 14px;
+}
+.indicative-formula span,
+.indicative-tags span {
+  border: 1px solid var(--rule);
+  border-radius: 999px;
+  padding: 7px 12px;
+  font-weight: 800;
+  background: var(--paper-light);
+}
+.indicative-formula .operator {
+  border: none;
+  background: transparent;
+  padding-inline: 2px;
+  color: var(--ink-mute);
+}
+.indicative-tags span {
+  font-size: 13px;
+  color: var(--ink-mute);
+}
+.indicative-card-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 16px;
+}
+.indicative-card {
+  --tone: var(--ink);
+  border: 1px solid var(--rule);
+  border-top: 5px solid var(--tone);
+  border-radius: 8px;
+  padding: 18px;
+  background: #fff;
+  cursor: pointer;
+  transition: border-color 120ms, box-shadow 120ms, transform 120ms;
+}
+.indicative-card.green { --tone: #2f6b42; }
+.indicative-card.red { --tone: #8a3a3a; }
+.indicative-card.teal { --tone: #2c6868; }
+.indicative-card.purple { --tone: #6c4a7d; }
+.indicative-card.gold { --tone: #8b6a24; }
+.indicative-card.navy { --tone: #333b50; }
+.indicative-card.active {
+  border-color: var(--ink);
+  box-shadow: inset 0 0 0 2px var(--ink);
+}
+.indicative-card:hover {
+  transform: translateY(-1px);
+}
+.indicative-card-head {
+  display: flex;
+  gap: 12px;
+  align-items: flex-start;
+  margin-bottom: 10px;
+}
+.indicative-card-mark {
+  width: 34px;
+  height: 34px;
+  border: 1px solid var(--tone);
+  color: var(--tone);
+  border-radius: 7px;
+  display: grid;
+  place-items: center;
+  font-family: 'Inter', sans-serif;
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  flex: 0 0 auto;
+}
+.indicative-card-head h3 {
+  font-family: 'Cormorant Garamond', serif;
+  font-size: 25px;
+  line-height: 1.1;
+  margin: 0;
+}
+.indicative-card-head p {
+  margin: 3px 0 0;
+  color: var(--ink-mute);
+  font-style: italic;
+}
+.indicative-card-use {
+  font-size: 16px;
+  line-height: 1.55;
+  margin: 0 0 12px;
+}
+.indicative-conj-table {
+  width: 100%;
+  border-collapse: collapse;
+  margin: 0 0 12px;
+}
+.indicative-conj-table td {
+  padding: 7px 8px;
+  border-bottom: 1px solid var(--rule-soft);
+}
+.indicative-conj-table tr:nth-child(odd) td {
+  background: var(--paper-light);
+}
+.indicative-conj-table td:first-child {
+  color: var(--ink-mute);
+  font-style: italic;
+  width: 40%;
+}
+.indicative-conj-table td:last-child {
+  font-weight: 800;
+}
+.indicative-example {
+  border-left: 3px solid var(--tone);
+  padding-left: 12px;
+}
+.participle-workshop-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px;
+}
+.participle-workshop-grid article {
+  border: 1px solid var(--rule);
+  border-radius: 8px;
+  padding: 18px;
+  background: #fff;
+}
+.participle-workshop-grid h3 {
+  font-family: 'Cormorant Garamond', serif;
+  font-size: 25px;
+  margin: 0 0 10px;
+}
+.participle-workshop-grid table {
+  width: 100%;
+  border-collapse: collapse;
+}
+.participle-workshop-grid td {
+  padding: 8px;
+  border-bottom: 1px solid var(--rule-soft);
+}
+.participle-workshop-grid td:first-child {
+  color: var(--ink-mute);
+}
+.participle-workshop-grid td:last-child {
+  font-weight: 800;
+}
+.indicative-timeline-wrap {
+  border: 1px solid var(--rule);
+  border-radius: 8px;
+  padding: 34px 22px 42px;
+  background: #fff;
+  overflow-x: auto;
+}
+.indicative-timeline-line {
+  position: relative;
+  min-width: 620px;
+  height: 120px;
+  border-top: 2px solid var(--ink);
+  margin-top: 48px;
+}
+.indicative-timeline-line::after {
+  content: '';
+  position: absolute;
+  right: 0;
+  top: -6px;
+  width: 10px;
+  height: 10px;
+  border-top: 2px solid var(--ink);
+  border-right: 2px solid var(--ink);
+  transform: rotate(45deg);
+  background: #fff;
+}
+.indicative-timeline-event {
+  --tone: var(--ink);
+  position: absolute;
+  transform: translateX(-50%);
+  display: grid;
+  justify-items: center;
+  text-align: center;
+  width: 110px;
+}
+.indicative-timeline-event.green { --tone: #2f6b42; }
+.indicative-timeline-event.red { --tone: #8a3a3a; }
+.indicative-timeline-event.teal { --tone: #2c6868; }
+.indicative-timeline-event.purple { --tone: #6c4a7d; }
+.indicative-timeline-event.gold { --tone: #8b6a24; }
+.indicative-timeline-event.navy { --tone: #333b50; }
+.indicative-timeline-event.top {
+  top: -54px;
+}
+.indicative-timeline-event.bottom {
+  top: 18px;
+}
+.indicative-timeline-event.now {
+  top: -16px;
+}
+.timeline-dot {
+  width: 13px;
+  height: 13px;
+  border-radius: 50%;
+  border: 2px solid var(--tone);
+  background: #fff;
+  margin-bottom: 5px;
+}
+.indicative-timeline-event strong {
+  color: var(--tone);
+  font-size: 12px;
+  line-height: 1.1;
+}
+.indicative-timeline-event em {
+  color: var(--ink-mute);
+  font-size: 11px;
+  line-height: 1.15;
+}
+
 .subj-hero-block {
   background: #fff;
   color: var(--ink);
@@ -13710,6 +14084,12 @@ const styles = `
   .lesson-table thead th { font-size: 12px; letter-spacing: 0.14em; }
   .lesson-ex-es { font-size: 19px; }
   .lesson-ex-en { font-size: 16px; }
+  .indicative-hero-block { padding: 22px; }
+  .indicative-hero-block h2 { font-size: 31px; }
+  .indicative-card-grid,
+  .participle-workshop-grid {
+    grid-template-columns: 1fr;
+  }
   .subj-hero-block { padding: 22px; }
   .subj-hero-block h2 { font-size: 30px; }
   .golden-rule-pair,
