@@ -207,6 +207,35 @@ export const styles = `
   background: #fff;
   box-shadow: inset 0 -3px 0 var(--ink);
 }
+.book-root.focus-mode .book-shell {
+  grid-template-columns: 1fr;
+}
+.book-root.focus-mode .sidebar,
+.book-root.focus-mode .level-bar,
+.book-root.focus-mode .resume-banner,
+.book-root.focus-mode .update-banner,
+.book-root.focus-mode .header-search,
+.book-root.focus-mode .top-tool-btn:not(.focus-toggle),
+.book-root.focus-mode .font-controls,
+.book-root.focus-mode .mobile-btn {
+  display: none !important;
+}
+.book-root.focus-mode .mobile-bar {
+  justify-content: space-between;
+  gap: 12px;
+}
+.book-root.focus-mode .book-page {
+  max-width: 780px;
+  padding-top: 42px;
+}
+.book-root.focus-mode .chapter-header {
+  margin-bottom: 24px;
+}
+.book-root.focus-mode .chapter-nav {
+  max-width: 780px;
+  margin-left: auto;
+  margin-right: auto;
+}
 .font-btn {
   width: 32px;
   height: 30px;
@@ -1203,6 +1232,37 @@ export const styles = `
 }
 
 .chapter-header { margin-bottom: 32px; }
+.lesson-breadcrumb {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  margin-bottom: 18px;
+  color: var(--ink-mute);
+  font-family: 'Cormorant Garamond', Georgia, serif;
+  font-size: 14px;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+.lesson-breadcrumb button {
+  border: 1px solid var(--rule);
+  border-radius: 999px;
+  background: var(--paper-light);
+  color: var(--green);
+  padding: 5px 10px;
+  font: inherit;
+  font-weight: 700;
+  cursor: pointer;
+}
+.lesson-breadcrumb button:hover {
+  border-color: var(--green);
+  background: var(--green-tint);
+}
+.lesson-breadcrumb span {
+  max-width: min(460px, 62vw);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
 .chapter-icon-row {
   display: flex;
   align-items: center;

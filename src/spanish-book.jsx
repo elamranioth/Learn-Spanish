@@ -33,6 +33,7 @@ import {
   scheduleReview,
 } from './learning.js';
 import { exportMemoriaCsv, getMemoriaSummary, getMemoriaTags } from './memoria-utils.js';
+import { buildSectionLessonCards, getNestedLessonKey, SectionOverviewView } from './section-overview.jsx';
 import { SPANISH_EXPRESSIONS_LIBRARY } from './spanish-expressions-library.js';
 import {
   cleanDictionaryWord,
@@ -5569,19 +5570,33 @@ function BioBadge({ level }) {
   );
 }
 
+function useAutoOpenNested(activeNestedTarget, type, setOpenIndex, itemRefs) {
+  useEffect(() => {
+    if (activeNestedTarget?.type !== type || typeof activeNestedTarget.index !== 'number') return;
+    setOpenIndex(activeNestedTarget.index);
+    window.setTimeout(() => {
+      const el = itemRefs.current?.[activeNestedTarget.index];
+      el?.scrollIntoView?.({ behavior: 'smooth', block: 'start' });
+    }, 80);
+  }, [activeNestedTarget, type, setOpenIndex, itemRefs]);
+}
+
 // =============================================================
 // FOLDABLE POEMS — two-column stanza layout (ES | EN)
 // Each poem folds open showing stanzas, vocab, and learning note
 // =============================================================
-function FoldablePoemsBlock({ poems }) {
+function FoldablePoemsBlock({ poems, chapterId, lessonStatuses = {}, onLessonStatusChange, activeNestedTarget }) {
   const [openIndex, setOpenIndex] = useState(null);
+  const itemRefs = React.useRef([]);
+  useAutoOpenNested(activeNestedTarget, 'poem', setOpenIndex, itemRefs);
   function toggle(i) { setOpenIndex(prev => prev === i ? null : i); }
   return (
     <section className="block foldable-poems">
       {poems.map((poem, i) => {
         const isOpen = openIndex === i;
+        const statusKey = getNestedLessonKey(chapterId, 'poem', i, poem.title);
         return (
-          <div key={i} className={`poem-item ${isOpen ? 'open' : 'closed'}`}>
+          <div key={i} ref={(el) => { itemRefs.current[i] = el; }} className={`poem-item ${isOpen ? 'open' : 'closed'}`}>
             <button className="poem-toggle" onClick={() => toggle(i)} aria-expanded={isOpen}>
               <div className="poem-toggle-inner">
                 <span className="poem-num">{String(i + 1).padStart(2, '0')}</span>
@@ -5592,11 +5607,20 @@ function FoldablePoemsBlock({ poems }) {
               </div>
               <div className="poem-toggle-right">
                 <span className="poem-level-tag">{poem.level}</span>
+                {lessonStatuses[statusKey] && (
+                  <span className={`story-status-pill ${lessonStatuses[statusKey]}`}>
+                    {lessonStatuses[statusKey] === 'understood' ? 'Entendido' : 'Leído'}
+                  </span>
+                )}
                 <ChevronDown size={18} className={`poem-chevron ${isOpen ? 'open' : ''}`} />
               </div>
             </button>
             {isOpen && (
               <div className="poem-body">
+                <LessonStatusControl
+                  status={lessonStatuses[statusKey]}
+                  onChange={(status) => onLessonStatusChange?.(statusKey, status)}
+                />
                 {poem.note && (
                   <p className="poem-intro-note">{poem.note}</p>
                 )}
@@ -5648,8 +5672,10 @@ function FoldablePoemsBlock({ poems }) {
   );
 }
 
-function FoldableSongsBlock({ songs }) {
+function FoldableSongsBlock({ songs, chapterId, lessonStatuses = {}, onLessonStatusChange, activeNestedTarget }) {
   const [openIndex, setOpenIndex] = useState(null);
+  const itemRefs = React.useRef([]);
+  useAutoOpenNested(activeNestedTarget, 'song', setOpenIndex, itemRefs);
   function toggle(i) { setOpenIndex(prev => prev === i ? null : i); }
 
   return (
@@ -5657,8 +5683,9 @@ function FoldableSongsBlock({ songs }) {
       {songs.map((song, i) => {
         const isOpen = openIndex === i;
         const speakText = song.sections.map((section) => section.es).join('. ');
+        const statusKey = getNestedLessonKey(chapterId, 'song', i, song.title);
         return (
-          <div key={song.title} className={`poem-item song-item ${isOpen ? 'open' : 'closed'}`}>
+          <div key={song.title} ref={(el) => { itemRefs.current[i] = el; }} className={`poem-item song-item ${isOpen ? 'open' : 'closed'}`}>
             <button className="poem-toggle" onClick={() => toggle(i)} aria-expanded={isOpen}>
               <div className="poem-toggle-inner">
                 <span className="poem-num">{String(i + 1).padStart(2, '0')}</span>
@@ -5669,12 +5696,21 @@ function FoldableSongsBlock({ songs }) {
               </div>
               <div className="poem-toggle-right">
                 <span className="poem-level-tag">{song.level}</span>
+                {lessonStatuses[statusKey] && (
+                  <span className={`story-status-pill ${lessonStatuses[statusKey]}`}>
+                    {lessonStatuses[statusKey] === 'understood' ? 'Entendido' : 'Leído'}
+                  </span>
+                )}
                 <ChevronDown size={18} className={`poem-chevron ${isOpen ? 'open' : ''}`} />
               </div>
             </button>
 
             {isOpen && (
               <div className="poem-body song-body">
+                <LessonStatusControl
+                  status={lessonStatuses[statusKey]}
+                  onChange={(status) => onLessonStatusChange?.(statusKey, status)}
+                />
                 <p className="poem-intro-note">{song.note}</p>
                 <div className="poem-tools">
                   <SpeakBtn text={speakText} size="md" />
@@ -5720,15 +5756,18 @@ function FoldableSongsBlock({ songs }) {
   );
 }
 
-function FoldableBiosBlock({ bios }) {
+function FoldableBiosBlock({ bios, chapterId, lessonStatuses = {}, onLessonStatusChange, activeNestedTarget }) {
   const [openIndex, setOpenIndex] = useState(null);
+  const itemRefs = React.useRef([]);
+  useAutoOpenNested(activeNestedTarget, 'bio', setOpenIndex, itemRefs);
   function toggle(i) { setOpenIndex(prev => prev === i ? null : i); }
   return (
     <section className="block foldable-bios">
       {bios.map((bio, i) => {
         const isOpen = openIndex === i;
+        const statusKey = getNestedLessonKey(chapterId, 'bio', i, bio.title);
         return (
-          <div key={i} className={`bio-item ${isOpen ? 'open' : 'closed'}`}>
+          <div key={i} ref={(el) => { itemRefs.current[i] = el; }} className={`bio-item ${isOpen ? 'open' : 'closed'}`}>
             <button className="bio-toggle" onClick={() => toggle(i)} aria-expanded={isOpen}>
               <div className="bio-toggle-left">
                 <span className="bio-num">{String(i + 1).padStart(2, '0')}</span>
@@ -5743,12 +5782,21 @@ function FoldableBiosBlock({ bios }) {
                   {[...new Set(bio.levels.map(l => l.level))].map(lv => (
                     <BioBadge key={lv} level={lv} />
                   ))}
+                  {lessonStatuses[statusKey] && (
+                    <span className={`story-status-pill ${lessonStatuses[statusKey]}`}>
+                      {lessonStatuses[statusKey] === 'understood' ? 'Entendido' : 'Leído'}
+                    </span>
+                  )}
                 </div>
                 <ChevronDown size={18} className={`bio-chevron ${isOpen ? 'open' : ''}`} />
               </div>
             </button>
             {isOpen && (
               <div className="bio-body">
+                <LessonStatusControl
+                  status={lessonStatuses[statusKey]}
+                  onChange={(status) => onLessonStatusChange?.(statusKey, status)}
+                />
                 {bio.levels.map((section, si) => (
                   <div key={si} className="bio-section">
                     <div className="bio-section-header">
@@ -5776,12 +5824,10 @@ function FoldableBiosBlock({ bios }) {
   );
 }
 
-function getNestedLessonKey(chapterId, type, index, title) {
-  return `${chapterId || 'chapter'}::${type}::${index}::${title}`;
-}
-
-function FoldableGrammarBlock({ lessons, chapterId, lessonStatuses = {}, onLessonStatusChange }) {
+function FoldableGrammarBlock({ lessons, chapterId, lessonStatuses = {}, onLessonStatusChange, activeNestedTarget }) {
   const [openIndex, setOpenIndex] = useState(null);
+  const itemRefs = React.useRef([]);
+  useAutoOpenNested(activeNestedTarget, 'grammar', setOpenIndex, itemRefs);
   function toggle(i) {
     setOpenIndex((prev) => (prev === i ? null : i));
   }
@@ -5791,7 +5837,7 @@ function FoldableGrammarBlock({ lessons, chapterId, lessonStatuses = {}, onLesso
         const isOpen = openIndex === i;
         const statusKey = getNestedLessonKey(chapterId, 'grammar', i, lesson.title);
         return (
-          <div key={i} className={`gl-item ${isOpen ? 'open' : 'closed'}`}>
+          <div key={i} ref={(el) => { itemRefs.current[i] = el; }} className={`gl-item ${isOpen ? 'open' : 'closed'}`}>
             <button
               className="gl-toggle"
               onClick={() => toggle(i)}
@@ -5835,8 +5881,10 @@ function FoldableGrammarBlock({ lessons, chapterId, lessonStatuses = {}, onLesso
 // FOLDABLE STORIES — list of collapsible reading texts
 // Each story title is a button. Click to expand/collapse the body.
 // =============================================================
-function FoldableStoriesBlock({ stories, chapterId, lessonStatuses = {}, onLessonStatusChange }) {
+function FoldableStoriesBlock({ stories, chapterId, lessonStatuses = {}, onLessonStatusChange, activeNestedTarget }) {
   const [openIndex, setOpenIndex] = useState(null);
+  const itemRefs = React.useRef([]);
+  useAutoOpenNested(activeNestedTarget, 'story', setOpenIndex, itemRefs);
   function toggle(i) {
     setOpenIndex((prev) => (prev === i ? null : i));
   }
@@ -5846,7 +5894,7 @@ function FoldableStoriesBlock({ stories, chapterId, lessonStatuses = {}, onLesso
         const isOpen = openIndex === i;
         const statusKey = getNestedLessonKey(chapterId, 'story', i, s.title);
         return (
-          <div key={i} className={`story-item ${isOpen ? 'open' : 'closed'}`}>
+          <div key={i} ref={(el) => { itemRefs.current[i] = el; }} className={`story-item ${isOpen ? 'open' : 'closed'}`}>
             <button
               className="bio-toggle story-toggle"
               onClick={() => toggle(i)}
@@ -6469,11 +6517,26 @@ function LessonStatusControl({ status, onChange }) {
   );
 }
 
-function ChapterContent({ chapter, sectionId, onSaveWord, savedWords = [], onUpdateSavedWord, palabrasProgress, onPalabrasProgressChange, lessonStatuses = {}, onLessonStatusChange }) {
-  const hasNestedLessonStatus = chapter.blocks.some((block) => block.type === 'foldable-grammar' || block.type === 'foldable-stories');
+function ChapterContent({ chapter, sectionId, section, activeNestedTarget, onOpenSection, onSaveWord, savedWords = [], onUpdateSavedWord, palabrasProgress, onPalabrasProgressChange, lessonStatuses = {}, onLessonStatusChange }) {
+  const hasNestedLessonStatus = chapter.blocks.some((block) => (
+    block.type === 'foldable-grammar' ||
+    block.type === 'foldable-stories' ||
+    block.type === 'foldable-bios' ||
+    block.type === 'foldable-poems' ||
+    block.type === 'foldable-songs'
+  ));
   return (
     <article className="chapter-body">
       <header className="chapter-header">
+        {section && (
+          <div className="lesson-breadcrumb">
+            <button type="button" onClick={() => onOpenSection?.(section)}>
+              {section.label}
+            </button>
+            <ChevronRight size={14} />
+            <span>{activeNestedTarget?.title || chapter.title}</span>
+          </div>
+        )}
         <div className="chapter-icon-row">
           {sectionId && (
             <div className="chapter-icon-wrap">
@@ -6560,11 +6623,38 @@ function ChapterContent({ chapter, sectionId, onSaveWord, savedWords = [], onUpd
               </section>
             );
           case 'foldable-poems':
-            return <FoldablePoemsBlock key={i} poems={block.poems} />;
+            return (
+              <FoldablePoemsBlock
+                key={i}
+                poems={block.poems}
+                chapterId={chapter.id}
+                lessonStatuses={lessonStatuses}
+                onLessonStatusChange={onLessonStatusChange}
+                activeNestedTarget={activeNestedTarget}
+              />
+            );
           case 'foldable-songs':
-            return <FoldableSongsBlock key={i} songs={block.songs} />;
+            return (
+              <FoldableSongsBlock
+                key={i}
+                songs={block.songs}
+                chapterId={chapter.id}
+                lessonStatuses={lessonStatuses}
+                onLessonStatusChange={onLessonStatusChange}
+                activeNestedTarget={activeNestedTarget}
+              />
+            );
           case 'foldable-bios':
-            return <FoldableBiosBlock key={i} bios={block.bios} />;
+            return (
+              <FoldableBiosBlock
+                key={i}
+                bios={block.bios}
+                chapterId={chapter.id}
+                lessonStatuses={lessonStatuses}
+                onLessonStatusChange={onLessonStatusChange}
+                activeNestedTarget={activeNestedTarget}
+              />
+            );
           case 'foldable-grammar':
             return (
               <FoldableGrammarBlock
@@ -6573,6 +6663,7 @@ function ChapterContent({ chapter, sectionId, onSaveWord, savedWords = [], onUpd
                 chapterId={chapter.id}
                 lessonStatuses={lessonStatuses}
                 onLessonStatusChange={onLessonStatusChange}
+                activeNestedTarget={activeNestedTarget}
               />
             );
           case 'foldable-stories':
@@ -6583,6 +6674,7 @@ function ChapterContent({ chapter, sectionId, onSaveWord, savedWords = [], onUpd
                 chapterId={chapter.id}
                 lessonStatuses={lessonStatuses}
                 onLessonStatusChange={onLessonStatusChange}
+                activeNestedTarget={activeNestedTarget}
               />
             );
           case 'glossary':
@@ -8471,83 +8563,11 @@ function HomeView({
   );
 }
 
-function SectionOverviewView({ section, chapters, visitedSet, lessonStatuses, studyTime, onSelectChapter }) {
-  if (!section) return null;
-  const completedCount = chapters.filter((chapter) => {
-    const status = lessonStatuses?.[chapter.id];
-    return status === 'read' || status === 'understood' || visitedSet.has(chapter.id);
-  }).length;
-  const understoodCount = chapters.filter((chapter) => lessonStatuses?.[chapter.id] === 'understood').length;
-  const intro = section.id === 'tiempos'
-    ? 'Choose one tense lesson at a time. Start with the simple map, then move into compound tenses when the timeline feels clear.'
-    : 'Choose a lesson from this section and read it slowly. Your progress stays attached to each lesson.';
-
-  return (
-    <article className="section-overview">
-      <header className="section-overview-hero">
-        <div className="chapter-icon-row">
-          <div className="chapter-icon-wrap">
-            <SectionIcon id={section.id} size={22} />
-          </div>
-          <div>
-            <div className="chapter-level-tag">Sección</div>
-            <h1 className="chapter-title">{section.label}</h1>
-            <p className="chapter-subtitle">{section.sublabel}</p>
-          </div>
-        </div>
-        <p className="chapter-intro">{intro}</p>
-        <div className="section-overview-stats" aria-label="Section progress">
-          <span><strong>{chapters.length}</strong> lecciones</span>
-          <span><strong>{completedCount}</strong> abiertas</span>
-          <span><strong>{understoodCount}</strong> entendidas</span>
-        </div>
-      </header>
-
-      {chapters.length ? (
-        <div className="section-lesson-grid">
-          {chapters.map((chapter, index) => {
-            const status = lessonStatuses?.[chapter.id];
-            const hasOpened = visitedSet.has(chapter.id);
-            const seconds = Number(studyTime?.byChapter?.[chapter.id]) || 0;
-            const preview = chapter.intro || chapter.subtitle || 'Open the lesson and work through it at your own pace.';
-            return (
-              <button
-                key={chapter.id}
-                type="button"
-                className={`section-lesson-card ${status ? `status-${status}` : hasOpened ? 'status-opened' : ''}`}
-                onClick={() => onSelectChapter(chapter)}
-              >
-                <span className="section-lesson-topline">
-                  <span className="section-lesson-index">{String(index + 1).padStart(2, '0')}</span>
-                  <span className="section-lesson-level">{chapter.level}</span>
-                </span>
-                <span className="section-lesson-title">{chapter.title}</span>
-                {chapter.subtitle && <span className="section-lesson-subtitle">{chapter.subtitle}</span>}
-                <span className="section-lesson-preview">{preview}</span>
-                <span className="section-lesson-footer">
-                  <span className="section-lesson-status">
-                    {status === 'understood' ? 'Entendido' : status === 'read' ? 'Leído' : hasOpened ? 'Abierto' : 'Nuevo'}
-                  </span>
-                  {seconds > 0 && <span className="section-lesson-time">{formatStudyDuration(seconds)}</span>}
-                </span>
-              </button>
-            );
-          })}
-        </div>
-      ) : (
-        <div className="empty">
-          <Sparkles size={28} />
-          <p>No hay lecciones en este nivel.</p>
-        </div>
-      )}
-    </article>
-  );
-}
-
 export default function SpanishBook() {
   const [activeSectionId, setActiveSectionId] = useState('tiempos');
   const [activeChapterId, setActiveChapterId] = useState('tiempos');
   const [sectionLandingId, setSectionLandingId] = useState(null);
+  const [activeNestedTarget, setActiveNestedTarget] = useState(null);
   const [levelFilter, setLevelFilter] = useState('ALL');
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [showMemoria, setShowMemoria] = useState(false);
@@ -8557,6 +8577,7 @@ export default function SpanishBook() {
   const [audioSettings, setAudioSettingsState] = useState({ rate: 0.85, voiceURI: '' });
   const [translationMode, setTranslationMode] = useState('both');
   const [booxMode, setBooxMode] = useState(false);
+  const [focusMode, setFocusMode] = useState(false);
   const [writingEntries, setWritingEntries] = useState([]);
   const [waitingWorker, setWaitingWorker] = useState(null);
   const [syncOpen, setSyncOpen] = useState(false);
@@ -8825,6 +8846,7 @@ export default function SpanishBook() {
       if (visibleFlatChapters.length) {
         setActiveChapterId(visibleFlatChapters[0].id);
         setActiveSectionId(visibleFlatChapters[0].sectionId);
+        setActiveNestedTarget(null);
       }
     }
   }, [visibleFlatChapters, activeChapterId]);
@@ -8833,6 +8855,10 @@ export default function SpanishBook() {
     () => visibleFlatChapters.find((c) => c.id === activeChapterId),
     [visibleFlatChapters, activeChapterId]
   );
+  const activeSection = useMemo(
+    () => SECTIONS.find((section) => section.id === activeSectionId),
+    [activeSectionId]
+  );
   const sectionLanding = useMemo(
     () => SECTIONS.find((section) => section.id === sectionLandingId),
     [sectionLandingId]
@@ -8840,6 +8866,10 @@ export default function SpanishBook() {
   const sectionLandingChapters = useMemo(
     () => visibleFlatChapters.filter((chapter) => chapter.sectionId === sectionLandingId),
     [visibleFlatChapters, sectionLandingId]
+  );
+  const sectionLandingLessons = useMemo(
+    () => buildSectionLessonCards(sectionLanding, sectionLandingChapters),
+    [sectionLanding, sectionLandingChapters]
   );
 
   const currentIndex = visibleFlatChapters.findIndex((c) => c.id === activeChapterId);
@@ -8893,21 +8923,23 @@ export default function SpanishBook() {
   }, [palabrasProgress]);
   const sectionProgress = useMemo(() => {
     return SECTIONS.map((section) => {
-      const chapters = section.chapters.filter((c) => c.alwaysVisible || levelFilter === 'ALL' || c.level === levelFilter);
-      const visited = chapters.filter((c) => visitedSet.has(c.id)).length;
-      return { id: section.id, label: section.label, total: chapters.length, visited };
+      const chapters = visibleFlatChapters.filter((c) => c.sectionId === section.id);
+      const lessons = buildSectionLessonCards(section, chapters);
+      const visited = lessons.filter((lesson) => visitedSet.has(lesson.id) || lessonStatuses[lesson.statusKey || lesson.id]).length;
+      return { id: section.id, label: section.label, total: lessons.length, visited };
     }).filter((item) => item.total > 0);
-  }, [levelFilter, visitedSet]);
+  }, [visibleFlatChapters, visitedSet, lessonStatuses]);
   const palabrasChapter = visibleFlatChapters.find((c) => c.id === 'palabras-5000');
   const verbChapter = visibleFlatChapters.find((c) => c.sectionId === 'verbos') || visibleFlatChapters.find((c) => c.sectionId === 'verbos2');
   const readingChapter = visibleFlatChapters.find((c) => c.sectionId === 'lectura');
   const isStudyTimerRunning = Boolean(activeChapter && !showHome && !showMemoria && !showWriting && !sectionLandingId);
+  const activeStudyId = activeNestedTarget?.cardId || activeChapter?.id;
   const studyTimerLabel = isStudyTimerRunning
-    ? `${activeChapter.sectionLabel || 'Lesson'} - ${activeChapter.title}`
+    ? `${activeChapter.sectionLabel || 'Lesson'} - ${activeNestedTarget?.title || activeChapter.title}`
     : 'Open a lesson to count';
 
   useEffect(() => {
-    if (!isStudyTimerRunning || !activeChapter?.id) return undefined;
+    if (!isStudyTimerRunning || !activeStudyId) return undefined;
     let alive = true;
     const tick = () => {
       if (!alive || document.hidden) return;
@@ -8921,7 +8953,7 @@ export default function SpanishBook() {
           todaySeconds: base.todaySeconds + 1,
           byChapter: {
             ...base.byChapter,
-            [activeChapter.id]: (Number(base.byChapter?.[activeChapter.id]) || 0) + 1,
+            [activeStudyId]: (Number(base.byChapter?.[activeStudyId]) || 0) + 1,
           },
           updatedAt: now,
         };
@@ -8938,11 +8970,11 @@ export default function SpanishBook() {
       alive = false;
       window.clearInterval(timer);
     };
-  }, [isStudyTimerRunning, activeChapter?.id]);
+  }, [isStudyTimerRunning, activeStudyId]);
 
   useEffect(() => {
     try { window.storage.set(STUDY_TIME_KEY, JSON.stringify(studyTime)); } catch (_) {}
-  }, [showHome, showMemoria, showWriting, sectionLandingId, activeChapterId]);
+  }, [showHome, showMemoria, showWriting, sectionLandingId, activeChapterId, activeNestedTarget]);
 
   useEffect(() => {
     const persistStudyTime = () => {
@@ -8961,18 +8993,21 @@ export default function SpanishBook() {
   }, [learnerProfile]);
 
   function selectChapter(c) {
-    const nextSectionId = c.sectionId || SECTIONS.find((section) => section.chapters.some((chapter) => chapter.id === c.id))?.id || activeSectionId;
-    setActiveChapterId(c.id);
+    const nextChapterId = c.parentChapterId || c.id;
+    const nextSectionId = c.sectionId || SECTIONS.find((section) => section.chapters.some((chapter) => chapter.id === nextChapterId))?.id || activeSectionId;
+    setActiveChapterId(nextChapterId);
     setActiveSectionId(nextSectionId);
     setSectionLandingId(null);
+    setActiveNestedTarget(c.nestedTarget || null);
     setShowMemoria(false);
     setShowWriting(false);
     setShowHome(false);
     setSidebarOpen(false);
     setResumeOffer(null);
     setVisitedChapters(prev => {
-      if (prev.includes(c.id)) return prev;
-      const next = [...prev, c.id];
+      const ids = [nextChapterId, c.id].filter(Boolean);
+      const next = Array.from(new Set([...prev, ...ids]));
+      if (next.length === prev.length) return prev;
       try { window.storage.set('visited-chapters', JSON.stringify(next)); } catch (_) {}
       return next;
     });
@@ -8980,8 +9015,10 @@ export default function SpanishBook() {
     try {
       window.storage.set('last-read', JSON.stringify({
         sectionId: nextSectionId,
-        chapterId: c.id,
-        title: c.title,
+        chapterId: nextChapterId,
+        cardId: c.id,
+        nestedTarget: c.nestedTarget || null,
+        title: c.nestedTarget?.title || c.title,
         savedAt: Date.now(),
       }));
     } catch (_) {}
@@ -8995,6 +9032,7 @@ export default function SpanishBook() {
   function openSection(section) {
     setActiveSectionId(section.id);
     setSectionLandingId(section.id);
+    setActiveNestedTarget(null);
     setShowHome(false);
     setShowMemoria(false);
     setShowWriting(false);
@@ -9010,7 +9048,15 @@ export default function SpanishBook() {
     if (!resumeOffer) return;
     const sec = SECTIONS.find(s => s.id === resumeOffer.sectionId);
     const chap = sec?.chapters.find(c => c.id === resumeOffer.chapterId);
-    if (chap) selectChapter({ ...chap, sectionId: sec.id });
+    if (chap) {
+      selectChapter({
+        ...chap,
+        id: resumeOffer.cardId || chap.id,
+        parentChapterId: chap.id,
+        sectionId: sec.id,
+        nestedTarget: resumeOffer.nestedTarget || null,
+      });
+    }
     setResumeOffer(null);
   }
   function dismissResume() {
@@ -9154,11 +9200,13 @@ export default function SpanishBook() {
                 onClick={() => {
                   if (result.type === 'memoria') {
                     setSectionLandingId(null);
+                    setActiveNestedTarget(null);
                     setShowHome(false);
                     setShowWriting(false);
                     setShowMemoria(true);
                   } else if (result.type === 'writing') {
                     setSectionLandingId(null);
+                    setActiveNestedTarget(null);
                     setShowHome(false);
                     setShowMemoria(false);
                     setShowWriting(true);
@@ -9183,7 +9231,7 @@ export default function SpanishBook() {
   }
 
   return (
-    <div className={`book-root translation-mode-${translationMode} ${booxMode ? 'boox-mode' : ''}`}>
+    <div className={`book-root translation-mode-${translationMode} ${booxMode ? 'boox-mode' : ''} ${focusMode ? 'focus-mode' : ''}`}>
       <DictionaryPopup savedWords={savedWords} onSave={handleSaveWord} onRemove={handleRemoveWord} />
       <AppMessages />
       <style>{styles}</style>
@@ -9227,6 +9275,15 @@ export default function SpanishBook() {
         >
           <BookText size={15} />
           <span>Ink</span>
+        </button>
+        <button
+          className={`top-tool-btn focus-toggle ${focusMode ? 'active' : ''}`}
+          onClick={() => setFocusMode((current) => !current)}
+          aria-label={focusMode ? 'Exit focus reading mode' : 'Enter focus reading mode'}
+          title={focusMode ? 'Salir de lectura' : 'Modo lectura'}
+        >
+          <BookOpen size={15} />
+          <span>{focusMode ? 'Exit' : 'Read'}</span>
         </button>
         <div className="font-controls">
           <button className="font-btn" onClick={() => bumpFont(-0.05)} aria-label="Smaller text" disabled={fontScale <= 0.85}>
@@ -9344,7 +9401,7 @@ export default function SpanishBook() {
               <div className={`section-group home-nav-item ${showHome ? 'active' : ''}`}>
                 <button
                   className="section-btn home-section-btn"
-                  onClick={() => { setSectionLandingId(null); setShowHome(true); setShowMemoria(false); setShowWriting(false); setSidebarOpen(false); }}
+                  onClick={() => { setSectionLandingId(null); setActiveNestedTarget(null); setShowHome(true); setShowMemoria(false); setShowWriting(false); setSidebarOpen(false); }}
                 >
                   <div className="section-icon-wrap home-icon-wrap">
                     <Compass size={18} className="section-icon" />
@@ -9360,7 +9417,8 @@ export default function SpanishBook() {
               </div>
 
               {SECTIONS.map((s) => {
-                const visibleChapters = s.chapters.filter((c) => c.alwaysVisible || levelFilter === 'ALL' || c.level === levelFilter);
+                const visibleChapters = visibleFlatChapters.filter((chapter) => chapter.sectionId === s.id);
+                const sectionLessons = buildSectionLessonCards(s, visibleChapters);
                 const isActive = s.id === activeSectionId && !showMemoria && !showHome && !showWriting;
                 return (
                   <div key={s.id} className={`section-group ${isActive ? 'active' : ''}`}>
@@ -9376,7 +9434,7 @@ export default function SpanishBook() {
                         <div className="section-sublabel">{s.sublabel}</div>
                       </div>
                       <div className="section-meta">
-                        <div className="section-count">{visibleChapters.length}</div>
+                        <div className="section-count">{sectionLessons.length}</div>
                         <ChevronRight size={16} className="section-chevron" />
                       </div>
                     </button>
@@ -9388,7 +9446,7 @@ export default function SpanishBook() {
               <div className={`section-group memoria-nav-item ${showMemoria ? 'active' : ''}`}>
                 <button
                   className="section-btn memoria-section-btn"
-                  onClick={() => { setSectionLandingId(null); setShowHome(false); setShowWriting(false); setShowMemoria(true); setSidebarOpen(false); }}
+                  onClick={() => { setSectionLandingId(null); setActiveNestedTarget(null); setShowHome(false); setShowWriting(false); setShowMemoria(true); setSidebarOpen(false); }}
                 >
                   <div className="section-icon-wrap memoria-icon-wrap">
                     <Bookmark size={18} className="section-icon" />
@@ -9406,7 +9464,7 @@ export default function SpanishBook() {
               <div className={`section-group writing-nav-item ${showWriting ? 'active' : ''}`}>
                 <button
                   className="section-btn writing-section-btn"
-                  onClick={() => { setSectionLandingId(null); setShowHome(false); setShowMemoria(false); setShowWriting(true); setSidebarOpen(false); }}
+                  onClick={() => { setSectionLandingId(null); setActiveNestedTarget(null); setShowHome(false); setShowMemoria(false); setShowWriting(true); setSidebarOpen(false); }}
                 >
                   <div className="section-icon-wrap writing-icon-wrap">
                     <PenLine size={18} className="section-icon" />
@@ -9454,11 +9512,11 @@ export default function SpanishBook() {
                 sectionProgress={sectionProgress}
                 recommendations={recommendedChapters}
                 onStart={() => startChapter && selectChapter(startChapter)}
-                onOpenMemoria={() => { setSectionLandingId(null); setShowHome(false); setShowWriting(false); setShowMemoria(true); }}
+                onOpenMemoria={() => { setSectionLandingId(null); setActiveNestedTarget(null); setShowHome(false); setShowWriting(false); setShowMemoria(true); }}
                 onOpenPalabras={() => palabrasChapter && selectChapter(palabrasChapter)}
                 onOpenVerb={() => verbChapter && selectChapter(verbChapter)}
                 onOpenReading={() => readingChapter && selectChapter(readingChapter)}
-                onOpenWriting={() => { setSectionLandingId(null); setShowHome(false); setShowMemoria(false); setShowWriting(true); }}
+                onOpenWriting={() => { setSectionLandingId(null); setActiveNestedTarget(null); setShowHome(false); setShowMemoria(false); setShowWriting(true); }}
                 onSelectChapter={selectChapter}
               />
             ) : showMemoria ? (
@@ -9478,16 +9536,20 @@ export default function SpanishBook() {
             ) : sectionLandingId ? (
               <SectionOverviewView
                 section={sectionLanding}
-                chapters={sectionLandingChapters}
+                lessons={sectionLandingLessons}
                 visitedSet={visitedSet}
                 lessonStatuses={lessonStatuses}
                 studyTime={studyTime}
                 onSelectChapter={selectChapter}
+                SectionIconComponent={SectionIcon}
               />
             ) : activeChapter ? (
               <ChapterContent
                 chapter={activeChapter}
                 sectionId={activeSectionId}
+                section={activeSection}
+                activeNestedTarget={activeNestedTarget}
+                onOpenSection={openSection}
                 onSaveWord={handleSaveWord}
                 savedWords={savedWords}
                 onUpdateSavedWord={handleUpdateWord}
@@ -9549,7 +9611,7 @@ export default function SpanishBook() {
               <div className="level-bar-counter">
                 {showHome
                   ? `${visibleVisitedCount} / ${visibleFlatChapters.length}`
-                  : sectionLandingId ? `${sectionLandingChapters.length} lecciones`
+                  : sectionLandingId ? `${sectionLandingLessons.length} lecciones`
                   : currentIndex >= 0 ? `${currentIndex + 1} / ${visibleFlatChapters.length}` : '—'}
               </div>
             </div>

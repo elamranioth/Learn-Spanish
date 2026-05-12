@@ -1,7 +1,7 @@
 export const COMPOUND_TENSES_SUBJUNCTIVE_LESSON = {
   id: 'tiempos-compuestos',
   level: 'B1-B2',
-  title: 'Tiempos compuestos',
+  title: 'Tiempos Compuestos del Subjuntivo',
   subtitle: 'Pretérito perfecto y pluscuamperfecto de subjuntivo',
   intro: 'This lesson is about completed actions inside the subjunctive world: emotion, doubt, desire, negation, and unreal conditions. The action is finished, but the sentence does not present it as a plain fact.',
   blocks: [
