@@ -1,4 +1,5 @@
-const CACHE_NAME = 'learn-spanish-v35';
+const buildId = new URL(self.location.href).searchParams.get('v') || 'dev';
+const CACHE_NAME = `learn-spanish-${buildId}`;
 const basePath = self.location.pathname.replace(/sw\.js$/, '');
 const shellFiles = [
   basePath,
