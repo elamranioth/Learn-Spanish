@@ -1,4 +1,4 @@
-const CACHE_NAME = 'learn-spanish-v30';
+const CACHE_NAME = 'learn-spanish-v31';
 const basePath = self.location.pathname.replace(/sw\.js$/, '');
 const shellFiles = [
   basePath,
@@ -12,7 +12,6 @@ self.addEventListener('install', (event) => {
   event.waitUntil(
     caches.open(CACHE_NAME)
       .then((cache) => cache.addAll(shellFiles))
-      .then(() => self.skipWaiting())
   );
 });
 
