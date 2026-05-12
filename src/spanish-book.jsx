@@ -7215,7 +7215,6 @@ function ExpressionsLibraryBlock({ library }) {
   const [activeGroup, setActiveGroup] = useState(0);
   const [query, setQuery] = useState('');
   const [page, setPage] = useState(0);
-  const [openKey, setOpenKey] = useState('');
   const perPage = library.perPage || 36;
   const group = library.groups[activeGroup] || library.groups[0];
 
@@ -7235,16 +7234,10 @@ function ExpressionsLibraryBlock({ library }) {
 
   useEffect(() => {
     setPage(0);
-    setOpenKey('');
   }, [activeGroup, query]);
 
   function switchGroup(index) {
     setActiveGroup(index);
-  }
-
-  function toggleCard(entry) {
-    const key = `${group.id}-${entry.rank}`;
-    setOpenKey((current) => current === key ? '' : key);
   }
 
   return (
@@ -7299,12 +7292,10 @@ function ExpressionsLibraryBlock({ library }) {
         <div className="expressions-grid">
           {visibleEntries.map((entry) => {
             const key = `${group.id}-${entry.rank}`;
-            const isOpen = openKey === key;
             return (
               <article
                 key={key}
-                className={`expression-card ${group.tone} ${isOpen ? 'open' : ''}`}
-                onClick={() => toggleCard(entry)}
+                className={`expression-card ${group.tone}`}
               >
                 <header>
                   <span className="expression-rank">#{entry.rank}</span>
@@ -7315,12 +7306,14 @@ function ExpressionsLibraryBlock({ library }) {
                     </h3>
                     <p>{entry.en}</p>
                   </div>
-                  <ChevronDown size={15} className="expression-chevron" />
                 </header>
-                {isOpen && entry.example && (
+                {entry.example && (
                   <div className="expression-example">
-                    <span>Ejemplo</span>
-                    <p><InlineDictionaryText text={entry.example} /></p>
+                    <div className="expression-example-label">Ejemplo</div>
+                    <p>
+                      <SpeakBtn text={entry.example} />
+                      <InlineDictionaryText text={entry.example} />
+                    </p>
                   </div>
                 )}
               </article>

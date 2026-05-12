@@ -1904,11 +1904,7 @@ export const styles = `
   border-top: 4px solid var(--expr-tone);
   border-radius: 8px;
   background: #fff;
-  cursor: pointer;
   overflow: hidden;
-}
-.expression-card.open {
-  border-color: var(--expr-tone);
 }
 .expression-card header {
   display: flex;
@@ -1943,20 +1939,12 @@ export const styles = `
   line-height: 1.4;
   color: var(--ink-mute);
 }
-.expression-chevron {
-  margin-left: auto;
-  color: var(--ink-mute);
-  transition: transform 160ms;
-}
-.expression-card.open .expression-chevron {
-  transform: rotate(180deg);
-}
 .expression-example {
   border-top: 1px solid var(--rule-soft);
   padding: 11px 14px 13px 57px;
   background: var(--paper-light);
 }
-.expression-example span {
+.expression-example-label {
   display: block;
   margin-bottom: 4px;
   font-family: 'Inter', sans-serif;
@@ -1969,8 +1957,13 @@ export const styles = `
 .expression-example p {
   margin: 0;
   color: var(--ink);
-  font-size: 15px;
+  font-size: 16px;
   font-style: italic;
+  line-height: 1.55;
+}
+.expression-example p .speak-btn {
+  margin-right: 6px;
+  vertical-align: 0.1em;
 }
 .expressions-empty {
   border: 1px solid var(--rule);
