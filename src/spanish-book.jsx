@@ -33,6 +33,7 @@ import {
   scheduleReview,
 } from './learning.js';
 import { exportMemoriaCsv, getMemoriaSummary, getMemoriaTags } from './memoria-utils.js';
+import { SPANISH_EXPRESSIONS_LIBRARY } from './spanish-expressions-library.js';
 import {
   cleanDictionaryWord,
   findStoredDictionaryEntry as findStoredDictionaryEntrySmart,
@@ -4937,35 +4938,15 @@ const SECTIONS = [
     sublabel: 'Expresiones útiles',
     chapters: [
       {
-        id: 'f1',
-        level: 'A1',
-        title: 'Saludos y Cortesía',
-        subtitle: 'The first words you need',
-        intro: 'These are the phrases that open every conversation. Learn them by ear, repeat them out loud, and use them at every chance.',
+        id: 'expresiones',
+        level: 'B1',
+        title: 'Expresiones',
+        subtitle: '648 Spanish expressions',
+        intro: 'Four groups ranked from most-used to least-used. Search, browse by group, and open each card to read the example sentence.',
         blocks: [
           {
-            type: 'phraselist',
-            phrases: [
-              { es: 'Hola, ¿qué tal?', en: 'Hi, how are you?' },
-              { es: 'Buenos días.', en: 'Good morning.' },
-              { es: 'Buenas tardes.', en: 'Good afternoon.' },
-              { es: 'Buenas noches.', en: 'Good evening / good night.' },
-              { es: 'Mucho gusto.', en: 'Pleased to meet you.' },
-              { es: 'Encantado / encantada.', en: 'Delighted (to meet you).' },
-              { es: '¿Cómo te llamas?', en: 'What is your name?' },
-              { es: 'Me llamo Othman.', en: 'My name is Othman.' },
-              { es: '¿De dónde eres?', en: 'Where are you from?' },
-              { es: 'Soy de Marruecos.', en: 'I am from Morocco.' },
-              { es: 'Por favor.', en: 'Please.' },
-              { es: 'Gracias. — De nada.', en: 'Thank you. — You are welcome.' },
-              { es: 'Perdón. / Disculpe.', en: 'Sorry. / Excuse me.' },
-              { es: 'Hasta luego.', en: 'See you later.' },
-              { es: 'Hasta mañana.', en: 'See you tomorrow.' },
-            ],
-          },
-          {
-            type: 'takeaway',
-            text: 'These twenty phrases are the entry door. Repeat each one ten times before moving on. They will be the foundation of every spoken interaction.',
+            type: 'expressions-library',
+            library: SPANISH_EXPRESSIONS_LIBRARY,
           },
         ],
       },
@@ -6663,6 +6644,8 @@ function ChapterContent({ chapter, sectionId, onSaveWord, savedWords = [], onUpd
                 </ul>
               </section>
             );
+          case 'expressions-library':
+            return <ExpressionsLibraryBlock key={i} library={block.library} />;
           case 'steps':
             return (
               <section key={i} className="block">
@@ -7224,6 +7207,134 @@ function ChoiceQuizBlock({ block }) {
         <button onClick={() => setFinished(true)}>Ver resultado</button>
         {finished && <strong>{score} / {block.questions.length}</strong>}
       </div>
+    </section>
+  );
+}
+
+function ExpressionsLibraryBlock({ library }) {
+  const [activeGroup, setActiveGroup] = useState(0);
+  const [query, setQuery] = useState('');
+  const [page, setPage] = useState(0);
+  const [openKey, setOpenKey] = useState('');
+  const perPage = library.perPage || 36;
+  const group = library.groups[activeGroup] || library.groups[0];
+
+  const filtered = useMemo(() => {
+    const q = normalizeForCompare(query.trim());
+    if (!q) return group.entries;
+    return group.entries.filter((entry) => (
+      normalizeForCompare(entry.es).includes(q) ||
+      normalizeForCompare(entry.en).includes(q) ||
+      normalizeForCompare(entry.example).includes(q)
+    ));
+  }, [group, query]);
+
+  const totalPages = Math.max(1, Math.ceil(filtered.length / perPage));
+  const safePage = Math.min(page, totalPages - 1);
+  const visibleEntries = filtered.slice(safePage * perPage, (safePage + 1) * perPage);
+
+  useEffect(() => {
+    setPage(0);
+    setOpenKey('');
+  }, [activeGroup, query]);
+
+  function switchGroup(index) {
+    setActiveGroup(index);
+  }
+
+  function toggleCard(entry) {
+    const key = `${group.id}-${entry.rank}`;
+    setOpenKey((current) => current === key ? '' : key);
+  }
+
+  return (
+    <section className="block expressions-library-block">
+      <div className="expressions-hero">
+        <div className="expressions-eye">{library.eyebrow}</div>
+        <h2>{library.title}</h2>
+        <p>{library.subtitle}</p>
+        <div className="expressions-stats">
+          {library.groups.map((g) => (
+            <div key={g.id}>
+              <strong>{g.count}</strong>
+              <span>{g.title}</span>
+            </div>
+          ))}
+        </div>
+      </div>
+
+      <div className="expressions-tabs">
+        {library.groups.map((g, index) => (
+          <button
+            key={g.id}
+            className={`${g.tone} ${activeGroup === index ? 'active' : ''}`}
+            onClick={() => switchGroup(index)}
+          >
+            <span>{index + 1}</span>
+            {g.shortTitle} ({g.count})
+          </button>
+        ))}
+      </div>
+
+      <div className="expressions-toolbar">
+        <label>
+          <Search size={14} />
+          <input
+            value={query}
+            onChange={(e) => setQuery(e.target.value)}
+            placeholder="Search expressions, meanings..."
+          />
+        </label>
+        <div className="expressions-count">
+          {filtered.length} {filtered.length === 1 ? 'expression' : 'expressions'}
+        </div>
+        <div className="expressions-pager">
+          <button disabled={safePage === 0} onClick={() => setPage((p) => Math.max(0, p - 1))}>Prev</button>
+          <span>{safePage + 1} / {totalPages}</span>
+          <button disabled={safePage >= totalPages - 1} onClick={() => setPage((p) => Math.min(totalPages - 1, p + 1))}>Next</button>
+        </div>
+      </div>
+
+      {visibleEntries.length > 0 ? (
+        <div className="expressions-grid">
+          {visibleEntries.map((entry) => {
+            const key = `${group.id}-${entry.rank}`;
+            const isOpen = openKey === key;
+            return (
+              <article
+                key={key}
+                className={`expression-card ${group.tone} ${isOpen ? 'open' : ''}`}
+                onClick={() => toggleCard(entry)}
+              >
+                <header>
+                  <span className="expression-rank">#{entry.rank}</span>
+                  <div>
+                    <h3>
+                      <SpeakBtn text={entry.es} />
+                      <InlineDictionaryText text={entry.es} />
+                    </h3>
+                    <p>{entry.en}</p>
+                  </div>
+                  <ChevronDown size={15} className="expression-chevron" />
+                </header>
+                {isOpen && entry.example && (
+                  <div className="expression-example">
+                    <span>Ejemplo</span>
+                    <p><InlineDictionaryText text={entry.example} /></p>
+                  </div>
+                )}
+              </article>
+            );
+          })}
+        </div>
+      ) : (
+        <div className="expressions-empty">
+          <Search size={24} />
+          No expressions found. Try a different search.
+        </div>
+      )}
+
+      <div className="expressions-foot">{library.sourceNote}</div>
     </section>
   );
 }

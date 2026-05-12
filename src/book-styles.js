@@ -1737,6 +1737,258 @@ export const styles = `
 .phrase-es { margin: 0; font-size: 18px; color: var(--ink); }
 .phrase-en { margin: 4px 0 0; font-size: 16px; font-style: italic; color: var(--ink-mute); }
 
+.expressions-library-block {
+  --expr-tone: var(--ink);
+}
+.expressions-hero {
+  border: 1px solid var(--ink);
+  border-left: 5px solid var(--ink);
+  border-radius: 8px;
+  padding: 24px;
+  background: #fff;
+  margin-bottom: 18px;
+}
+.expressions-eye {
+  font-family: 'Inter', sans-serif;
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: 0.22em;
+  text-transform: uppercase;
+  color: var(--ink-mute);
+  margin-bottom: 9px;
+}
+.expressions-hero h2 {
+  font-family: 'Cormorant Garamond', serif;
+  font-size: 38px;
+  line-height: 1.08;
+  margin: 0 0 8px;
+}
+.expressions-hero p {
+  margin: 0;
+  max-width: 620px;
+  font-size: 18px;
+  line-height: 1.55;
+  color: var(--ink-soft);
+}
+.expressions-stats {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 10px;
+  margin-top: 18px;
+}
+.expressions-stats div {
+  border: 1px solid var(--rule);
+  border-radius: 7px;
+  padding: 10px;
+  background: var(--paper-light);
+}
+.expressions-stats strong {
+  display: block;
+  font-size: 24px;
+  line-height: 1;
+  color: var(--ink);
+}
+.expressions-stats span {
+  display: block;
+  margin-top: 5px;
+  font-size: 12px;
+  line-height: 1.25;
+  color: var(--ink-mute);
+}
+.expressions-tabs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 7px;
+  margin-bottom: 14px;
+}
+.expressions-tabs button {
+  --expr-tone: var(--ink);
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  border: 1px solid var(--rule);
+  border-radius: 8px;
+  background: #fff;
+  color: var(--expr-tone);
+  padding: 8px 12px;
+  font-family: 'Literata', Georgia, serif;
+  font-size: 14px;
+  font-weight: 800;
+  cursor: pointer;
+}
+.expressions-tabs button.navy,
+.expression-card.navy { --expr-tone: #263656; }
+.expressions-tabs button.green,
+.expression-card.green { --expr-tone: #2f6b42; }
+.expressions-tabs button.plum,
+.expression-card.plum { --expr-tone: #624277; }
+.expressions-tabs button.rose,
+.expression-card.rose { --expr-tone: #8a3f59; }
+.expressions-tabs button.active {
+  border-color: var(--expr-tone);
+  box-shadow: inset 0 -3px 0 var(--expr-tone);
+}
+.expressions-tabs span {
+  display: inline-grid;
+  place-items: center;
+  width: 22px;
+  height: 22px;
+  border: 1px solid currentColor;
+  border-radius: 50%;
+  font-size: 11px;
+}
+.expressions-toolbar {
+  display: grid;
+  grid-template-columns: minmax(220px, 1fr) auto auto;
+  gap: 10px;
+  align-items: center;
+  margin-bottom: 16px;
+}
+.expressions-toolbar label {
+  position: relative;
+  display: block;
+}
+.expressions-toolbar label svg {
+  position: absolute;
+  left: 11px;
+  top: 50%;
+  transform: translateY(-50%);
+  color: var(--ink-mute);
+}
+.expressions-toolbar input {
+  width: 100%;
+  border: 1px solid var(--rule);
+  border-radius: 8px;
+  background: #fff;
+  color: var(--ink);
+  padding: 10px 12px 10px 34px;
+  font-family: 'Literata', Georgia, serif;
+  font-size: 16px;
+}
+.expressions-count,
+.expressions-pager {
+  border: 1px solid var(--rule);
+  border-radius: 8px;
+  background: var(--paper-light);
+  color: var(--ink-mute);
+  font-size: 14px;
+  padding: 8px 10px;
+  white-space: nowrap;
+}
+.expressions-pager {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+.expressions-pager button {
+  border: 1px solid var(--rule);
+  border-radius: 6px;
+  background: #fff;
+  color: var(--ink);
+  padding: 4px 9px;
+  font-family: 'Literata', Georgia, serif;
+  cursor: pointer;
+}
+.expressions-pager button:disabled {
+  opacity: 0.35;
+  cursor: default;
+}
+.expressions-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(255px, 1fr));
+  gap: 12px;
+}
+.expression-card {
+  --expr-tone: var(--ink);
+  border: 1px solid var(--rule);
+  border-top: 4px solid var(--expr-tone);
+  border-radius: 8px;
+  background: #fff;
+  cursor: pointer;
+  overflow: hidden;
+}
+.expression-card.open {
+  border-color: var(--expr-tone);
+}
+.expression-card header {
+  display: flex;
+  align-items: flex-start;
+  gap: 9px;
+  padding: 13px 14px;
+}
+.expression-rank {
+  flex: 0 0 auto;
+  min-width: 34px;
+  border: 1px solid var(--expr-tone);
+  border-radius: 5px;
+  color: var(--expr-tone);
+  padding: 2px 5px;
+  font-family: 'Inter', sans-serif;
+  font-size: 11px;
+  font-weight: 800;
+  text-align: center;
+}
+.expression-card h3 {
+  margin: 0;
+  color: var(--expr-tone);
+  font-size: 19px;
+  line-height: 1.24;
+}
+.expression-card h3 .speak-btn {
+  margin-right: 6px;
+}
+.expression-card p {
+  margin: 4px 0 0;
+  font-size: 14px;
+  line-height: 1.4;
+  color: var(--ink-mute);
+}
+.expression-chevron {
+  margin-left: auto;
+  color: var(--ink-mute);
+  transition: transform 160ms;
+}
+.expression-card.open .expression-chevron {
+  transform: rotate(180deg);
+}
+.expression-example {
+  border-top: 1px solid var(--rule-soft);
+  padding: 11px 14px 13px 57px;
+  background: var(--paper-light);
+}
+.expression-example span {
+  display: block;
+  margin-bottom: 4px;
+  font-family: 'Inter', sans-serif;
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: var(--ink-mute);
+}
+.expression-example p {
+  margin: 0;
+  color: var(--ink);
+  font-size: 15px;
+  font-style: italic;
+}
+.expressions-empty {
+  border: 1px solid var(--rule);
+  border-radius: 8px;
+  padding: 36px 20px;
+  display: grid;
+  justify-items: center;
+  gap: 10px;
+  color: var(--ink-mute);
+}
+.expressions-foot {
+  margin-top: 18px;
+  text-align: center;
+  color: var(--ink-mute);
+  font-size: 12px;
+  line-height: 1.6;
+}
+
 /* Steps */
 .steps-list {
   list-style: none; padding: 0; margin: 0;
@@ -3938,6 +4190,15 @@ export const styles = `
   .lesson-table thead th { font-size: 12px; letter-spacing: 0.14em; }
   .lesson-ex-es { font-size: 19px; }
   .lesson-ex-en { font-size: 16px; }
+  .expressions-hero { padding: 20px; }
+  .expressions-hero h2 { font-size: 31px; }
+  .expressions-stats,
+  .expressions-toolbar {
+    grid-template-columns: 1fr;
+  }
+  .expressions-pager {
+    justify-content: space-between;
+  }
   .indicative-hero-block { padding: 22px; }
   .indicative-hero-block h2 { font-size: 31px; }
   .indicative-card-grid,
