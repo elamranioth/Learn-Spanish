@@ -4,6 +4,9 @@ import react from '@vitejs/plugin-react';
 export default defineConfig({
   base: '/Learn-Spanish/',
   plugins: [react()],
+  define: {
+    __APP_BUILD_ID__: JSON.stringify(process.env.VITE_APP_VERSION || new Date().toISOString()),
+  },
   build: {
     chunkSizeWarningLimit: 700,
     rollupOptions: {

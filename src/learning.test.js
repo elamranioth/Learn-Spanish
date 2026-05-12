@@ -13,6 +13,8 @@ import {
   normalizeDictionaryExact,
   normalizeDictionaryLookup,
 } from './spanish-dictionary.js';
+import { buildRecommendedLessonCards, buildSectionProgress, buildVisibleFlatChapters, summarizeStudyProgress } from './progress.js';
+import { mergeStudyTime, recordStudySecond } from './study-time.js';
 
 function test(name, fn) {
   try {
@@ -105,4 +107,33 @@ test('learner profile and unified queue combine multiple study sources', () => {
   assert.ok(queue.some((item) => item.type === 'palabra'));
   assert.ok(queue.some((item) => item.type === 'memoria'));
   assert.ok(queue.some((item) => item.type === 'writing'));
+});
+
+test('progress counts nested lesson cards consistently', () => {
+  const sections = [{
+    id: 'gramatica',
+    label: 'Gramática',
+    chapters: [{
+      id: 'grammar',
+      level: 'A2',
+      title: 'Grammar',
+      blocks: [{ type: 'foldable-grammar', lessons: [{ title: 'Pronouns' }, { title: 'Prepositions' }] }],
+    }],
+  }];
+  const visible = buildVisibleFlatChapters(sections, 'ALL');
+  const summary = summarizeStudyProgress(sections, visible, [], { 'grammar::grammar::0::Pronouns': 'understood' });
+  assert.equal(summary.total, 2);
+  assert.equal(summary.completed, 1);
+  assert.equal(buildSectionProgress(sections, visible, [], summary.lessons.reduce((acc) => acc, { 'grammar::grammar::0::Pronouns': 'understood' }))[0].total, 2);
+  assert.equal(buildRecommendedLessonCards(summary.lessons, [], { 'grammar::grammar::0::Pronouns': 'understood' }, 1)[0].title, 'Prepositions');
+});
+
+test('study time sync merges unique device sessions without losing minutes', () => {
+  const local = recordStudySecond({}, 'lesson-a', 'phone-session', 2_000_000);
+  const remote = recordStudySecond({}, 'lesson-b', 'laptop-session', 2_100_000);
+  const merged = mergeStudyTime(local, remote);
+  assert.equal(merged.totalSeconds, 2);
+  assert.equal(merged.byChapter['lesson-a'], 1);
+  assert.equal(merged.byChapter['lesson-b'], 1);
+  assert.equal(merged.sessions.length, 2);
 });

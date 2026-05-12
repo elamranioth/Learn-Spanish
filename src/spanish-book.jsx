@@ -33,7 +33,14 @@ import {
   scheduleReview,
 } from './learning.js';
 import { exportMemoriaCsv, getMemoriaSummary, getMemoriaTags } from './memoria-utils.js';
-import { buildSectionLessonCards, getNestedLessonKey, SectionOverviewView } from './section-overview.jsx';
+import {
+  buildRecommendedLessonCards,
+  buildSectionProgress,
+  buildVisibleFlatChapters,
+  summarizeStudyProgress,
+} from './progress.js';
+import { buildSectionLessonCards, getNestedLessonKey } from './section-lessons.js';
+import { SectionOverviewView } from './section-overview.jsx';
 import { SPANISH_EXPRESSIONS_LIBRARY } from './spanish-expressions-library.js';
 import {
   cleanDictionaryWord,
@@ -43,7 +50,7 @@ import {
   normalizeDictionaryLookup as normalizeDictionaryLookupSmart,
   translateWord as translateWordSmart,
 } from './spanish-dictionary.js';
-import { STUDY_TIME_KEY, formatStudyDuration, normalizeStudyTimeState } from './study-time.js';
+import { STUDY_TIME_KEY, formatStudyDuration, normalizeStudyTimeState, recordStudySecond } from './study-time.js';
 
 /* =============================================================
    SPANISH — A Personal Reading Book
@@ -7432,171 +7439,6 @@ function ExpressionsLibraryBlock({ library }) {
 // API: MyMemory (free, no key) + SpanishDict deep link
 // =============================================================
 // =============================================================
-// SHARED TRANSLATION HELPERS (used by both DictionaryPopup and Memoria)
-// =============================================================
-function _cleanWord(raw) {
-  return raw.trim().replace(/[«»""''¡!¿?.,;:()[\]{}<>*_/\\—–\-]+/g, '').trim().toLowerCase();
-}
-
-function normalizeDictionaryLookup(value) {
-  return _cleanWord(String(value || ''))
-    .normalize('NFD')
-    .replace(/[\u0300-\u036f]/g, '')
-    .replace(/\s+/g, ' ')
-    .replace(/^(el|la|los|las|un|una|unos|unas)\s+/, '')
-    .trim();
-}
-
-function getDictionaryLookupVariants(value) {
-  const base = normalizeDictionaryLookup(value);
-  const variants = new Set([base]);
-  if (base.endsWith('es') && base.length > 4) variants.add(base.slice(0, -2));
-  if (base.endsWith('s') && base.length > 3) variants.add(base.slice(0, -1));
-  if (base.endsWith('a') && base.length > 3) variants.add(`${base.slice(0, -1)}o`);
-  if (base.endsWith('as') && base.length > 4) variants.add(`${base.slice(0, -2)}o`);
-
-  const addVerbGuess = (suffix, endings) => {
-    if (!base.endsWith(suffix) || base.length <= suffix.length + 1) return;
-    const stem = base.slice(0, -suffix.length);
-    endings.forEach((ending) => variants.add(`${stem}${ending}`));
-  };
-  [
-    ['e', ['ar']], ['aste', ['ar']], ['o', ['ar']], ['amos', ['ar']], ['aron', ['ar']],
-    ['aba', ['ar']], ['abas', ['ar']], ['abamos', ['ar']], ['aban', ['ar']],
-    ['ando', ['ar']], ['ado', ['ar']],
-    ['i', ['er', 'ir']], ['iste', ['er', 'ir']], ['io', ['er', 'ir']], ['imos', ['er', 'ir']], ['ieron', ['er', 'ir']],
-    ['ia', ['er', 'ir']], ['ias', ['er', 'ir']], ['iamos', ['er', 'ir']], ['ian', ['er', 'ir']],
-    ['iendo', ['er', 'ir']], ['ido', ['er', 'ir']],
-  ].forEach(([suffix, endings]) => addVerbGuess(suffix, endings));
-
-  return [...variants].filter(Boolean);
-}
-
-function findStoredDictionaryEntry(word, savedWords = [], vocabularyGroups = []) {
-  const variants = new Set(getDictionaryLookupVariants(word));
-  const savedMatch = savedWords.find((entry) => variants.has(normalizeDictionaryLookup(entry.word)));
-  if (savedMatch) {
-    return {
-      main: savedMatch.translation || 'Saved in Memoria',
-      extras: savedMatch.extras || [],
-      pos: savedMatch.pos || 'Memoria',
-      source: 'Memoria',
-      stored: true,
-      matchedWord: savedMatch.word,
-    };
-  }
-
-  for (const group of vocabularyGroups || []) {
-    for (const entry of group.entries || []) {
-      const labels = [entry.spanish, entry.topicTerm, getDisplaySpanish(entry)];
-      if (labels.some((label) => variants.has(normalizeDictionaryLookup(label)))) {
-        return {
-          main: getDisplayEnglish(entry),
-          extras: entry.topicEnglish && entry.topicEnglish !== entry.english ? [entry.english].filter(Boolean) : [],
-          pos: group.title || entry.sourceGroupTitle || 'Palabras',
-          source: 'Palabras',
-          stored: true,
-          matchedWord: getDisplaySpanish(entry),
-        };
-      }
-    }
-  }
-
-  return null;
-}
-
-async function translateWord(word) {
-  const errors = [];
-  const w = encodeURIComponent(word);
-  const timeout = (ms) => (typeof AbortSignal !== 'undefined' && AbortSignal.timeout) ? AbortSignal.timeout(ms) : undefined;
-
-  // ===== TIER 1: LINGUEE =====
-  try {
-    const r = await fetch(`https://linguee-api.fly.dev/api/v2/translations?query=${w}&src=es&dst=en`, { signal: timeout(4000) });
-    if (r.ok) {
-      const data = await r.json();
-      if (Array.isArray(data) && data.length > 0) {
-        const lemma = data[0];
-        const main = lemma?.translations?.[0]?.text?.trim();
-        if (main) {
-          const extras = (lemma.translations || [])
-            .slice(1, 5)
-            .map(t => t.text?.trim())
-            .filter(Boolean);
-          const examples = [];
-          for (const tr of (lemma.translations || [])) {
-            for (const ex of (tr.examples || [])) {
-              if (ex.src && ex.dst && examples.length < 2) {
-                examples.push({ es: ex.src, en: ex.dst });
-              }
-            }
-            if (examples.length >= 2) break;
-          }
-          return { main, extras, pos: lemma.pos || lemma.translations?.[0]?.pos || '', examples, source: 'Linguee' };
-        }
-      }
-    } else { errors.push(`Linguee: HTTP ${r.status}`); }
-  } catch (e) { errors.push(`Linguee: ${e.message}`); }
-
-  // ===== TIER 2: GLOSBE =====
-  try {
-    const r = await fetch(`https://glosbe.com/gapi/translate?from=spa&dest=eng&format=json&phrase=${w}&pretty=true`, { signal: timeout(4000) });
-    if (r.ok) {
-      const data = await r.json();
-      const tucs = data?.tuc || [];
-      const phrases = tucs.map(t => t?.phrase?.text?.trim()).filter(Boolean);
-      const meanings = tucs.flatMap(t => (t?.meanings || []).map(m => m?.text?.trim())).filter(Boolean);
-      if (phrases.length > 0) {
-        const main = phrases[0];
-        const extras = phrases.slice(1, 5).filter(p => p.toLowerCase() !== main.toLowerCase());
-        return { main, extras, pos: '', meanings: meanings.slice(0, 3), source: 'Glosbe' };
-      }
-    } else { errors.push(`Glosbe: HTTP ${r.status}`); }
-  } catch (e) { errors.push(`Glosbe: ${e.message}`); }
-
-  // ===== TIER 3: FREE DICTIONARY =====
-  try {
-    const r = await fetch(`https://api.dictionaryapi.dev/api/v2/entries/es/${w}`, { signal: timeout(4000) });
-    if (r.ok) {
-      const data = await r.json();
-      if (Array.isArray(data) && data.length > 0) {
-        const entry = data[0];
-        const meaning = entry?.meanings?.[0];
-        const def = meaning?.definitions?.[0]?.definition?.trim();
-        if (def) {
-          return { main: def, extras: [], pos: meaning?.partOfSpeech || '', source: 'Diccionario', isDefinition: true };
-        }
-      }
-    } else { errors.push(`FreeDict: HTTP ${r.status}`); }
-  } catch (e) { errors.push(`FreeDict: ${e.message}`); }
-
-  // ===== TIER 4: GOOGLE / MYMEMORY (last resort) =====
-  try {
-    const r = await fetch(`https://translate.googleapis.com/translate_a/single?client=gtx&sl=es&tl=en&dt=t&dj=1&q=${w}`, { signal: timeout(4000) });
-    if (r.ok) {
-      const data = await r.json();
-      const main = data?.sentences?.[0]?.trans?.trim();
-      if (main && main.toLowerCase() !== word.toLowerCase()) {
-        return { main, extras: [], pos: '', source: 'Google' };
-      }
-    }
-  } catch (e) { errors.push(`Google: ${e.message}`); }
-
-  try {
-    const r = await fetch(`https://api.mymemory.translated.net/get?q=${w}&langpair=es|en`, { signal: timeout(4000) });
-    if (r.ok) {
-      const data = await r.json();
-      const main = data?.responseData?.translatedText?.trim();
-      if (main && main.toLowerCase() !== word.toLowerCase() && !/PLEASE|MYMEMORY|INVALID|QUOTA/i.test(main)) {
-        return { main, extras: [], pos: '', source: 'MyMemory' };
-      }
-    }
-  } catch (e) { errors.push(`MyMemory: ${e.message}`); }
-
-  if (errors.length) console.warn('Lookup failed for', word, errors);
-  return null;
-}
-
 function DictionaryPopup({ savedWords, onSave, onRemove }) {
   const [popup, setPopup] = useState(null);
   const [vocabularyGroups, setVocabularyGroups] = useState([]);
@@ -7606,6 +7448,20 @@ function DictionaryPopup({ savedWords, onSave, onRemove }) {
 
   const cleanWord = cleanDictionaryWord;
   const translate = translateWordSmart;
+
+  function findSentenceContext(text, word) {
+    const raw = String(text || '').replace(/\s+/g, ' ').trim();
+    const clean = cleanWord(word);
+    if (!raw || !clean) return '';
+    const sentences = raw.match(/[^.!?Â¡Â¿]+[.!?]?/g) || [raw];
+    const match = sentences.find((sentence) => cleanWord(sentence).includes(clean));
+    return (match || raw).trim().slice(0, 220);
+  }
+
+  function getNodeContext(node, word) {
+    const container = node?.closest?.('.reading-paragraph, .lesson-text, .gl-text, .bio-paragraph, .poem-stanza-es, .song-lyric-es, .lesson-ex-es, .gl-ex-es, .example-es, .phrase-es, .vocab-es, article, section');
+    return findSentenceContext(container?.innerText || container?.textContent || node?.textContent || '', word);
+  }
 
   // --- Two-stage flow: selection shows a floating Translate button.
   //     Tapping the button opens the full popup. This prevents conflicts with
@@ -7634,7 +7490,7 @@ function DictionaryPopup({ savedWords, onSave, onRemove }) {
   useEffect(() => {
     let lastSelection = '';
 
-    async function openPopupForWord(word, x, y) {
+    async function openPopupForWord(word, x, y, context = '') {
       const clean = cleanWord(word);
       if (!clean || clean.length < 2) return;
       setFloatingBtn(null);
@@ -7652,6 +7508,7 @@ function DictionaryPopup({ savedWords, onSave, onRemove }) {
           word: stored.matchedWord || clean,
           x,
           y,
+          context,
           loading: false,
           result: stored,
           error: false,
@@ -7659,7 +7516,7 @@ function DictionaryPopup({ savedWords, onSave, onRemove }) {
         return;
       }
 
-      setPopup({ word: clean, x, y, loading: true, result: null, error: false });
+      setPopup({ word: clean, x, y, context, loading: true, result: null, error: false });
       try {
         const result = await translate(clean);
         setPopup(prev => prev && prev.word === clean ? { ...prev, loading: false, result, error: !result } : prev);
@@ -7679,7 +7536,7 @@ function DictionaryPopup({ savedWords, onSave, onRemove }) {
       const rect = target.getBoundingClientRect();
       const x = rect.left + rect.width / 2;
       const y = rect.bottom + 10;
-      openPopupForWord(word, x, y);
+      openPopupForWord(word, x, y, getNodeContext(target, word));
     }
 
     function handleSelectionChange() {
@@ -7711,7 +7568,14 @@ function DictionaryPopup({ savedWords, onSave, onRemove }) {
         x = Math.max(BTN_W / 2 + 8, Math.min(x, window.innerWidth - BTN_W / 2 - 8));
         if (y < 50) y = 50;
 
-        setFloatingBtn({ word, x, y });
+        let context = '';
+        try {
+          const range = sel.getRangeAt(0);
+          const node = range.commonAncestorContainer?.nodeType === 1 ? range.commonAncestorContainer : range.commonAncestorContainer?.parentElement;
+          context = getNodeContext(node, word);
+        } catch (_) {}
+
+        setFloatingBtn({ word, x, y, context });
       }, 200);
     }
 
@@ -7756,7 +7620,7 @@ function DictionaryPopup({ savedWords, onSave, onRemove }) {
         onClick={(e) => {
           e.stopPropagation();
           if (window.__bookOpenPopup) {
-            window.__bookOpenPopup(floatingBtn.word, floatingBtn.x, floatingBtn.y + 50);
+            window.__bookOpenPopup(floatingBtn.word, floatingBtn.x, floatingBtn.y + 50, floatingBtn.context);
           }
         }}
         onPointerDown={(e) => e.stopPropagation()}
@@ -7788,6 +7652,8 @@ function DictionaryPopup({ savedWords, onSave, onRemove }) {
         translation: popup.result?.main || '',
         pos: popup.result?.pos || '',
         extras: popup.result?.extras || [],
+        context: popup.context || '',
+        contexts: popup.context ? [popup.context] : [],
         savedAt: Date.now(),
       });
     }
@@ -7829,6 +7695,12 @@ function DictionaryPopup({ savedWords, onSave, onRemove }) {
             <div className={`dict-main-translation ${popup.result.isDefinition ? 'is-definition' : ''}`}>
               {popup.result.main}
             </div>
+            {popup.context && (
+              <div className="dict-context">
+                <span>Contexto</span>
+                <em>{popup.context}</em>
+              </div>
+            )}
             {popup.result.extras?.length > 0 && (
               <div className="dict-extras">
                 {popup.result.extras.map((e, i) => <span key={i} className="dict-extra-tag">{e}</span>)}
@@ -8134,13 +8006,16 @@ function MemoriaView({ savedWords, onRemove, onClear, onUpdateWord }) {
                     {entry.translation ? (
                       <>
                         <div className="memoria-translation">{entry.translation}</div>
-                        {entry.extras?.length > 0 && (
-                          <div className="memoria-extras">
-                            {entry.extras.slice(0, 3).map((e, i) => (
-                              <span key={i} className="memoria-extra-tag">{e}</span>
-                            ))}
-                          </div>
-                        )}
+                      {entry.extras?.length > 0 && (
+                        <div className="memoria-extras">
+                          {entry.extras.slice(0, 3).map((e, i) => (
+                            <span key={i} className="memoria-extra-tag">{e}</span>
+                          ))}
+                        </div>
+                      )}
+                      {(entry.context || entry.contexts?.[0]) && (
+                        <div className="memoria-context">{entry.context || entry.contexts[0]}</div>
+                      )}
                       </>
                     ) : (
                       <div className="memoria-no-translation">Sin traducción guardada</div>
@@ -8200,6 +8075,9 @@ function MemoriaView({ savedWords, onRemove, onClear, onUpdateWord }) {
                     <div className="memoria-list-extras">
                       {tags.map((tag) => <span key={tag} className="memoria-list-extra-tag">{tag}</span>)}
                     </div>
+                  )}
+                  {(entry.context || entry.contexts?.[0]) && (
+                    <div className="memoria-list-context">{entry.context || entry.contexts[0]}</div>
                   )}
                 </div>
                 <div className="memoria-list-actions">
@@ -8380,7 +8258,7 @@ function WritingPractice({ savedWords, chapters, entries = [], onEntriesChange }
 }
 
 function HomeView({
-  totalChapters,
+  totalLessons,
   visitedCount,
   savedWordsCount,
   levelFilter,
@@ -8389,6 +8267,7 @@ function HomeView({
   memoriaSummary,
   learnerProfile,
   reviewQueue,
+  studyTime,
   writingCount,
   sectionProgress,
   recommendations,
@@ -8400,7 +8279,7 @@ function HomeView({
   onOpenWriting,
   onSelectChapter,
 }) {
-  const progress = totalChapters ? Math.round((visitedCount / totalChapters) * 100) : 0;
+  const progress = totalLessons ? Math.round((visitedCount / totalLessons) * 100) : 0;
 
   return (
     <article className="chapter-body home-dashboard">
@@ -8411,7 +8290,7 @@ function HomeView({
         </div>
         <h1 className="home-title">Learn Spanish</h1>
         <p className="home-subtitle">
-          Hoy: 10 palabras, una pagina leida en voz alta, un verbo repasado, y tres palabras guardadas.
+          Hoy: una leccion clara, 10 palabras, lectura en voz alta, Memoria, y una frase escrita.
         </p>
         <div className="home-actions">
           <button className="home-primary" onClick={onStart}>
@@ -8429,7 +8308,12 @@ function HomeView({
         <div className="home-stat">
           <span className="home-stat-label">Progreso</span>
           <strong>{progress}%</strong>
-          <span>{visitedCount} / {totalChapters} capitulos</span>
+          <span>{visitedCount} / {totalLessons} lecciones</span>
+        </div>
+        <div className="home-stat">
+          <span className="home-stat-label">Tiempo hoy</span>
+          <strong>{formatStudyDuration(studyTime.todaySeconds)}</strong>
+          <span>{formatStudyDuration(studyTime.totalSeconds)} total</span>
         </div>
         <div className="home-stat">
           <span className="home-stat-label">Nivel</span>
@@ -8510,7 +8394,7 @@ function HomeView({
           ))}
         </div>
         <div className="home-review-summary">
-          {learnerProfile.vocabulary.due} vocabulary due · {learnerProfile.writing.needsPractice} writing rewrites · {learnerProfile.chapters.unvisited} unread chapters
+          {learnerProfile.vocabulary.due} vocabulary due · {learnerProfile.writing.needsPractice} writing rewrites · {learnerProfile.chapters.unvisited} lesson groups to open
         </div>
       </section>
 
@@ -8570,6 +8454,7 @@ export default function SpanishBook() {
   const [activeNestedTarget, setActiveNestedTarget] = useState(null);
   const [levelFilter, setLevelFilter] = useState('ALL');
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [toolsOpen, setToolsOpen] = useState(false);
   const [showMemoria, setShowMemoria] = useState(false);
   const [showHome, setShowHome] = useState(true);
   const [showWriting, setShowWriting] = useState(false);
@@ -8586,9 +8471,14 @@ export default function SpanishBook() {
   const [googleLastSyncedAt, setGoogleLastSyncedAt] = useState('');
   const [googleBusy, setGoogleBusy] = useState(false);
   const [syncMessage, setSyncMessage] = useState('');
+  const [syncAdvancedOpen, setSyncAdvancedOpen] = useState(false);
   const [studyTime, setStudyTime] = useState(() => normalizeStudyTimeState());
   const [studySessionSeconds, setStudySessionSeconds] = useState(0);
   const studyPersistTickRef = React.useRef(0);
+  const studySessionIdRef = React.useRef('');
+  const syncDirtyRef = React.useRef(false);
+  const syncHydratingRef = React.useRef(false);
+  const lastAutoSyncAtRef = React.useRef(0);
 
   // --- Font size: persists across sessions, applied to body via CSS variable ---
   const [fontScale, setFontScale] = useState(1.0); // multiplier: 0.85 → 1.3
@@ -8682,6 +8572,7 @@ export default function SpanishBook() {
   // Apply fontScale to the document via CSS variable
   useEffect(() => {
     document.documentElement.style.setProperty('--font-scale', String(fontScale));
+    markSyncDirty();
     try { window.storage.set('font-scale', String(fontScale)); } catch (_) {}
   }, [fontScale]);
 
@@ -8692,15 +8583,22 @@ export default function SpanishBook() {
     });
   }
 
+  function markSyncDirty() {
+    if (!syncHydratingRef.current) syncDirtyRef.current = true;
+  }
+
   async function persistWords(words) {
+    markSyncDirty();
     try { await window.storage.set('memoria-words', JSON.stringify(words)); } catch (_) {}
   }
 
   async function persistPalabrasProgress(progress) {
+    markSyncDirty();
     try { await window.storage.set(PALABRAS_PROGRESS_KEY, JSON.stringify(progress)); } catch (_) {}
   }
 
   async function persistLessonStatuses(statuses) {
+    markSyncDirty();
     try { await window.storage.set(LESSON_STATUS_KEY, JSON.stringify(statuses)); } catch (_) {}
   }
 
@@ -8725,12 +8623,14 @@ export default function SpanishBook() {
   function handleAudioSettingsChange(next) {
     setAudioSettingsState(next);
     setAudioSettings(next);
+    markSyncDirty();
     try { window.storage.set(AUDIO_SETTINGS_KEY, JSON.stringify(next)); } catch (_) {}
   }
 
   function toggleTranslationMode() {
     setTranslationMode((current) => {
       const next = current === 'spanish' ? 'both' : 'spanish';
+      markSyncDirty();
       try { window.storage.set(TRANSLATION_MODE_KEY, next); } catch (_) {}
       return next;
     });
@@ -8739,6 +8639,7 @@ export default function SpanishBook() {
   function toggleBooxMode() {
     setBooxMode((current) => {
       const next = !current;
+      markSyncDirty();
       try { window.storage.set(BOOX_MODE_KEY, String(next)); } catch (_) {}
       return next;
     });
@@ -8781,6 +8682,8 @@ export default function SpanishBook() {
           ...entry,
           tags: Array.from(new Set([...(word.tags || []), ...(entry.tags || [])])),
           extras: Array.from(new Set([...(word.extras || []), ...(entry.extras || [])])),
+          contexts: Array.from(new Set([...(word.contexts || []), word.context, ...(entry.contexts || []), entry.context].filter(Boolean))).slice(0, 6),
+          context: entry.context || word.context || '',
           savedAt: word.savedAt || entry.savedAt || Date.now(),
         } : word);
         persistWords(next);
@@ -8817,6 +8720,11 @@ export default function SpanishBook() {
     persistWords([]);
   }
 
+  function handleWritingEntriesChange(entries) {
+    markSyncDirty();
+    setWritingEntries(entries);
+  }
+
   // On mount, retry translation for any saved word that's missing one
   useEffect(() => {
     if (savedWords.length === 0) return;
@@ -8827,17 +8735,8 @@ export default function SpanishBook() {
       setTimeout(() => backgroundTranslate(w.word), i * 800);
     });
   }, [savedWords.length]);
-  // Flat list of all visible chapters (after level filter), preserving section order.
   const visibleFlatChapters = useMemo(() => {
-    const list = [];
-    for (const s of SECTIONS) {
-      for (const c of s.chapters) {
-        if (c.alwaysVisible || levelFilter === 'ALL' || c.level === levelFilter) {
-          list.push({ ...c, sectionId: s.id, sectionLabel: s.label });
-        }
-      }
-    }
-    return list;
+    return buildVisibleFlatChapters(SECTIONS, levelFilter);
   }, [levelFilter]);
 
   // If the active chapter is filtered out, jump to the first visible one.
@@ -8876,25 +8775,26 @@ export default function SpanishBook() {
   const prevChapter = currentIndex > 0 ? visibleFlatChapters[currentIndex - 1] : null;
   const nextChapter = currentIndex >= 0 && currentIndex < visibleFlatChapters.length - 1 ? visibleFlatChapters[currentIndex + 1] : null;
   const visitedSet = useMemo(() => new Set(visitedChapters), [visitedChapters]);
-  const visibleVisitedCount = useMemo(
-    () => visibleFlatChapters.filter((c) => visitedSet.has(c.id)).length,
-    [visibleFlatChapters, visitedSet]
+  const studyProgress = useMemo(
+    () => summarizeStudyProgress(SECTIONS, visibleFlatChapters, visitedChapters, lessonStatuses),
+    [visibleFlatChapters, visitedChapters, lessonStatuses]
   );
-  const recommendedChapters = useMemo(() => {
-    const unseen = visibleFlatChapters.filter((c) => !visitedSet.has(c.id));
-    return (unseen.length ? unseen : visibleFlatChapters).slice(0, 4);
-  }, [visibleFlatChapters, visitedSet]);
+  const visibleStudyLessons = studyProgress.lessons;
+  const visibleVisitedCount = studyProgress.completed;
+  const recommendedChapters = useMemo(
+    () => buildRecommendedLessonCards(visibleStudyLessons, visitedChapters, lessonStatuses, 4),
+    [visibleStudyLessons, visitedChapters, lessonStatuses]
+  );
   const searchResults = useMemo(
     () => buildEnhancedSearchResults(globalSearch, visibleFlatChapters, savedWords, writingEntries),
     [globalSearch, visibleFlatChapters, savedWords, writingEntries]
   );
   const lessonSummary = useMemo(() => {
-    const values = Object.values(lessonStatuses || {});
     return {
-      read: values.filter((status) => status === 'read' || status === 'understood').length,
-      understood: values.filter((status) => status === 'understood').length,
+      read: studyProgress.read,
+      understood: studyProgress.understood,
     };
-  }, [lessonStatuses]);
+  }, [studyProgress]);
   const memoriaSummary = useMemo(() => getMemoriaSummary(savedWords), [savedWords]);
   const learnerProfile = useMemo(() => buildLearnerProfile({
     chapters: visibleFlatChapters,
@@ -8922,13 +8822,8 @@ export default function SpanishBook() {
     };
   }, [palabrasProgress]);
   const sectionProgress = useMemo(() => {
-    return SECTIONS.map((section) => {
-      const chapters = visibleFlatChapters.filter((c) => c.sectionId === section.id);
-      const lessons = buildSectionLessonCards(section, chapters);
-      const visited = lessons.filter((lesson) => visitedSet.has(lesson.id) || lessonStatuses[lesson.statusKey || lesson.id]).length;
-      return { id: section.id, label: section.label, total: lessons.length, visited };
-    }).filter((item) => item.total > 0);
-  }, [visibleFlatChapters, visitedSet, lessonStatuses]);
+    return buildSectionProgress(SECTIONS, visibleFlatChapters, visitedChapters, lessonStatuses);
+  }, [visibleFlatChapters, visitedChapters, lessonStatuses]);
   const palabrasChapter = visibleFlatChapters.find((c) => c.id === 'palabras-5000');
   const verbChapter = visibleFlatChapters.find((c) => c.sectionId === 'verbos') || visibleFlatChapters.find((c) => c.sectionId === 'verbos2');
   const readingChapter = visibleFlatChapters.find((c) => c.sectionId === 'lectura');
@@ -8939,27 +8834,24 @@ export default function SpanishBook() {
     : 'Open a lesson to count';
 
   useEffect(() => {
+    setStudySessionSeconds(0);
+  }, [activeStudyId]);
+
+  useEffect(() => {
     if (!isStudyTimerRunning || !activeStudyId) return undefined;
     let alive = true;
+    const sessionId = `${Date.now()}-${Math.random().toString(36).slice(2)}-${activeStudyId}`;
+    studySessionIdRef.current = sessionId;
     const tick = () => {
       if (!alive || document.hidden) return;
       const now = Date.now();
       setStudySessionSeconds((seconds) => seconds + 1);
       setStudyTime((current) => {
-        const base = normalizeStudyTimeState(current);
-        const next = {
-          ...base,
-          totalSeconds: base.totalSeconds + 1,
-          todaySeconds: base.todaySeconds + 1,
-          byChapter: {
-            ...base.byChapter,
-            [activeStudyId]: (Number(base.byChapter?.[activeStudyId]) || 0) + 1,
-          },
-          updatedAt: now,
-        };
+        const next = recordStudySecond(current, activeStudyId, sessionId, now);
         studyPersistTickRef.current += 1;
         if (studyPersistTickRef.current >= 15) {
           studyPersistTickRef.current = 0;
+          markSyncDirty();
           try { window.storage.set(STUDY_TIME_KEY, JSON.stringify(next)); } catch (_) {}
         }
         return next;
@@ -8969,10 +8861,12 @@ export default function SpanishBook() {
     return () => {
       alive = false;
       window.clearInterval(timer);
+      if (studySessionIdRef.current === sessionId) studySessionIdRef.current = '';
     };
   }, [isStudyTimerRunning, activeStudyId]);
 
   useEffect(() => {
+    markSyncDirty();
     try { window.storage.set(STUDY_TIME_KEY, JSON.stringify(studyTime)); } catch (_) {}
   }, [showHome, showMemoria, showWriting, sectionLandingId, activeChapterId, activeNestedTarget]);
 
@@ -9082,6 +8976,8 @@ export default function SpanishBook() {
   }
 
   async function applySyncPayload(payload) {
+    syncHydratingRef.current = true;
+    try {
     const nextWords = Array.isArray(payload.savedWords) ? payload.savedWords : [];
     const nextVisited = Array.isArray(payload.visitedChapters) ? payload.visitedChapters : [];
     const nextPalabras = payload.palabrasProgress && typeof payload.palabrasProgress === 'object' ? payload.palabrasProgress : {};
@@ -9115,6 +9011,10 @@ export default function SpanishBook() {
     await window.storage.set(BOOX_MODE_KEY, String(nextBooxMode));
     await window.storage.set(STUDY_TIME_KEY, JSON.stringify(nextStudyTime));
     if (nextFont >= 0.85 && nextFont <= 1.3) await window.storage.set('font-scale', String(nextFont));
+    syncDirtyRef.current = false;
+    } finally {
+      syncHydratingRef.current = false;
+    }
   }
 
   async function saveGoogleClientId() {
@@ -9153,33 +9053,59 @@ export default function SpanishBook() {
     }
   }
 
-  async function syncWithGoogleDrive(existingToken = googleAccessToken) {
+  async function syncWithGoogleDrive(existingToken = googleAccessToken, options = {}) {
     const clientId = googleClientId.trim();
     if (!clientId) {
       setSyncMessage('Paste and save your Google OAuth Client ID first.');
       return;
     }
     setGoogleBusy(true);
-    setSyncMessage(existingToken ? 'Syncing with Google Drive...' : 'Opening Google sign-in...');
+    if (!options.silent) setSyncMessage(existingToken ? 'Syncing with Google Drive...' : 'Opening Google sign-in...');
     try {
       await window.storage.set(GOOGLE_CLIENT_ID_KEY, clientId);
       const token = existingToken || await requestGoogleDriveToken(clientId, googleAccessToken ? '' : 'consent');
       setGoogleAccessToken(token);
-      setSyncMessage('Checking Google Drive...');
+      if (!options.silent) setSyncMessage('Checking Google Drive...');
       const file = await findGoogleSyncFile(token);
       const remotePayload = await readGoogleSyncPayload(token, file?.id);
       const mergedPayload = mergeSyncPayloads(buildSyncPayload(), remotePayload);
       await applySyncPayload(mergedPayload);
       await writeGoogleSyncPayload(token, mergedPayload, file?.id);
       setGoogleLastSyncedAt(new Date().toLocaleString());
-      setSyncMessage(`Google Drive synced across devices: ${mergedPayload.savedWords.length} words, ${Object.keys(mergedPayload.lessonStatuses || {}).length} lesson marks, ${formatStudyDuration(mergedPayload.studyTime?.totalSeconds)} total study time.`);
+      syncDirtyRef.current = false;
+      if (!options.silent) setSyncMessage(`Google Drive synced across devices: ${mergedPayload.savedWords.length} words, ${Object.keys(mergedPayload.lessonStatuses || {}).length} lesson marks, ${formatStudyDuration(mergedPayload.studyTime?.totalSeconds)} total study time.`);
     } catch (error) {
       if (/401|invalid|expired/i.test(error?.message || '')) setGoogleAccessToken('');
-      setSyncMessage(error?.message || 'Google Drive sync did not finish.');
+      if (!options.silent) setSyncMessage(error?.message || 'Google Drive sync did not finish.');
     } finally {
       setGoogleBusy(false);
     }
   }
+
+  useEffect(() => {
+    if (!googleAccessToken || googleBusy || isStudyTimerRunning || !syncDirtyRef.current) return undefined;
+    const now = Date.now();
+    if (now - lastAutoSyncAtRef.current < 20_000) return undefined;
+    const timer = window.setTimeout(() => {
+      if (!syncDirtyRef.current || googleBusy || isStudyTimerRunning) return;
+      lastAutoSyncAtRef.current = Date.now();
+      syncWithGoogleDrive(googleAccessToken, { silent: true });
+    }, 3500);
+    return () => window.clearTimeout(timer);
+  }, [
+    googleAccessToken,
+    googleBusy,
+    isStudyTimerRunning,
+    savedWords,
+    palabrasProgress,
+    lessonStatuses,
+    writingEntries,
+    audioSettings,
+    fontScale,
+    translationMode,
+    booxMode,
+    studyTime.updatedAt,
+  ]);
 
   function renderGlobalSearch(extraClass = '') {
     return (
@@ -9251,47 +9177,57 @@ export default function SpanishBook() {
         </div>
         {renderGlobalSearch('header-search')}
         <button
-          className={`top-tool-btn ${translationMode === 'spanish' ? 'active' : ''}`}
-          onClick={toggleTranslationMode}
-          aria-label={translationMode === 'spanish' ? 'Show English translations' : 'Hide English translations'}
-          title={translationMode === 'spanish' ? 'Mostrar ingles' : 'Solo espanol'}
+          className={`mobile-tools-toggle ${toolsOpen ? 'active' : ''}`}
+          onClick={() => setToolsOpen((open) => !open)}
+          aria-label={toolsOpen ? 'Close study tools' : 'Open study tools'}
         >
-          <Languages size={15} />
-          <span>{translationMode === 'spanish' ? 'ES' : 'EN'}</span>
+          <Sparkles size={15} />
+          Tools
         </button>
-        <button
-          className="top-tool-btn audio-stop"
-          onClick={stopAllAudio}
-          aria-label="Stop all audio"
-          title="Detener audio"
-        >
-          <Headphones size={15} />
-        </button>
-        <button
-          className={`top-tool-btn boox-toggle ${booxMode ? 'active' : ''}`}
-          onClick={toggleBooxMode}
-          aria-label={booxMode ? 'Turn off Boox e-ink mode' : 'Turn on Boox e-ink mode'}
-          title={booxMode ? 'Boox mode on' : 'Boox / e-ink mode'}
-        >
-          <BookText size={15} />
-          <span>Ink</span>
-        </button>
-        <button
-          className={`top-tool-btn focus-toggle ${focusMode ? 'active' : ''}`}
-          onClick={() => setFocusMode((current) => !current)}
-          aria-label={focusMode ? 'Exit focus reading mode' : 'Enter focus reading mode'}
-          title={focusMode ? 'Salir de lectura' : 'Modo lectura'}
-        >
-          <BookOpen size={15} />
-          <span>{focusMode ? 'Exit' : 'Read'}</span>
-        </button>
-        <div className="font-controls">
-          <button className="font-btn" onClick={() => bumpFont(-0.05)} aria-label="Smaller text" disabled={fontScale <= 0.85}>
-            <span className="font-btn-small">A</span>
+        <div className={`top-tools ${toolsOpen ? 'open' : ''}`}>
+          <button
+            className={`top-tool-btn ${translationMode === 'spanish' ? 'active' : ''}`}
+            onClick={toggleTranslationMode}
+            aria-label={translationMode === 'spanish' ? 'Show English translations' : 'Hide English translations'}
+            title={translationMode === 'spanish' ? 'Mostrar ingles' : 'Solo espanol'}
+          >
+            <Languages size={15} />
+            <span>{translationMode === 'spanish' ? 'ES' : 'EN'}</span>
           </button>
-          <button className="font-btn" onClick={() => bumpFont(0.05)} aria-label="Larger text" disabled={fontScale >= 1.3}>
-            <span className="font-btn-large">A</span>
+          <button
+            className="top-tool-btn audio-stop"
+            onClick={stopAllAudio}
+            aria-label="Stop all audio"
+            title="Detener audio"
+          >
+            <Headphones size={15} />
           </button>
+          <button
+            className={`top-tool-btn boox-toggle ${booxMode ? 'active' : ''}`}
+            onClick={toggleBooxMode}
+            aria-label={booxMode ? 'Turn off Boox e-ink mode' : 'Turn on Boox e-ink mode'}
+            title={booxMode ? 'Boox mode on' : 'Boox / e-ink mode'}
+          >
+            <BookText size={15} />
+            <span>Ink</span>
+          </button>
+          <button
+            className={`top-tool-btn focus-toggle ${focusMode ? 'active' : ''}`}
+            onClick={() => setFocusMode((current) => !current)}
+            aria-label={focusMode ? 'Exit focus reading mode' : 'Enter focus reading mode'}
+            title={focusMode ? 'Salir de lectura' : 'Modo lectura'}
+          >
+            <BookOpen size={15} />
+            <span>{focusMode ? 'Exit' : 'Read'}</span>
+          </button>
+          <div className="font-controls">
+            <button className="font-btn" onClick={() => bumpFont(-0.05)} aria-label="Smaller text" disabled={fontScale <= 0.85}>
+              <span className="font-btn-small">A</span>
+            </button>
+            <button className="font-btn" onClick={() => bumpFont(0.05)} aria-label="Larger text" disabled={fontScale >= 1.3}>
+              <span className="font-btn-large">A</span>
+            </button>
+          </div>
         </div>
       </div>
 
@@ -9314,23 +9250,32 @@ export default function SpanishBook() {
               <span>{booxMode ? 'Boox mode on' : 'Boox mode off'}</span>
             </div>
             <div className={`sync-status-pill ${googleAccessToken ? 'connected' : ''}`}>
-              {googleAccessToken ? 'Google connected for this session' : 'Google not connected yet'}
+              {googleAccessToken ? 'Google connected - auto-sync on' : 'Google not connected yet'}
               {googleLastSyncedAt && <small>Last sync: {googleLastSyncedAt}</small>}
             </div>
-            <label className="sync-client-field">
-              <span>Google OAuth Client ID</span>
-              <input
-                value={googleClientId}
-                onChange={(e) => setGoogleClientId(e.target.value)}
-                placeholder="1234567890-abc.apps.googleusercontent.com"
-                disabled={Boolean(import.meta.env.VITE_GOOGLE_CLIENT_ID)}
-              />
-            </label>
-            <p className="sync-help">
-              First time only: create a Google Cloud OAuth Client ID for this website origin, then paste it here.
-            </p>
+            {!import.meta.env.VITE_GOOGLE_CLIENT_ID && !googleClientId.trim() && (
+              <button className="sync-advanced-toggle" onClick={() => setSyncAdvancedOpen((open) => !open)}>
+                {syncAdvancedOpen ? 'Hide setup' : 'First-time Google setup'}
+              </button>
+            )}
+            {(!import.meta.env.VITE_GOOGLE_CLIENT_ID && (syncAdvancedOpen || googleClientId.trim())) && (
+              <>
+                <label className="sync-client-field">
+                  <span>Google OAuth Client ID</span>
+                  <input
+                    value={googleClientId}
+                    onChange={(e) => setGoogleClientId(e.target.value)}
+                    placeholder="1234567890-abc.apps.googleusercontent.com"
+                    disabled={Boolean(import.meta.env.VITE_GOOGLE_CLIENT_ID)}
+                  />
+                </label>
+                <p className="sync-help">
+                  First time only. After it is saved, this screen becomes a normal Google sign-in and sync panel.
+                </p>
+              </>
+            )}
             <div className="sync-actions">
-              {!import.meta.env.VITE_GOOGLE_CLIENT_ID && (
+              {!import.meta.env.VITE_GOOGLE_CLIENT_ID && googleClientId.trim() && (
                 <button onClick={saveGoogleClientId}>Save Client ID</button>
               )}
               <button onClick={signInGoogleDrive} disabled={googleBusy || !googleClientId.trim()}>
@@ -9411,7 +9356,7 @@ export default function SpanishBook() {
                     <div className="section-sublabel">Plan diario</div>
                   </div>
                   <div className="section-meta">
-                    <div className="section-count">{visitedChapters.length}</div>
+                    <div className="section-count">{visibleVisitedCount}</div>
                   </div>
                 </button>
               </div>
@@ -9499,7 +9444,7 @@ export default function SpanishBook() {
           <div className={`book-page ${showHome ? 'home-page' : ''}`}>
             {showHome ? (
               <HomeView
-                totalChapters={visibleFlatChapters.length}
+                totalLessons={studyProgress.total}
                 visitedCount={visibleVisitedCount}
                 savedWordsCount={savedWords.length}
                 levelFilter={levelFilter}
@@ -9508,6 +9453,7 @@ export default function SpanishBook() {
                 memoriaSummary={memoriaSummary}
                 learnerProfile={learnerProfile}
                 reviewQueue={reviewQueue}
+                studyTime={studyTime}
                 writingCount={writingEntries.length}
                 sectionProgress={sectionProgress}
                 recommendations={recommendedChapters}
@@ -9531,7 +9477,7 @@ export default function SpanishBook() {
                 savedWords={savedWords}
                 chapters={visibleFlatChapters}
                 entries={writingEntries}
-                onEntriesChange={setWritingEntries}
+                onEntriesChange={handleWritingEntriesChange}
               />
             ) : sectionLandingId ? (
               <SectionOverviewView
@@ -9561,7 +9507,7 @@ export default function SpanishBook() {
             ) : (
               <div className="empty">
                 <Sparkles size={28} />
-                <p>No hay capítulos en este nivel.</p>
+                <p>No hay lecciones en este nivel.</p>
               </div>
             )}
 
@@ -9610,7 +9556,7 @@ export default function SpanishBook() {
               <AudioSettings settings={audioSettings} onChange={handleAudioSettingsChange} />
               <div className="level-bar-counter">
                 {showHome
-                  ? `${visibleVisitedCount} / ${visibleFlatChapters.length}`
+                  ? `${visibleVisitedCount} / ${studyProgress.total}`
                   : sectionLandingId ? `${sectionLandingLessons.length} lecciones`
                   : currentIndex >= 0 ? `${currentIndex + 1} / ${visibleFlatChapters.length}` : '—'}
               </div>

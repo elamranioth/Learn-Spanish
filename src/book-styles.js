@@ -207,6 +207,32 @@ export const styles = `
   background: #fff;
   box-shadow: inset 0 -3px 0 var(--ink);
 }
+.top-tools {
+  flex: 0 0 auto;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+.mobile-tools-toggle {
+  display: none;
+  flex: 0 0 auto;
+  height: 36px;
+  align-items: center;
+  justify-content: center;
+  gap: 5px;
+  border: 1px solid var(--rule);
+  border-radius: 8px;
+  background: var(--paper);
+  color: var(--ink);
+  font-family: 'Cormorant Garamond', serif;
+  font-weight: 700;
+  cursor: pointer;
+}
+.mobile-tools-toggle.active {
+  border-color: var(--green);
+  background: var(--green-tint);
+  color: var(--green);
+}
 .book-root.focus-mode .book-shell {
   grid-template-columns: 1fr;
 }
@@ -217,8 +243,14 @@ export const styles = `
 .book-root.focus-mode .header-search,
 .book-root.focus-mode .top-tool-btn:not(.focus-toggle),
 .book-root.focus-mode .font-controls,
-.book-root.focus-mode .mobile-btn {
+.book-root.focus-mode .mobile-btn,
+.book-root.focus-mode .mobile-tools-toggle {
   display: none !important;
+}
+.book-root.focus-mode .top-tools {
+  display: inline-flex !important;
+  width: auto;
+  margin-left: auto;
 }
 .book-root.focus-mode .mobile-bar {
   justify-content: space-between;
@@ -773,6 +805,18 @@ export const styles = `
 .sync-actions button:disabled {
   opacity: 0.45;
   cursor: not-allowed;
+}
+.sync-advanced-toggle {
+  width: 100%;
+  border: 1px dashed var(--rule);
+  background: var(--paper);
+  color: var(--green);
+  border-radius: 8px;
+  padding: 10px 12px;
+  margin-top: 14px;
+  font-family: 'Cormorant Garamond', serif;
+  font-weight: 700;
+  cursor: pointer;
 }
 .sync-client-field {
   display: flex;
@@ -5466,6 +5510,13 @@ export const styles = `
   padding: 1px 9px;
   font-style: italic;
 }
+.memoria-list-context {
+  margin-top: 6px;
+  color: var(--ink-mute);
+  font-size: 13px;
+  line-height: 1.45;
+  font-style: italic;
+}
 .memoria-list-actions {
   display: flex;
   align-items: center;
@@ -5656,7 +5707,7 @@ export const styles = `
 /* Flip card */
 .memoria-card {
   position: relative;
-  height: 195px;
+  height: 220px;
   cursor: pointer;
   perspective: 900px;
   -webkit-tap-highlight-color: transparent;
@@ -5747,6 +5798,15 @@ export const styles = `
   padding: 2px 8px;
   font-style: italic;
 }
+.memoria-context {
+  margin-top: 8px;
+  padding-top: 8px;
+  border-top: 1px dotted rgba(255,255,255,0.28);
+  color: rgba(255,255,255,0.72);
+  font-size: 12px;
+  line-height: 1.35;
+  font-style: italic;
+}
 .memoria-sd-link {
   font-size: 12px;
   color: rgba(255,255,255,0.5);
@@ -5803,7 +5863,7 @@ export const styles = `
 
 @media (max-width: 700px) {
   .memoria-grid { grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 12px; }
-  .memoria-card { height: 170px; }
+  .memoria-card { height: 210px; }
   .memoria-word { font-size: 24px; }
   .memoria-translation { font-size: 18px; }
   .memoria-remove { opacity: 1; }
@@ -5820,6 +5880,27 @@ export const styles = `
   font-weight: 400;
   font-style: italic;
   line-height: 1.55;
+  color: var(--ink-soft);
+}
+.dict-context {
+  margin-top: 10px;
+  padding: 8px 10px;
+  border-left: 3px solid var(--green);
+  background: var(--paper);
+}
+.dict-context span {
+  display: block;
+  font-family: 'Cormorant Garamond', serif;
+  font-size: 10px;
+  letter-spacing: 0.22em;
+  text-transform: uppercase;
+  color: var(--ink-mute);
+  font-weight: 700;
+}
+.dict-context em {
+  display: block;
+  font-size: 13px;
+  line-height: 1.45;
   color: var(--ink-soft);
 }
 .dict-extras {
@@ -6004,18 +6085,39 @@ export const styles = `
     flex-wrap: wrap;
   }
   .study-timer {
-    order: 2;
+    order: 1;
     margin-left: auto;
     min-width: 88px;
   }
-  .font-controls {
-    order: 2;
+  .mobile-tools-toggle {
+    order: 1;
+    display: inline-flex;
   }
   .header-search {
-    order: 3;
+    order: 2;
     flex-basis: 100%;
     max-width: none;
     margin: 0;
+  }
+  .top-tools {
+    order: 3;
+    display: none;
+    width: 100%;
+    padding: 8px;
+    border: 1px solid var(--rule-soft);
+    border-radius: 8px;
+    background: var(--paper);
+    justify-content: space-between;
+    flex-wrap: wrap;
+  }
+  .top-tools.open {
+    display: flex;
+  }
+  .top-tools .font-controls {
+    margin-left: auto;
+  }
+  .top-tools .top-tool-btn {
+    min-width: 46px;
   }
 }
 
@@ -6062,6 +6164,9 @@ export const styles = `
 .book-root.boox-mode * {
   text-shadow: none !important;
   box-shadow: none !important;
+  transition: none !important;
+  animation: none !important;
+  scroll-behavior: auto !important;
 }
 .book-root.boox-mode * {
   background-image: none !important;
@@ -6120,6 +6225,21 @@ export const styles = `
 .book-root.boox-mode .search-hit {
   background: #000000 !important;
   color: #ffffff !important;
+}
+.book-root.boox-mode .book-page {
+  max-width: 820px;
+}
+.book-root.boox-mode .reading-paragraph,
+.book-root.boox-mode .lesson-text,
+.book-root.boox-mode .gl-text,
+.book-root.boox-mode .bio-paragraph {
+  line-height: 1.85 !important;
+}
+.book-root.boox-mode .lesson-status-btn.read.active::after {
+  content: " LEIDO";
+}
+.book-root.boox-mode .lesson-status-btn.understood.active::after {
+  content: " ENTENDIDO";
 }
 .book-root.boox-mode svg,
 .book-root.boox-mode .section-icon,

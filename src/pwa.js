@@ -3,7 +3,8 @@ export function registerServiceWorker() {
 
   window.addEventListener('load', () => {
     const baseUrl = import.meta.env.BASE_URL || '/';
-    navigator.serviceWorker.register(`${baseUrl}sw.js`, { scope: baseUrl }).then((registration) => {
+    const buildId = typeof __APP_BUILD_ID__ !== 'undefined' ? __APP_BUILD_ID__ : 'dev';
+    navigator.serviceWorker.register(`${baseUrl}sw.js?v=${encodeURIComponent(buildId)}`, { scope: baseUrl }).then((registration) => {
       function notifyUpdate(worker) {
         window.dispatchEvent(new CustomEvent('learn-spanish-update-ready', { detail: { worker } }));
       }
