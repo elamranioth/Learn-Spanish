@@ -306,9 +306,8 @@ export const styles = `
   background: var(--green);
   color: #ffffff;
   border-bottom: 1px solid rgba(0,0,0,0.1);
-  position: sticky;
-  top: 50px;
-  z-index: 25;
+  position: relative;
+  z-index: 20;
   animation: resume-slide-down 280ms cubic-bezier(0.4, 0.2, 0.2, 1);
 }
 @keyframes resume-slide-down {
@@ -383,7 +382,10 @@ export const styles = `
 .resume-btn-dismiss:hover { background: rgba(255,255,255,0.28); }
 
 @media (max-width: 700px) {
-  .resume-banner { padding: 12px 14px; top: 98px; }
+  .resume-banner {
+    align-items: flex-start;
+    padding: 12px 14px;
+  }
   .resume-banner-title { font-size: 18px; }
   .resume-btn-primary { font-size: 13px; padding: 7px 12px; }
 }
@@ -6362,19 +6364,42 @@ export const styles = `
 }
 
 .update-banner {
-  position: fixed;
-  left: 50%;
-  top: 14px;
-  transform: translateX(-50%);
-  z-index: 80;
+  position: relative;
+  z-index: 21;
   display: flex;
   align-items: center;
+  justify-content: center;
   gap: 14px;
   background: var(--paper);
   border: 1px solid var(--green);
   border-radius: 8px;
   box-shadow: var(--shadow);
+  width: min(720px, calc(100% - 32px));
+  margin: 12px auto 0;
   padding: 10px 12px;
+}
+.update-banner > div {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+.update-banner .resume-banner-label {
+  color: var(--green);
+}
+.update-banner .resume-banner-title {
+  color: var(--ink);
+  white-space: normal;
+  overflow: visible;
+  text-overflow: clip;
+  overflow-wrap: break-word;
+}
+
+@media (max-width: 700px) {
+  .update-banner {
+    align-items: flex-start;
+    flex-wrap: wrap;
+    justify-content: space-between;
+  }
 }
 
 .book-root.boox-mode {
@@ -6928,7 +6953,7 @@ export const styles = `
   }
   .mobile-bar {
     display: grid;
-    grid-template-columns: 44px auto auto minmax(240px, 1fr) auto;
+    grid-template-columns: 44px auto auto minmax(220px, 1fr) auto;
     align-items: center;
     padding: 10px 18px;
     position: fixed;
@@ -6950,10 +6975,30 @@ export const styles = `
     margin: 0;
   }
   .mobile-tools-toggle {
-    display: none !important;
+    display: inline-flex !important;
+    min-width: 82px;
   }
   .top-tools {
-    justify-self: end;
+    grid-column: 1 / -1;
+    display: none;
+    width: 100%;
+    grid-template-columns: repeat(5, minmax(0, 1fr));
+    gap: 8px;
+    padding: 8px;
+    border: 1px solid var(--rule-soft);
+    border-radius: 10px;
+    background: var(--paper);
+  }
+  .top-tools.open {
+    display: grid;
+  }
+  .top-tools .top-tool-btn,
+  .top-tools .font-controls {
+    width: 100%;
+    min-width: 0;
+  }
+  .top-tools .font-controls {
+    justify-content: space-between;
   }
   .book-main {
     display: block;

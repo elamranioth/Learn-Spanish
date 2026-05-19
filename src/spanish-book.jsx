@@ -9473,38 +9473,6 @@ export default function SpanishBook() {
         </div>
       )}
 
-      {/* Resume reading banner */}
-      {resumeOffer && (
-        <div className="resume-banner">
-          <div className="resume-banner-text">
-            <span className="resume-banner-label">Continuar leyendo</span>
-            <span className="resume-banner-title">{resumeOffer.title}</span>
-          </div>
-          <div className="resume-banner-actions">
-            <button className="resume-btn-primary" onClick={jumpToResume}>
-              Continuar
-              <ChevronRight size={14} />
-            </button>
-            <button className="resume-btn-dismiss" onClick={dismissResume} aria-label="Dismiss">
-              <X size={14} />
-            </button>
-          </div>
-        </div>
-      )}
-
-      {waitingWorker && (
-        <div className="update-banner">
-          <div>
-            <span className="resume-banner-label">New version ready</span>
-            <span className="resume-banner-title">Refresh to use the latest study tools.</span>
-          </div>
-          <button className="resume-btn-primary" onClick={activateAppUpdate}>
-            Update
-            <ChevronRight size={14} />
-          </button>
-        </div>
-      )}
-
       <div className="book-shell">
         {/* SIDEBAR */}
         <aside className={`sidebar ${sidebarOpen ? 'open' : ''}`}>
@@ -9624,6 +9592,38 @@ export default function SpanishBook() {
 
         {/* MAIN */}
         <main className="book-main">
+          {/* Resume / update notices live inside the mobile scroll panel so they never cover lesson text. */}
+          {resumeOffer && (
+            <div className="resume-banner">
+              <div className="resume-banner-text">
+                <span className="resume-banner-label">Continuar leyendo</span>
+                <span className="resume-banner-title">{resumeOffer.title}</span>
+              </div>
+              <div className="resume-banner-actions">
+                <button className="resume-btn-primary" onClick={jumpToResume}>
+                  Continuar
+                  <ChevronRight size={14} />
+                </button>
+                <button className="resume-btn-dismiss" onClick={dismissResume} aria-label="Dismiss">
+                  <X size={14} />
+                </button>
+              </div>
+            </div>
+          )}
+
+          {waitingWorker && (
+            <div className="update-banner">
+              <div>
+                <span className="resume-banner-label">New version ready</span>
+                <span className="resume-banner-title">Refresh to use the latest study tools.</span>
+              </div>
+              <button className="resume-btn-primary" onClick={activateAppUpdate}>
+                Update
+                <ChevronRight size={14} />
+              </button>
+            </div>
+          )}
+
           <div className={`book-page ${showHome ? 'home-page' : ''}`}>
             {showHome ? (
               <HomeView
