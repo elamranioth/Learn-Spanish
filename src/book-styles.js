@@ -6645,11 +6645,34 @@ export const styles = `
 }
 
 @media (min-width: 701px) and (max-width: 1100px) {
+  html,
+  body,
+  #root {
+    height: auto !important;
+    min-height: 100%;
+    overflow-x: hidden !important;
+  }
+  body {
+    overflow-y: auto !important;
+    touch-action: pan-y;
+    overscroll-behavior-y: contain;
+  }
+  .book-root {
+    --mobile-bar-space: 67px;
+    padding-top: var(--mobile-bar-space);
+    overflow-x: visible;
+  }
+  .book-root.focus-mode {
+    --mobile-bar-space: 0px;
+  }
   .mobile-bar {
     display: grid;
     grid-template-columns: 44px auto auto minmax(240px, 1fr) auto;
     align-items: center;
     padding: 10px 18px;
+    position: fixed;
+    inset: 0 0 auto 0;
+    width: 100%;
   }
   .mobile-btn {
     width: 42px;
@@ -6672,13 +6695,16 @@ export const styles = `
     justify-self: end;
   }
   .book-main {
-    height: auto;
-    min-height: 100vh;
-    overflow-y: visible;
+    display: block;
+    height: auto !important;
+    min-height: 0 !important;
+    max-height: none !important;
+    overflow: visible !important;
   }
   .book-page {
     max-width: min(880px, calc(100vw - 56px));
     padding: 34px 0 82px;
+    flex: none;
   }
   .book-page.home-page,
   .home-dashboard,
@@ -6705,9 +6731,32 @@ export const styles = `
 }
 
 @media (max-width: 700px) {
+  html,
+  body,
+  #root {
+    height: auto !important;
+    min-height: 100%;
+    overflow-x: hidden !important;
+  }
+  body {
+    overflow-y: auto !important;
+    touch-action: pan-y;
+    overscroll-behavior-y: contain;
+    -webkit-overflow-scrolling: touch;
+  }
   .book-root {
+    --mobile-bar-space: 158px;
     font-size: calc(18px * var(--font-scale));
     line-height: 1.62;
+    min-height: 100svh;
+    padding-top: var(--mobile-bar-space);
+    overflow-x: visible;
+  }
+  .book-root:has(.top-tools.open) {
+    --mobile-bar-space: 308px;
+  }
+  .book-root.focus-mode {
+    --mobile-bar-space: 0px;
   }
   .mobile-bar {
     display: grid;
@@ -6715,6 +6764,8 @@ export const styles = `
     align-items: center;
     gap: 8px;
     padding: max(8px, env(safe-area-inset-top)) 10px 10px;
+    position: fixed;
+    inset: 0 0 auto 0;
     width: 100%;
   }
   .mobile-btn {
@@ -6803,9 +6854,11 @@ export const styles = `
     min-height: auto;
   }
   .book-main {
-    height: auto;
-    min-height: calc(100vh - 106px);
-    overflow-y: visible;
+    display: block;
+    height: auto !important;
+    min-height: 0 !important;
+    max-height: none !important;
+    overflow: visible !important;
   }
   .book-page,
   .book-page.home-page,
@@ -6816,13 +6869,14 @@ export const styles = `
   }
   .book-page {
     padding: 20px 16px 38px;
+    flex: none;
   }
   .home-hero {
     padding: 8px 0 22px;
   }
   .home-title {
     font-size: clamp(38px, 13vw, 52px);
-    line-height: 0.98;
+    line-height: 1.08;
     margin: 14px 0 12px;
   }
   .home-subtitle {
@@ -6884,6 +6938,7 @@ export const styles = `
   }
   .section-lesson-title {
     font-size: 27px;
+    line-height: 1.16;
   }
   .section-lesson-preview {
     -webkit-line-clamp: 3;
@@ -6911,7 +6966,7 @@ export const styles = `
   }
   .chapter-title {
     font-size: clamp(34px, 10vw, 44px);
-    line-height: 1.05;
+    line-height: 1.12;
   }
   .chapter-subtitle {
     font-size: 16px;
@@ -7005,6 +7060,158 @@ export const styles = `
   }
   .memoria-card {
     height: 230px;
+  }
+}
+
+@media (max-width: 700px) {
+  .mobile-bar,
+  .book-page,
+  .chapter-body,
+  .home-dashboard,
+  .section-overview,
+  .lesson-section,
+  .gl-body,
+  .bio-body,
+  .story-body,
+  .poem-body,
+  .song-body,
+  .memoria-view,
+  .writing-view {
+    min-width: 0;
+  }
+  .book-page,
+  .chapter-body,
+  .home-dashboard,
+  .section-overview {
+    overflow: visible;
+  }
+  .chapter-title,
+  .home-title,
+  .section-overview-title,
+  .section-lesson-title,
+  .lesson-heading,
+  .block-heading,
+  .bio-title,
+  .story-title,
+  .poem-title,
+  .song-title,
+  .gl-title,
+  .expressions-hero h2,
+  .indicative-hero-block h2,
+  .subj-hero-block h2,
+  .conditional-pattern-block h2,
+  .contextual-quiz-head h2 {
+    overflow-wrap: anywhere;
+    word-break: normal;
+    hyphens: auto;
+    line-height: 1.14;
+  }
+  .reading-paragraph,
+  .lesson-text,
+  .lesson-ex-es,
+  .lesson-ex-en,
+  .gl-text,
+  .gl-ex-es,
+  .gl-ex-en,
+  .bio-paragraph,
+  .fold-body .reading-paragraph,
+  .poem-stanza-es,
+  .poem-stanza-en,
+  .song-lyric-es,
+  .song-lyric-en,
+  .expression-card p,
+  .expression-example p,
+  .indicative-example,
+  .subj-tense-examples,
+  .trigger-example,
+  .conditional-examples,
+  .contextual-quiz-card p,
+  .subj-tip-card p {
+    overflow-wrap: break-word;
+    word-break: normal;
+    hyphens: auto;
+  }
+  .drop-cap::first-letter,
+  .bio-paragraph:first-of-type::first-letter,
+  .fold-body .reading-paragraph:first-child::first-letter {
+    float: none;
+    font-size: 1.65em;
+    line-height: 1;
+    margin: 0 0.12em 0 0;
+  }
+  .lesson-status-control,
+  .chapter-icon-row,
+  .home-actions,
+  .home-rec,
+  .expression-card header,
+  .indicative-card-head,
+  .subj-tense-head,
+  .contextual-quiz-head,
+  .contextual-quiz-score,
+  .verb-table-header,
+  .quiz-header,
+  .quiz-results-actions {
+    align-items: flex-start;
+    flex-wrap: wrap;
+  }
+  .section-lesson-card,
+  .home-stat,
+  .home-daily-grid button,
+  .lesson-mini-card,
+  .expression-card,
+  .indicative-card,
+  .subj-tense-card,
+  .trigger-card,
+  .subj-tip-card,
+  .contextual-quiz-card,
+  .conditional-pattern-block,
+  .quiz-modal,
+  .sync-modal {
+    min-width: 0;
+    height: auto !important;
+    max-height: none;
+  }
+  .indicative-card-grid,
+  .participle-workshop-grid,
+  .golden-rule-pair,
+  .subj-tense-tabs,
+  .subj-tense-grid,
+  .trigger-grid,
+  .tips-grid-block,
+  .contextual-quiz-choices,
+  .indicative-contrast-grid,
+  .subj-contrast-grid,
+  .conditional-examples,
+  .expressions-stats,
+  .expressions-toolbar,
+  .expressions-grid,
+  .phrase-list,
+  .lesson-grid,
+  .conjugation-grid,
+  .rule-grid,
+  .examples-grid,
+  .song-section-grid,
+  .poem-vocab-grid,
+  .writing-feedback-grid {
+    grid-template-columns: 1fr !important;
+  }
+  .lesson-table,
+  .tense-group-table,
+  .indicative-conj-table,
+  .subj-tense-grid table {
+    min-width: 560px;
+  }
+  .indicative-timeline-wrap {
+    overflow-x: auto;
+    padding-bottom: 10px;
+  }
+  .indicative-timeline {
+    min-width: 620px;
+  }
+  .dict-popup,
+  .quiz-modal,
+  .sync-modal {
+    width: min(100vw - 24px, 560px);
   }
 }
 
