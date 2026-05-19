@@ -6847,36 +6847,62 @@ function ChapterContent({ chapter, sectionId, section, activeNestedTarget, onOpe
                       );
                     }
                     return (
-                      <table key={gi} className="tense-group-table">
-                        <thead>
-                          <tr>
-                            <th aria-hidden="true"></th>
-                            {tenses.map((t, ti) => (
-                              <th key={ti} scope="col">
-                                <div className="tg-th-inner">
-                                  <span>{t.name}</span>
-                                  <SpeakBtn
-                                    text={t.forms.map(r => `${r.p} ${stripMarkers(r.f)}`).join('. ')}
-                                  />
-                                </div>
-                              </th>
-                            ))}
-                          </tr>
-                        </thead>
-                        <tbody>
-                          {tenses[0].forms.map((_, ri) => (
-                            <tr key={ri}>
-                              <th scope="row" className="tg-pronoun">{tenses[0].forms[ri].p}</th>
+                      <React.Fragment key={gi}>
+                        <table className="tense-group-table">
+                          <thead>
+                            <tr>
+                              <th aria-hidden="true"></th>
                               {tenses.map((t, ti) => (
-                                <td key={ti} className="tg-form">
-                                  <RenderForm raw={t.forms[ri].f} />
-                                  <SpeakBtn text={stripMarkers(t.forms[ri].f)} className="conjugation-speak" />
-                                </td>
+                                <th key={ti} scope="col">
+                                  <div className="tg-th-inner">
+                                    <span>{t.name}</span>
+                                    <SpeakBtn
+                                      text={t.forms.map(r => `${r.p} ${stripMarkers(r.f)}`).join('. ')}
+                                    />
+                                  </div>
+                                </th>
                               ))}
                             </tr>
+                          </thead>
+                          <tbody>
+                            {tenses[0].forms.map((_, ri) => (
+                              <tr key={ri}>
+                                <th scope="row" className="tg-pronoun">{tenses[0].forms[ri].p}</th>
+                                {tenses.map((t, ti) => (
+                                  <td key={ti} className="tg-form">
+                                    <RenderForm raw={t.forms[ri].f} />
+                                    <SpeakBtn text={stripMarkers(t.forms[ri].f)} className="conjugation-speak" />
+                                  </td>
+                                ))}
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                        <div className="tense-mobile-stack">
+                          {tenses.map((t) => (
+                            <article key={t.name} className="tense-mobile-card">
+                              <div className="tense-mobile-head">
+                                <h3>{t.name}</h3>
+                                <SpeakBtn
+                                  text={t.forms.map(r => `${r.p} ${stripMarkers(r.f)}`).join('. ')}
+                                  size="md"
+                                />
+                              </div>
+                              <div className="tense-mobile-rows">
+                                {t.forms.map((row) => (
+                                  <div key={`${t.name}-${row.p}`} className="tense-mobile-row">
+                                    <span className="tense-mobile-pronoun">{row.p}</span>
+                                    <span className="tense-mobile-form">
+                                      <RenderForm raw={row.f} />
+                                      <SpeakBtn text={stripMarkers(row.f)} className="conjugation-speak" />
+                                    </span>
+                                  </div>
+                                ))}
+                              </div>
+                            </article>
                           ))}
-                        </tbody>
-                      </table>
+                        </div>
+                      </React.Fragment>
                     );
                   })}
                 </div>

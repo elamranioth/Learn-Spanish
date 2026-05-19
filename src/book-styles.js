@@ -2658,6 +2658,9 @@ export const styles = `
   color: var(--blue);
   font-weight: 700;
 }
+.tense-mobile-stack {
+  display: none;
+}
 
 @media (max-width: 700px) {
   .tense-group-table th,
@@ -2667,6 +2670,77 @@ export const styles = `
   .tense-group-table tbody th.tg-pronoun { font-size: 17px; padding-right: 14px; }
   .tense-group-table tbody td.tg-form { font-size: 21px; }
   .tense-group-table thead th { font-size: 14px; letter-spacing: 0.14em; }
+  .verb-table-block .tense-group-table {
+    display: none;
+  }
+  .tense-mobile-stack {
+    display: grid;
+    gap: 14px;
+    margin: 12px 0 22px;
+  }
+  .tense-mobile-card {
+    border: 1px solid var(--rule);
+    border-radius: 10px;
+    background: var(--paper);
+    overflow: hidden;
+  }
+  .tense-mobile-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+    padding: 13px 14px;
+    border-bottom: 1px solid var(--ink);
+    background: var(--paper-light);
+  }
+  .tense-mobile-head h3 {
+    margin: 0;
+    color: var(--sienna-deep);
+    font-family: 'Cormorant Garamond', serif;
+    font-size: 20px;
+    font-weight: 700;
+    letter-spacing: 0.14em;
+    line-height: 1.15;
+    text-transform: uppercase;
+  }
+  .tense-mobile-rows {
+    display: grid;
+  }
+  .tense-mobile-row {
+    display: grid;
+    grid-template-columns: 86px minmax(0, 1fr);
+    align-items: center;
+    gap: 10px;
+    min-height: 58px;
+    padding: 9px 13px;
+    border-top: 1px dotted var(--rule-soft);
+  }
+  .tense-mobile-row:first-child {
+    border-top: none;
+  }
+  .tense-mobile-pronoun {
+    color: var(--ink-mute);
+    font-family: 'Literata', Georgia, serif;
+    font-size: 18px;
+    font-style: italic;
+    line-height: 1.2;
+    white-space: nowrap;
+  }
+  .tense-mobile-form {
+    min-width: 0;
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    color: var(--ink);
+    font-family: 'Literata', Georgia, serif;
+    font-size: clamp(23px, 7.1vw, 30px);
+    font-weight: 700;
+    line-height: 1.15;
+    overflow-wrap: anywhere;
+  }
+  .tense-mobile-form .conjugation-speak {
+    flex: 0 0 auto;
+  }
 }
 
 /* Inline example pair — short Spanish + (translation) on the same line */
