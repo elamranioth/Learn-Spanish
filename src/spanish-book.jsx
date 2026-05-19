@@ -5111,19 +5111,67 @@ function parseForm(s) {
 }
 
 function RenderForm({ raw }) {
+  const clean = stripMarkers(raw);
   return (
-    <>
+    <span className="render-form" aria-label={clean}>
       {parseForm(raw).map((p, i) => {
-        const cls = p.mode === 'irreg' ? 'irreg' : p.mode === 'ending' ? 'ending' : '';
-        return <span key={i} className={cls}>{p.text}</span>;
+        const cls = p.mode === 'irreg' ? 'irreg' : p.mode === 'ending' ? 'ending' : 'form-root';
+        return <span key={i} className={`form-part ${cls}`}>{p.text}</span>;
       })}
-    </>
+    </span>
   );
 }
 
 // Strip the [bracket] and {brace} markers used in verb tables before speaking
 function stripMarkers(s) {
   return String(s || '').replace(/[\[\]{}]/g, '');
+}
+
+function renderLessonTableCell(cell, ci) {
+  return ci === 0 ? cell : <RenderForm raw={String(cell)} />;
+}
+
+function LessonTable({ table, className = '' }) {
+  const headers = table.headers || [];
+  const tableClass = ['lesson-table', className].filter(Boolean).join(' ');
+
+  return (
+    <div className="lesson-table-shell">
+      <div className="lesson-table-wrap">
+        <table className={tableClass}>
+          {headers.length > 0 && (
+            <thead>
+              <tr>{headers.map((h, hi) => <th key={hi}>{h}</th>)}</tr>
+            </thead>
+          )}
+          <tbody>
+            {table.rows.map((row, ri) => (
+              <tr key={ri}>
+                {row.map((cell, ci) => (
+                  <td key={ci}>{renderLessonTableCell(cell, ci)}</td>
+                ))}
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+      <div className="lesson-table-cards" aria-label="Tabla adaptada para movil">
+        {table.rows.map((row, ri) => (
+          <article key={ri} className="lesson-table-card">
+            <div className="lesson-table-card-title">{row[0]}</div>
+            <div className="lesson-table-card-grid">
+              {row.slice(1).map((cell, ci) => (
+                <div key={ci} className="lesson-table-card-item">
+                  <span className="lesson-table-card-label">{headers[ci + 1] || `Forma ${ci + 1}`}</span>
+                  <span className="lesson-table-card-value"><RenderForm raw={String(cell)} /></span>
+                </div>
+              ))}
+            </div>
+          </article>
+        ))}
+      </div>
+    </div>
+  );
 }
 
 // =============================================================
@@ -5509,28 +5557,7 @@ function GrammarSection({ s }) {
     <div className="gl-section">
       {s.heading && <h3 className="gl-heading">{s.heading}</h3>}
       {s.text && <p className="gl-text"><InlineDictionaryText text={s.text} /></p>}
-      {s.table && (
-        <div className="lesson-table-wrap">
-          <table className="lesson-table gl-table">
-            {s.table.headers && (
-              <thead>
-                <tr>{s.table.headers.map((h, hi) => <th key={hi}>{h}</th>)}</tr>
-              </thead>
-            )}
-            <tbody>
-              {s.table.rows.map((row, ri) => (
-                <tr key={ri}>
-                  {row.map((cell, ci) => (
-                    <td key={ci}>
-                      {ci === 0 ? cell : <RenderForm raw={String(cell)} />}
-                    </td>
-                  ))}
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      )}
+      {s.table && <LessonTable table={s.table} className="gl-table" />}
       {s.examples && (
         <ul className="gl-examples">
           {s.examples.map((ex, ei) => (
@@ -6964,32 +6991,7 @@ function ChapterContent({ chapter, sectionId, section, activeNestedTarget, onOpe
                 {block.paragraphs && block.paragraphs.map((p, pi) => (
                   <p key={pi} className="lesson-text"><InlineDictionaryText text={p} /></p>
                 ))}
-                {block.table && (
-                  <div className="lesson-table-wrap">
-                    <table className="lesson-table">
-                      {block.table.headers && (
-                        <thead>
-                          <tr>
-                            {block.table.headers.map((h, hi) => (
-                              <th key={hi}>{h}</th>
-                            ))}
-                          </tr>
-                        </thead>
-                      )}
-                      <tbody>
-                        {block.table.rows.map((row, ri) => (
-                          <tr key={ri}>
-                            {row.map((cell, ci) => (
-                              <td key={ci}>
-                                {ci === 0 ? cell : <RenderForm raw={String(cell)} />}
-                              </td>
-                            ))}
-                          </tr>
-                        ))}
-                      </tbody>
-                    </table>
-                  </div>
-                )}
+                {block.table && <LessonTable table={block.table} />}
                 {block.examples && (
                   <ul className="lesson-examples">
                     {block.examples.map((ex, ei) => (

@@ -2555,6 +2555,28 @@ export const styles = `
   letter-spacing: 0.005em;
   font-weight: 700;
 }
+.render-form {
+  display: inline;
+  white-space: nowrap;
+  letter-spacing: 0;
+}
+.render-form .form-part {
+  display: inline-block;
+  line-height: inherit;
+}
+.render-form .form-part + .ending,
+.render-form .form-part + .irreg,
+.render-form .irreg + .form-root {
+  margin-left: 0.08em;
+}
+.render-form .irreg {
+  color: var(--red);
+  font-weight: 700;
+}
+.render-form .ending {
+  color: var(--blue);
+  font-weight: 700;
+}
 .tense-form .irreg,
 .participles-val .irreg {
   color: var(--red);
@@ -2730,16 +2752,22 @@ export const styles = `
     min-width: 0;
     display: inline-flex;
     align-items: center;
-    gap: 8px;
+    gap: 7px;
     color: var(--ink);
     font-family: 'Literata', Georgia, serif;
-    font-size: clamp(23px, 7.1vw, 30px);
+    font-size: clamp(20px, 6vw, 26px);
     font-weight: 700;
-    line-height: 1.15;
-    overflow-wrap: anywhere;
+    line-height: 1.18;
+    overflow-wrap: normal;
+    word-break: keep-all;
+  }
+  .tense-mobile-form .render-form {
+    flex: 0 1 auto;
+    min-width: 0;
   }
   .tense-mobile-form .conjugation-speak {
     flex: 0 0 auto;
+    margin-left: 2px;
   }
 }
 
@@ -3816,6 +3844,15 @@ export const styles = `
   margin: 16px 0;
   overflow-x: auto;
 }
+.lesson-table-shell {
+  margin: 16px 0;
+}
+.lesson-table-shell .lesson-table-wrap {
+  margin: 0;
+}
+.lesson-table-cards {
+  display: none;
+}
 .lesson-table {
   width: 100%;
   border-collapse: collapse;
@@ -3847,6 +3884,53 @@ export const styles = `
   font-weight: 400;
   font-style: italic;
   color: var(--ink-mute);
+}
+.lesson-table-card {
+  border: 1px solid var(--rule);
+  border-radius: 8px;
+  background: var(--paper);
+  overflow: hidden;
+}
+.lesson-table-card-title {
+  padding: 11px 13px;
+  border-bottom: 1px solid var(--ink);
+  color: var(--ink-mute);
+  font-family: 'Literata', Georgia, serif;
+  font-size: 17px;
+  font-style: italic;
+  line-height: 1.25;
+}
+.lesson-table-card-grid {
+  display: grid;
+  grid-template-columns: 1fr;
+}
+.lesson-table-card-item {
+  display: grid;
+  grid-template-columns: minmax(94px, 0.72fr) minmax(0, 1fr);
+  gap: 12px;
+  align-items: baseline;
+  padding: 10px 13px;
+  border-top: 1px dotted var(--rule-soft);
+}
+.lesson-table-card-item:first-child {
+  border-top: none;
+}
+.lesson-table-card-label {
+  color: var(--sienna-deep);
+  font-family: 'Cormorant Garamond', serif;
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.13em;
+  line-height: 1.2;
+  text-transform: uppercase;
+}
+.lesson-table-card-value {
+  min-width: 0;
+  color: var(--ink);
+  font-family: 'Literata', Georgia, serif;
+  font-size: 21px;
+  font-weight: 700;
+  line-height: 1.2;
 }
 .lesson-examples {
   list-style: none;
@@ -6275,6 +6359,7 @@ export const styles = `
 .book-root.boox-mode .lesson-table,
 .book-root.boox-mode .lesson-table th,
 .book-root.boox-mode .lesson-table td,
+.book-root.boox-mode .lesson-table-card,
 .book-root.boox-mode .indicative-card,
 .book-root.boox-mode .subj-tense-card,
 .book-root.boox-mode .contextual-quiz-card,
@@ -7125,6 +7210,34 @@ export const styles = `
   }
   .dict-popup {
     max-width: calc(100vw - 24px);
+  }
+  .lesson-table-shell .lesson-table-wrap {
+    display: none;
+  }
+  .lesson-table-cards {
+    display: grid;
+    gap: 10px;
+    margin: 14px 0 18px;
+  }
+  .lesson-table-card {
+    border-radius: 10px;
+  }
+  .lesson-table-card-title {
+    font-size: 16px;
+    padding: 10px 12px;
+  }
+  .lesson-table-card-item {
+    grid-template-columns: minmax(82px, 0.64fr) minmax(0, 1fr);
+    gap: 10px;
+    padding: 10px 12px;
+  }
+  .lesson-table-card-label {
+    font-size: 11px;
+    letter-spacing: 0.1em;
+  }
+  .lesson-table-card-value {
+    font-size: clamp(18px, 5.6vw, 22px);
+    overflow-wrap: anywhere;
   }
   .memoria-tools {
     grid-template-columns: 1fr !important;
