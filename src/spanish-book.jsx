@@ -8285,6 +8285,27 @@ function WritingPractice({ savedWords, chapters, entries = [], onEntriesChange }
   );
 }
 
+function todayStartMs() {
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  return today.getTime();
+}
+
+function getStudyStreak(studyTime = {}) {
+  const sessions = Array.isArray(studyTime.sessions) ? studyTime.sessions : [];
+  const dates = new Set(sessions.filter((session) => (session.seconds || 0) >= 60).map((session) => session.date).filter(Boolean));
+  if ((studyTime.todaySeconds || 0) >= 60) dates.add(new Date().toISOString().slice(0, 10));
+  let streak = 0;
+  const cursor = new Date();
+  for (let i = 0; i < 90; i++) {
+    const key = cursor.toISOString().slice(0, 10);
+    if (!dates.has(key)) break;
+    streak++;
+    cursor.setDate(cursor.getDate() - 1);
+  }
+  return streak;
+}
+
 function HomeView({
   totalLessons,
   visitedCount,
@@ -8296,10 +8317,14 @@ function HomeView({
   learnerProfile,
   reviewQueue,
   studyTime,
+  dailyPlan,
+  dailyProgress,
   writingCount,
   sectionProgress,
   recommendations,
   onStart,
+  onStartDaily,
+  onDailyStep,
   onOpenMemoria,
   onOpenPalabras,
   onOpenVerb,
@@ -8321,8 +8346,8 @@ function HomeView({
           Hoy: una leccion clara, 10 palabras, lectura en voz alta, Memoria, y una frase escrita.
         </p>
         <div className="home-actions">
-          <button className="home-primary" onClick={onStart}>
-            Empezar
+          <button className="home-primary" onClick={onStartDaily || onStart}>
+            Start Daily Lesson
             <ChevronRight size={16} />
           </button>
           <button className="home-secondary" onClick={onOpenMemoria}>
@@ -8331,6 +8356,21 @@ function HomeView({
           </button>
         </div>
       </header>
+
+      <section className="home-daily-focus" aria-label="Today's study plan">
+        <div className="home-daily-focus-main">
+          <span className="home-section-heading">
+            <Zap size={18} />
+            Daily Lesson
+          </span>
+          <h2>{dailyProgress.completed} / {dailyProgress.total} done today</h2>
+          <p>One small route: words, grammar, reading, one verb, Memoria, and writing.</p>
+        </div>
+        <div className="home-daily-focus-side">
+          <span>{formatStudyDuration(studyTime.todaySeconds)} today</span>
+          <span>{dailyProgress.streak} day streak</span>
+        </div>
+      </section>
 
       <section className="home-stats" aria-label="Study progress">
         <div className="home-stat">
@@ -8376,31 +8416,18 @@ function HomeView({
           Ruta diaria
         </div>
         <div className="home-daily-grid">
-          <button onClick={onOpenPalabras}>
-            <span>01</span>
-            <strong>10 palabras</strong>
-            <em>{palabrasSummary.due ? `${palabrasSummary.due} vencidas` : `${palabrasSummary.seen} vistas`}</em>
-          </button>
-          <button onClick={onOpenReading}>
-            <span>02</span>
-            <strong>Lectura con audio</strong>
-            <em>lee y escucha una pagina</em>
-          </button>
-          <button onClick={onOpenVerb}>
-            <span>03</span>
-            <strong>Un verbo</strong>
-            <em>tabla, voz, repeticion</em>
-          </button>
-          <button onClick={onOpenMemoria}>
-            <span>04</span>
-            <strong>Memoria</strong>
-            <em>{savedWordsCount} guardadas</em>
-          </button>
-          <button onClick={onOpenWriting}>
-            <span>05</span>
-            <strong>Writing</strong>
-            <em>sentence practice</em>
-          </button>
+          {dailyPlan.map((item) => (
+            <button
+              key={item.key}
+              className={`home-daily-step ${item.complete ? 'complete' : ''}`}
+              onClick={() => onDailyStep(item.key)}
+            >
+              <span>{item.index}</span>
+              <strong>{item.title}</strong>
+              <em>{item.detail}</em>
+              <small>{item.complete ? 'Done' : 'Open'}</small>
+            </button>
+          ))}
         </div>
       </section>
 
@@ -8507,6 +8534,8 @@ export default function SpanishBook() {
   const syncDirtyRef = React.useRef(false);
   const syncHydratingRef = React.useRef(false);
   const lastAutoSyncAtRef = React.useRef(0);
+  const bookRootRef = React.useRef(null);
+  const mobileBarRef = React.useRef(null);
 
   // --- Font size: persists across sessions, applied to body via CSS variable ---
   const [fontScale, setFontScale] = useState(1.0); // multiplier: 0.85 → 1.3
@@ -8592,6 +8621,29 @@ export default function SpanishBook() {
     window.addEventListener('learn-spanish-update-ready', handleUpdateReady);
     return () => window.removeEventListener('learn-spanish-update-ready', handleUpdateReady);
   }, []);
+
+  useEffect(() => {
+    const root = bookRootRef.current;
+    const bar = mobileBarRef.current;
+    if (!root || !bar || typeof window === 'undefined') return undefined;
+
+    const updateMobileBarSpace = () => {
+      const height = Math.ceil(bar.getBoundingClientRect().height || 0);
+      if (height > 0) root.style.setProperty('--mobile-bar-space', `${height}px`);
+    };
+
+    updateMobileBarSpace();
+    window.addEventListener('resize', updateMobileBarSpace);
+    let observer = null;
+    if ('ResizeObserver' in window) {
+      observer = new ResizeObserver(updateMobileBarSpace);
+      observer.observe(bar);
+    }
+    return () => {
+      window.removeEventListener('resize', updateMobileBarSpace);
+      observer?.disconnect();
+    };
+  }, [toolsOpen, focusMode, waitingWorker, syncOpen, globalSearch]);
 
   function activateAppUpdate() {
     waitingWorker?.postMessage?.({ type: 'SKIP_WAITING' });
@@ -8853,8 +8905,77 @@ export default function SpanishBook() {
     return buildSectionProgress(SECTIONS, visibleFlatChapters, visitedChapters, lessonStatuses);
   }, [visibleFlatChapters, visitedChapters, lessonStatuses]);
   const palabrasChapter = visibleFlatChapters.find((c) => c.id === 'palabras-5000');
+  const grammarChapter = visibleFlatChapters.find((c) => c.sectionId === 'gramatica');
   const verbChapter = visibleFlatChapters.find((c) => c.sectionId === 'verbos') || visibleFlatChapters.find((c) => c.sectionId === 'verbos2');
   const readingChapter = visibleFlatChapters.find((c) => c.sectionId === 'lectura');
+  const dailyStats = useMemo(() => {
+    const start = todayStartMs();
+    const reviewedToday = Object.values(palabrasProgress || {}).filter((state) => (state?.reviewedAt || 0) >= start).length;
+    const savedToday = savedWords.filter((entry) => (entry.savedAt || 0) >= start).length;
+    const wroteToday = writingEntries.some((entry) => (entry.createdAt || 0) >= start);
+    const chapterDone = (chapter) => {
+      if (!chapter) return false;
+      return visitedSet.has(chapter.id) || lessonStatuses[chapter.id] === 'read' || lessonStatuses[chapter.id] === 'understood';
+    };
+    return {
+      reviewedToday,
+      savedToday,
+      wroteToday,
+      grammarDone: chapterDone(grammarChapter),
+      readingDone: chapterDone(readingChapter),
+      verbDone: chapterDone(verbChapter),
+      streak: getStudyStreak(studyTime),
+    };
+  }, [palabrasProgress, savedWords, writingEntries, visitedSet, lessonStatuses, grammarChapter, readingChapter, verbChapter, studyTime]);
+  const dailyPlan = useMemo(() => ([
+    {
+      key: 'palabras',
+      index: '01',
+      title: '10 palabras',
+      detail: `${Math.min(dailyStats.reviewedToday, 10)} / 10 reviewed today`,
+      complete: dailyStats.reviewedToday >= 10,
+    },
+    {
+      key: 'grammar',
+      index: '02',
+      title: 'Grammar point',
+      detail: dailyStats.grammarDone ? 'lesson opened' : (grammarChapter?.title || 'open grammar'),
+      complete: dailyStats.grammarDone,
+    },
+    {
+      key: 'reading',
+      index: '03',
+      title: 'Read + listen',
+      detail: dailyStats.readingDone ? 'reading opened' : (readingChapter?.title || 'open reading'),
+      complete: dailyStats.readingDone,
+    },
+    {
+      key: 'verb',
+      index: '04',
+      title: 'One verb',
+      detail: dailyStats.verbDone ? 'verb opened' : (verbChapter?.title || 'open verb'),
+      complete: dailyStats.verbDone,
+    },
+    {
+      key: 'memoria',
+      index: '05',
+      title: 'Memoria',
+      detail: dailyStats.savedToday ? `${dailyStats.savedToday} saved today` : `${savedWords.length} saved total`,
+      complete: dailyStats.savedToday > 0 || savedWords.length >= 10,
+    },
+    {
+      key: 'writing',
+      index: '06',
+      title: 'Writing',
+      detail: dailyStats.wroteToday ? 'done today' : 'write 5 sentences',
+      complete: dailyStats.wroteToday,
+    },
+  ]), [dailyStats, grammarChapter, readingChapter, verbChapter, savedWords.length]);
+  const dailyProgress = useMemo(() => ({
+    completed: dailyPlan.filter((item) => item.complete).length,
+    total: dailyPlan.length,
+    streak: dailyStats.streak,
+  }), [dailyPlan, dailyStats.streak]);
   const isStudyTimerRunning = Boolean(activeChapter && !showHome && !showMemoria && !showWriting && !sectionLandingId);
   const activeStudyId = activeNestedTarget?.cardId || activeChapter?.id;
   const studyTimerLabel = isStudyTimerRunning
@@ -8964,6 +9085,40 @@ export default function SpanishBook() {
       const main = document.querySelector('.book-main');
       if (main) main.scrollTo({ top: 0, behavior: 'smooth' });
     }
+  }
+
+  function openMemoriaView() {
+    setSectionLandingId(null);
+    setActiveNestedTarget(null);
+    setShowHome(false);
+    setShowWriting(false);
+    setShowMemoria(true);
+    setSidebarOpen(false);
+  }
+
+  function openWritingView() {
+    setSectionLandingId(null);
+    setActiveNestedTarget(null);
+    setShowHome(false);
+    setShowMemoria(false);
+    setShowWriting(true);
+    setSidebarOpen(false);
+  }
+
+  function handleDailyStep(key) {
+    if (key === 'palabras' && palabrasChapter) return selectChapter(palabrasChapter);
+    if (key === 'grammar' && grammarChapter) return selectChapter(grammarChapter);
+    if (key === 'reading' && readingChapter) return selectChapter(readingChapter);
+    if (key === 'verb' && verbChapter) return selectChapter(verbChapter);
+    if (key === 'memoria') return openMemoriaView();
+    if (key === 'writing') return openWritingView();
+    if (startChapter) return selectChapter(startChapter);
+    return undefined;
+  }
+
+  function startDailyLesson() {
+    const nextStep = dailyPlan.find((item) => !item.complete) || dailyPlan[0];
+    return handleDailyStep(nextStep?.key || 'palabras');
   }
 
   function jumpToResume() {
@@ -9185,13 +9340,13 @@ export default function SpanishBook() {
   }
 
   return (
-    <div className={`book-root translation-mode-${translationMode} ${booxMode ? 'boox-mode' : ''} ${focusMode ? 'focus-mode' : ''}`}>
+    <div ref={bookRootRef} className={`book-root translation-mode-${translationMode} ${booxMode ? 'boox-mode' : ''} ${focusMode ? 'focus-mode' : ''}`}>
       <DictionaryPopup savedWords={savedWords} onSave={handleSaveWord} onRemove={handleRemoveWord} />
       <AppMessages />
       <style>{styles}</style>
 
       {/* Mobile top bar */}
-      <div className="mobile-bar">
+      <div ref={mobileBarRef} className="mobile-bar">
         <button className="mobile-btn" onClick={() => setSidebarOpen(true)} aria-label="Open menu">
           <Menu size={20} />
         </button>
@@ -9482,15 +9637,19 @@ export default function SpanishBook() {
                 learnerProfile={learnerProfile}
                 reviewQueue={reviewQueue}
                 studyTime={studyTime}
+                dailyPlan={dailyPlan}
+                dailyProgress={dailyProgress}
                 writingCount={writingEntries.length}
                 sectionProgress={sectionProgress}
                 recommendations={recommendedChapters}
                 onStart={() => startChapter && selectChapter(startChapter)}
-                onOpenMemoria={() => { setSectionLandingId(null); setActiveNestedTarget(null); setShowHome(false); setShowWriting(false); setShowMemoria(true); }}
+                onStartDaily={startDailyLesson}
+                onDailyStep={handleDailyStep}
+                onOpenMemoria={openMemoriaView}
                 onOpenPalabras={() => palabrasChapter && selectChapter(palabrasChapter)}
                 onOpenVerb={() => verbChapter && selectChapter(verbChapter)}
                 onOpenReading={() => readingChapter && selectChapter(readingChapter)}
-                onOpenWriting={() => { setSectionLandingId(null); setActiveNestedTarget(null); setShowHome(false); setShowMemoria(false); setShowWriting(true); }}
+                onOpenWriting={openWritingView}
                 onSelectChapter={selectChapter}
               />
             ) : showMemoria ? (
