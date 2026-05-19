@@ -4,6 +4,15 @@ import './base.css';
 import { registerServiceWorker } from './pwa.js';
 import SpanishBook from './spanish-book.jsx';
 
+function unlockPageScroll() {
+  document.documentElement.style.minHeight = '100%';
+  document.documentElement.style.overflowX = 'hidden';
+  document.documentElement.style.overflowY = 'auto';
+  document.body.style.minHeight = '100%';
+  document.body.style.overflowX = 'hidden';
+  document.body.style.overflowY = 'auto';
+}
+
 if (typeof window !== 'undefined' && !window.storage) {
   window.storage = {
     async get(key) {
@@ -17,6 +26,10 @@ if (typeof window !== 'undefined' && !window.storage) {
       window.localStorage.removeItem(key);
     },
   };
+}
+
+if (typeof document !== 'undefined') {
+  unlockPageScroll();
 }
 
 registerServiceWorker();

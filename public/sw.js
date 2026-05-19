@@ -13,6 +13,7 @@ self.addEventListener('install', (event) => {
   event.waitUntil(
     caches.open(CACHE_NAME)
       .then((cache) => cache.addAll(shellFiles))
+      .then(() => self.skipWaiting())
   );
 });
 
@@ -32,26 +33,21 @@ self.addEventListener('fetch', (event) => {
   if (url.origin !== self.location.origin) return;
 
   event.respondWith(
-    caches.match(request).then((cached) => {
-      const fetchAndCache = fetch(request).then((response) => {
+    fetch(request)
+      .then((response) => {
         if (response && response.ok && response.type !== 'opaque') {
           const copy = response.clone();
-          caches.open(CACHE_NAME).then((cache) => cache.put(request, copy));
+          event.waitUntil(caches.open(CACHE_NAME).then((cache) => cache.put(request, copy)));
         }
         return response;
-      });
-
-      if (request.mode === 'navigate') {
-        return fetchAndCache.catch(() => cached || caches.match(basePath));
-      }
-
-      if (cached) {
-        fetchAndCache.catch(() => {});
-        return cached;
-      }
-
-      return fetchAndCache.catch(() => new Response('', { status: 504, statusText: 'Offline' }));
-    })
+      })
+      .catch(() => (
+        caches.match(request).then((cached) => {
+          if (cached) return cached;
+          if (request.mode === 'navigate') return caches.match(basePath);
+          return new Response('', { status: 504, statusText: 'Offline' });
+        })
+      ))
   );
 });
 

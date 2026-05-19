@@ -4,7 +4,10 @@ export function registerServiceWorker() {
   window.addEventListener('load', () => {
     const baseUrl = import.meta.env.BASE_URL || '/';
     const buildId = typeof __APP_BUILD_ID__ !== 'undefined' ? __APP_BUILD_ID__ : 'dev';
-    navigator.serviceWorker.register(`${baseUrl}sw.js?v=${encodeURIComponent(buildId)}`, { scope: baseUrl }).then((registration) => {
+    navigator.serviceWorker.register(`${baseUrl}sw.js?v=${encodeURIComponent(buildId)}`, {
+      scope: baseUrl,
+      updateViaCache: 'none',
+    }).then((registration) => {
       function notifyUpdate(worker) {
         window.dispatchEvent(new CustomEvent('learn-spanish-update-ready', { detail: { worker } }));
       }
@@ -22,6 +25,8 @@ export function registerServiceWorker() {
           }
         });
       });
+
+      registration.update().catch(() => {});
     }).catch(() => {});
 
     navigator.serviceWorker.addEventListener('controllerchange', () => {
