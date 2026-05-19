@@ -7257,4 +7257,55 @@ export const styles = `
     padding-top: 42px;
   }
 }
+
+/* Phones/tablets get a dedicated touch-scroll panel. This keeps scrolling
+   working even when a mobile browser or an old PWA shell refuses body scroll. */
+@media (max-width: 1100px) {
+  html,
+  body,
+  #root {
+    height: 100%;
+    overflow: hidden !important;
+  }
+  body {
+    position: relative;
+    overscroll-behavior: none;
+  }
+  .book-root {
+    height: 100dvh;
+    min-height: 100dvh;
+    padding-top: 0 !important;
+    overflow: hidden !important;
+  }
+  .book-shell {
+    display: block;
+    height: 100%;
+    min-height: 0;
+  }
+  .mobile-bar {
+    position: fixed;
+    inset: 0 0 auto 0;
+    z-index: 100;
+  }
+  .book-main {
+    position: fixed;
+    inset: var(--mobile-bar-space, 0px) 0 0 0;
+    display: block;
+    height: auto !important;
+    min-height: 0 !important;
+    max-height: none !important;
+    overflow-x: hidden !important;
+    overflow-y: scroll !important;
+    overscroll-behavior: contain;
+    -webkit-overflow-scrolling: touch;
+    touch-action: pan-y;
+  }
+  .book-page {
+    flex: none;
+    min-height: auto;
+  }
+  .book-root.focus-mode .book-main {
+    top: 0;
+  }
+}
 `;
