@@ -6848,21 +6848,21 @@ export const styles = `
 .book-root.boox-mode .tense-atlas-comparison {
   border-color: #000000 !important;
 }
-.book-root.boox-mode .tense-atlas-card *,
 .book-root.boox-mode .tense-era-header *,
 .book-root.boox-mode .tense-atlas-comparison * {
   color: #000000 !important;
 }
 .book-root.boox-mode .tense-atlas-card {
-  border: 1px solid #d4c8b5 !important;
-  border-top: 1px solid #d4c8b5 !important;
+  border: 1px solid #d8cbb8 !important;
+  border-top: 1px solid #d8cbb8 !important;
   border-radius: 5px !important;
   padding: 18px 20px !important;
 }
 .book-root.boox-mode .lesson-table-shell {
-  margin: 18px -20px -18px;
-  padding: 18px 20px 20px;
-  border-top: 1px solid #d4c8b5;
+  margin: 18px 0 0;
+  padding: 15px 20px 18px;
+  border: 1px solid #d8cbb8;
+  border-radius: 5px;
   background: #ffffff !important;
 }
 .book-root.boox-mode .lesson-table-shell .lesson-table-wrap {
@@ -6892,14 +6892,16 @@ export const styles = `
 }
 .book-root.boox-mode .lesson-table thead th {
   border-bottom: 1.5px solid #000000 !important;
-  color: #000000 !important;
+  color: #7b3b17 !important;
   font-size: 12px !important;
   letter-spacing: 0.22em !important;
   padding-top: 4px !important;
   padding-bottom: 13px !important;
   white-space: nowrap;
+  text-transform: uppercase;
 }
 .book-root.boox-mode .lesson-table tbody td {
+  color: #000000 !important;
   font-size: 19px !important;
   font-weight: 800 !important;
   vertical-align: middle !important;
@@ -6907,9 +6909,10 @@ export const styles = `
 .book-root.boox-mode .lesson-table th:first-child,
 .book-root.boox-mode .lesson-table td:first-child {
   width: 24%;
+  color: #57524a !important;
   text-align: left !important;
   font-style: italic;
-  font-weight: 500 !important;
+  font-weight: 400 !important;
   padding-left: 14px !important;
 }
 .book-root.boox-mode .lesson-table th:not(:first-child),
@@ -6921,11 +6924,77 @@ export const styles = `
 }
 .book-root.boox-mode .lesson-table .render-form {
   white-space: nowrap;
+  color: #000000 !important;
+}
+.book-root.boox-mode .lesson-table .form-part,
+.book-root.boox-mode .lesson-table .ending,
+.book-root.boox-mode .lesson-table .irreg,
+.book-root.boox-mode .tense-group-table .form-part,
+.book-root.boox-mode .tense-group-table .ending,
+.book-root.boox-mode .tense-group-table .irreg {
+  color: #000000 !important;
 }
 .book-root.boox-mode .lesson-table .render-form .form-part + .ending,
 .book-root.boox-mode .lesson-table .render-form .form-part + .irreg,
 .book-root.boox-mode .lesson-table .render-form .irreg + .form-root {
   margin-left: 0;
+}
+.book-root.boox-mode .verb-table-block .tense-group-table {
+  display: table !important;
+  width: 100%;
+  min-width: 0 !important;
+  table-layout: fixed;
+  border-collapse: collapse;
+  border: 1px solid #d8cbb8;
+  border-radius: 5px;
+  overflow: hidden;
+}
+.book-root.boox-mode .tense-mobile-stack {
+  display: none !important;
+}
+.book-root.boox-mode .tense-group-table th,
+.book-root.boox-mode .tense-group-table td {
+  border-left: 0 !important;
+  border-bottom: 1px solid #d7cab8 !important;
+  padding: 8px 14px !important;
+  line-height: 1.18 !important;
+  background: #ffffff !important;
+}
+.book-root.boox-mode .tense-group-table thead th {
+  border-bottom: 1.5px solid #000000 !important;
+  color: #7b3b17 !important;
+  font-size: 12px !important;
+  letter-spacing: 0.2em !important;
+  text-align: center !important;
+  white-space: nowrap;
+}
+.book-root.boox-mode .tense-group-table thead tr {
+  border-bottom: 1.5px solid #000000 !important;
+}
+.book-root.boox-mode .tense-group-table tbody th.tg-pronoun {
+  width: 24%;
+  color: #57524a !important;
+  font-size: 18px !important;
+  font-style: italic;
+  font-weight: 400 !important;
+  text-align: left !important;
+}
+.book-root.boox-mode .tense-group-table tbody td.tg-form {
+  color: #000000 !important;
+  font-size: 19px !important;
+  font-weight: 800 !important;
+  text-align: center !important;
+  white-space: nowrap;
+}
+.book-root.boox-mode .tense-group-table tr:last-child th,
+.book-root.boox-mode .tense-group-table tr:last-child td {
+  border-bottom: 0 !important;
+}
+.book-root.boox-mode .tg-th-inner {
+  gap: 4px;
+}
+.book-root.boox-mode .tense-group-table .speak-btn {
+  display: none !important;
 }
 .book-root.boox-mode .mobile-bar {
   border-bottom: 2px solid #000000 !important;
@@ -8072,6 +8141,180 @@ export const styles = `
   }
   .lesson-table-card-label {
     letter-spacing: 0.08em;
+  }
+}
+
+/* 10-inch readers/tablets: keep conjugation tables as elegant print tables.
+   This catches the BOOX Tab Ultra C Pro even when Ink mode is not enabled. */
+@media (min-width: 560px) and (max-width: 1180px) and (min-height: 850px) {
+  .tense-atlas-card {
+    border: 1px solid #d8cbb8 !important;
+    border-top: 1px solid #d8cbb8 !important;
+    border-radius: 5px;
+    padding: 18px 20px;
+    background: #ffffff;
+    box-shadow: none;
+  }
+
+  .tense-atlas-card .lesson-table-shell {
+    margin: 18px 0 0;
+    padding: 15px 20px 18px;
+    border: 1px solid #d8cbb8;
+    border-radius: 5px;
+    background: #ffffff;
+  }
+
+  .tense-atlas-card .lesson-table-shell .lesson-table-wrap {
+    display: block !important;
+    margin: 0;
+    overflow: visible;
+  }
+
+  .tense-atlas-card .lesson-table-cards {
+    display: none !important;
+  }
+
+  .tense-atlas-card .lesson-table {
+    width: 100%;
+    min-width: 0 !important;
+    table-layout: fixed;
+    border: 0;
+    border-collapse: collapse;
+    background: #ffffff;
+  }
+
+  .tense-atlas-card .lesson-table th,
+  .tense-atlas-card .lesson-table td {
+    padding: 8px 14px !important;
+    border: 0 !important;
+    border-bottom: 1px solid #d7cab8 !important;
+    line-height: 1.18 !important;
+    background: #ffffff;
+  }
+
+  .tense-atlas-card .lesson-table thead th {
+    border-bottom: 1.5px solid #111111 !important;
+    color: #7b3b17 !important;
+    font-size: 12px !important;
+    letter-spacing: 0.22em !important;
+    padding-top: 4px !important;
+    padding-bottom: 13px !important;
+    text-align: center !important;
+    text-transform: uppercase;
+    white-space: nowrap;
+  }
+
+  .tense-atlas-card .lesson-table thead th:first-child,
+  .tense-atlas-card .lesson-table tbody td:first-child {
+    width: 24%;
+    text-align: left !important;
+  }
+
+  .tense-atlas-card .lesson-table tbody td {
+    color: #000000;
+    font-size: 19px !important;
+    font-weight: 800 !important;
+    text-align: center !important;
+    vertical-align: middle !important;
+  }
+
+  .tense-atlas-card .lesson-table tbody td:first-child {
+    color: #57524a;
+    font-size: 18px !important;
+    font-style: italic;
+    font-weight: 400 !important;
+  }
+
+  .tense-atlas-card .lesson-table tr:last-child td {
+    border-bottom: 0 !important;
+  }
+
+  .tense-atlas-card .lesson-table .render-form,
+  .tense-atlas-card .lesson-table .form-part,
+  .tense-atlas-card .lesson-table .ending,
+  .tense-atlas-card .lesson-table .irreg {
+    color: #000000 !important;
+    white-space: nowrap;
+  }
+
+  .tense-atlas-card .lesson-table .render-form .form-part + .ending,
+  .tense-atlas-card .lesson-table .render-form .form-part + .irreg,
+  .tense-atlas-card .lesson-table .render-form .irreg + .form-root {
+    margin-left: 0;
+  }
+
+  .verb-table-block .tense-group-table {
+    display: table !important;
+    width: 100%;
+    min-width: 0 !important;
+    table-layout: fixed;
+    border-collapse: collapse;
+    border: 1px solid #d8cbb8;
+    border-radius: 5px;
+    background: #ffffff;
+    overflow: hidden;
+  }
+
+  .verb-table-block .tense-mobile-stack {
+    display: none !important;
+  }
+
+  .tense-group-table th,
+  .tense-group-table td {
+    border-left: 0 !important;
+    border-bottom: 1px solid #d7cab8 !important;
+    padding: 8px 14px !important;
+    line-height: 1.18 !important;
+    background: #ffffff;
+  }
+
+  .tense-group-table thead th {
+    border-bottom: 1.5px solid #111111 !important;
+    color: #7b3b17 !important;
+    font-size: 12px !important;
+    letter-spacing: 0.2em !important;
+    text-align: center !important;
+    white-space: nowrap;
+  }
+
+  .tense-group-table thead tr {
+    border-bottom: 1.5px solid #111111 !important;
+  }
+
+  .tense-group-table tbody th.tg-pronoun {
+    width: 24%;
+    color: #57524a;
+    font-size: 18px !important;
+    font-style: italic;
+    font-weight: 400 !important;
+    text-align: left !important;
+  }
+
+  .tense-group-table tbody td.tg-form {
+    color: #000000;
+    font-size: 19px !important;
+    font-weight: 800 !important;
+    text-align: center !important;
+    white-space: nowrap;
+  }
+
+  .tense-group-table .form-part,
+  .tense-group-table .ending,
+  .tense-group-table .irreg {
+    color: #000000 !important;
+  }
+
+  .tense-group-table tr:last-child th,
+  .tense-group-table tr:last-child td {
+    border-bottom: 0 !important;
+  }
+
+  .tg-th-inner {
+    gap: 4px;
+  }
+
+  .tense-group-table .speak-btn {
+    display: none !important;
   }
 }
 
