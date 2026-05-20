@@ -16,6 +16,7 @@ import { styles } from './book-styles.js';
 import { CANCIONES_SONGS } from './canciones.js';
 import { COMPOUND_TENSES_INDICATIVE_LESSON } from './compound-tenses-indicative.js';
 import { COMPOUND_TENSES_SUBJUNCTIVE_LESSON } from './compound-tenses-subjunctive.js';
+import { TIEMPOS_VERBALES_LESSON } from './tiempos-verbales.js';
 import {
   findGoogleSyncFile,
   GOOGLE_CLIENT_ID_KEY,
@@ -344,6 +345,7 @@ const SECTIONS = [
           },
         ],
       },
+      TIEMPOS_VERBALES_LESSON,
       COMPOUND_TENSES_INDICATIVE_LESSON,
       COMPOUND_TENSES_SUBJUNCTIVE_LESSON,
     ],
@@ -6596,6 +6598,8 @@ function ChapterContent({ chapter, sectionId, section, activeNestedTarget, onOpe
 
       {chapter.blocks.map((block, i) => {
         switch (block.type) {
+          case 'tense-atlas':
+            return <TenseAtlasBlock key={i} block={block} />;
           case 'indicative-hero':
             return <IndicativeHeroBlock key={i} block={block} />;
           case 'indicative-tense-cards':
@@ -7011,6 +7015,125 @@ function ChapterContent({ chapter, sectionId, section, activeNestedTarget, onOpe
       {!hasNestedLessonStatus && (
         <LessonMiniQuiz source={chapter} title={`Practica: ${chapter.title}`} />
       )}
+    </article>
+  );
+}
+
+function TenseAtlasBlock({ block }) {
+  const allTenses = block.eras.flatMap((era) => era.tenses.map((tense) => ({
+    ...tense,
+    eraLabel: era.label,
+  })));
+
+  return (
+    <section className="block tense-atlas-block">
+      <div className="tense-atlas-hero">
+        <div className="tense-atlas-kicker">Mapa de referencia</div>
+        <h2>{block.title}</h2>
+        <p><InlineDictionaryText text={block.subtitle} /></p>
+        {block.guide && (
+          <div className="tense-atlas-guide">
+            {block.guide.map((point) => (
+              <span key={point}><InlineDictionaryText text={point} /></span>
+            ))}
+          </div>
+        )}
+      </div>
+
+      <nav className="tense-atlas-index" aria-label="Índice de tiempos verbales">
+        {allTenses.map((tense, index) => (
+          <a key={tense.id} href={`#${tense.id}`}>
+            <span>{String(index + 1).padStart(2, '0')}</span>
+            {tense.title}
+          </a>
+        ))}
+      </nav>
+
+      {block.eras.map((era, eraIndex) => (
+        <section key={era.id} className={`tense-era-section ${era.tone}`}>
+          <header className="tense-era-header">
+            <div className="tense-era-number">{String(eraIndex + 1).padStart(2, '0')}</div>
+            <div>
+              <span>{era.label}</span>
+              <h3>{era.title}</h3>
+              <p><InlineDictionaryText text={era.description} /></p>
+            </div>
+          </header>
+          <div className="tense-atlas-cards">
+            {era.tenses.map((tense, tenseIndex) => (
+              <TenseAtlasCard
+                key={tense.id}
+                tense={tense}
+                eraTone={era.tone}
+                number={String(tenseIndex + 1).padStart(2, '0')}
+              />
+            ))}
+          </div>
+        </section>
+      ))}
+
+      {block.comparison && (
+        <section className="tense-atlas-comparison">
+          <div className="tense-atlas-comparison-copy">
+            <span>Comparación esencial</span>
+            <h3>{block.comparison.title}</h3>
+            <p><InlineDictionaryText text={block.comparison.text} /></p>
+            <div className="tense-atlas-example">
+              <ExamplePair
+                es={block.comparison.example.es}
+                en={block.comparison.example.en}
+                esClass="lesson-ex-es"
+                enClass="lesson-ex-en"
+              />
+            </div>
+          </div>
+          <LessonTable table={block.comparison.table} className="tense-atlas-table" />
+        </section>
+      )}
+    </section>
+  );
+}
+
+function TenseAtlasCard({ tense, eraTone, number }) {
+  return (
+    <article id={tense.id} className={`tense-atlas-card ${eraTone}`}>
+      <header className="tense-atlas-card-head">
+        <div className="tense-atlas-card-number">{number}</div>
+        <div>
+          <span>{tense.mood}</span>
+          <h4>{tense.title}</h4>
+          <p>{tense.english}{tense.alias ? ` - ${tense.alias}` : ''}</p>
+        </div>
+      </header>
+
+      <div className="tense-atlas-formula">{tense.formula}</div>
+      <p className="tense-atlas-use"><InlineDictionaryText text={tense.use} /></p>
+
+      <div className="tense-atlas-example">
+        <ExamplePair
+          es={tense.example.es}
+          en={tense.example.en}
+          esClass="lesson-ex-es"
+          enClass="lesson-ex-en"
+        />
+      </div>
+
+      {tense.signals && (
+        <div className="tense-atlas-signals">
+          <strong>Señales</strong>
+          <span>{tense.signals}</span>
+        </div>
+      )}
+
+      {tense.notes?.length > 0 && (
+        <ul className="tense-atlas-notes">
+          {tense.notes.map((note) => (
+            <li key={note}><InlineDictionaryText text={note} /></li>
+          ))}
+        </ul>
+      )}
+
+      <LessonTable table={tense.table} className="tense-atlas-table" />
     </article>
   );
 }

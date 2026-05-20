@@ -15,6 +15,7 @@ export default defineConfig({
           if (id.includes('node_modules/react') || id.includes('node_modules/react-dom')) return 'react';
           if (id.includes('node_modules/lucide-react')) return 'icons';
           if (id.includes('spanish-expressions-library')) return 'expressions-library';
+          if (id.includes('tiempos-verbales')) return 'tiempos-verbales';
           if (id.includes('compound-tenses-')) return 'compound-tenses';
           if (id.includes('canciones')) return 'canciones';
           return undefined;

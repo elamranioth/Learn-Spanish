@@ -4043,6 +4043,275 @@ export const styles = `
   line-height: 1.45;
 }
 
+.tense-atlas-block {
+  display: grid;
+  gap: 28px;
+}
+.tense-atlas-hero {
+  border: 1px solid var(--ink);
+  border-left: 5px solid var(--green);
+  border-radius: 8px;
+  background: #fff;
+  padding: 28px;
+}
+.tense-atlas-kicker {
+  font-family: 'Inter', sans-serif;
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+  color: var(--sienna-deep);
+  margin-bottom: 10px;
+}
+.tense-atlas-hero h2 {
+  font-family: 'Cormorant Garamond', serif;
+  font-size: 40px;
+  line-height: 1.08;
+  margin: 0 0 12px;
+}
+.tense-atlas-hero p {
+  max-width: 760px;
+  margin: 0 0 18px;
+  font-size: 20px;
+  line-height: 1.55;
+  color: var(--ink);
+}
+.tense-atlas-guide {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 10px;
+}
+.tense-atlas-guide span {
+  border: 1px solid var(--rule);
+  border-radius: 8px;
+  background: var(--paper-light);
+  padding: 12px 13px;
+  font-size: 15px;
+  line-height: 1.45;
+  font-weight: 700;
+}
+.tense-atlas-index {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  padding: 14px 0 4px;
+  border-top: 1px solid var(--rule);
+  border-bottom: 1px solid var(--rule);
+}
+.tense-atlas-index a {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 40px;
+  border: 1px solid var(--rule);
+  border-radius: 999px;
+  padding: 8px 12px;
+  background: #fff;
+  color: var(--ink);
+  text-decoration: none;
+  font-weight: 800;
+  font-size: 14px;
+  line-height: 1.1;
+}
+.tense-atlas-index a:hover {
+  border-color: var(--green);
+}
+.tense-atlas-index span {
+  color: var(--sienna-deep);
+  font-family: 'Inter', sans-serif;
+  font-size: 11px;
+  letter-spacing: 0.08em;
+}
+.tense-era-section {
+  --tone: var(--green);
+  display: grid;
+  gap: 18px;
+}
+.tense-era-section.past,
+.tense-atlas-card.past { --tone: #315f7f; }
+.tense-era-section.present,
+.tense-atlas-card.present { --tone: #2f6b42; }
+.tense-era-section.future,
+.tense-atlas-card.future { --tone: #8a4a32; }
+.tense-era-header {
+  display: grid;
+  grid-template-columns: 54px minmax(0, 1fr);
+  gap: 16px;
+  align-items: start;
+  border-top: 2px solid var(--tone);
+  padding-top: 18px;
+}
+.tense-era-number {
+  width: 46px;
+  height: 46px;
+  border: 1px solid var(--tone);
+  border-radius: 8px;
+  display: grid;
+  place-items: center;
+  color: var(--tone);
+  font-family: 'Inter', sans-serif;
+  font-size: 12px;
+  font-weight: 900;
+  letter-spacing: 0.12em;
+}
+.tense-era-header span,
+.tense-atlas-comparison-copy span {
+  color: var(--sienna-deep);
+  font-family: 'Inter', sans-serif;
+  font-size: 11px;
+  font-weight: 900;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+}
+.tense-era-header h3,
+.tense-atlas-comparison h3 {
+  font-family: 'Cormorant Garamond', serif;
+  font-size: 32px;
+  line-height: 1.08;
+  margin: 5px 0 8px;
+}
+.tense-era-header p,
+.tense-atlas-comparison-copy p {
+  max-width: 780px;
+  margin: 0;
+  color: var(--ink);
+  font-size: 18px;
+  line-height: 1.55;
+}
+.tense-atlas-cards {
+  display: grid;
+  gap: 18px;
+}
+.tense-atlas-card {
+  border: 1px solid var(--rule);
+  border-top: 5px solid var(--tone);
+  border-radius: 8px;
+  background: #fff;
+  padding: 20px;
+  scroll-margin-top: 140px;
+}
+.tense-atlas-card-head {
+  display: grid;
+  grid-template-columns: 44px minmax(0, 1fr);
+  gap: 14px;
+  align-items: start;
+  margin-bottom: 12px;
+}
+.tense-atlas-card-number {
+  width: 38px;
+  height: 38px;
+  border: 1px solid var(--tone);
+  border-radius: 8px;
+  display: grid;
+  place-items: center;
+  color: var(--tone);
+  font-family: 'Inter', sans-serif;
+  font-size: 12px;
+  font-weight: 900;
+}
+.tense-atlas-card-head span {
+  display: block;
+  color: var(--sienna-deep);
+  font-family: 'Inter', sans-serif;
+  font-size: 11px;
+  font-weight: 900;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  margin-bottom: 4px;
+}
+.tense-atlas-card-head h4 {
+  font-family: 'Cormorant Garamond', serif;
+  font-size: 30px;
+  line-height: 1.08;
+  margin: 0;
+  overflow-wrap: anywhere;
+}
+.tense-atlas-card-head p {
+  margin: 5px 0 0;
+  color: var(--ink-mute);
+  font-size: 16px;
+  font-style: italic;
+  line-height: 1.35;
+}
+.tense-atlas-formula {
+  display: inline-flex;
+  max-width: 100%;
+  border: 1px solid var(--rule);
+  border-radius: 999px;
+  padding: 7px 12px;
+  background: var(--paper-light);
+  color: var(--ink);
+  font-family: 'Inter', sans-serif;
+  font-size: 13px;
+  font-weight: 800;
+  line-height: 1.2;
+  overflow-wrap: anywhere;
+}
+.tense-atlas-use {
+  margin: 14px 0;
+  font-size: 18px;
+  line-height: 1.58;
+  color: var(--ink);
+}
+.tense-atlas-example {
+  border-left: 3px solid var(--tone);
+  padding-left: 13px;
+  margin: 14px 0;
+}
+.tense-atlas-signals {
+  display: grid;
+  grid-template-columns: 104px minmax(0, 1fr);
+  gap: 12px;
+  align-items: baseline;
+  border: 1px solid var(--rule);
+  border-radius: 8px;
+  padding: 11px 13px;
+  background: var(--paper-light);
+  margin: 14px 0;
+}
+.tense-atlas-signals strong {
+  color: var(--sienna-deep);
+  font-family: 'Inter', sans-serif;
+  font-size: 11px;
+  font-weight: 900;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+}
+.tense-atlas-signals span {
+  color: var(--ink);
+  font-size: 15px;
+  line-height: 1.45;
+}
+.tense-atlas-notes {
+  margin: 14px 0;
+  padding-left: 19px;
+  display: grid;
+  gap: 7px;
+  color: var(--ink);
+  font-size: 16px;
+  line-height: 1.5;
+}
+.tense-atlas-card .lesson-table-shell {
+  margin-top: 16px;
+  margin-bottom: 0;
+}
+.tense-atlas-table tbody td {
+  font-size: 17px;
+  line-height: 1.28;
+}
+.tense-atlas-comparison {
+  display: grid;
+  gap: 16px;
+  border: 1px solid var(--ink);
+  border-left: 5px solid var(--ink);
+  border-radius: 8px;
+  background: #fff;
+  padding: 24px;
+}
+.tense-atlas-comparison .lesson-table-shell {
+  margin-bottom: 0;
+}
+
 .indicative-hero-block {
   border: 1px solid var(--ink);
   border-left: 5px solid var(--ink);
@@ -6446,6 +6715,9 @@ export const styles = `
 .book-root.boox-mode .home-panel,
 .book-root.boox-mode .section-card,
 .book-root.boox-mode .lesson-section,
+.book-root.boox-mode .tense-atlas-hero,
+.book-root.boox-mode .tense-atlas-card,
+.book-root.boox-mode .tense-atlas-comparison,
 .book-root.boox-mode .memoria-card,
 .book-root.boox-mode .memoria-face,
 .book-root.boox-mode .sync-modal,
@@ -6467,6 +6739,12 @@ export const styles = `
 .book-root.boox-mode .lesson-table th,
 .book-root.boox-mode .lesson-table td,
 .book-root.boox-mode .lesson-table-card,
+.book-root.boox-mode .tense-atlas-guide span,
+.book-root.boox-mode .tense-atlas-index a,
+.book-root.boox-mode .tense-atlas-formula,
+.book-root.boox-mode .tense-atlas-signals,
+.book-root.boox-mode .tense-era-number,
+.book-root.boox-mode .tense-atlas-card-number,
 .book-root.boox-mode .indicative-card,
 .book-root.boox-mode .subj-tense-card,
 .book-root.boox-mode .contextual-quiz-card,
@@ -6497,9 +6775,22 @@ export const styles = `
 }
 .book-root.boox-mode .reading-paragraph,
 .book-root.boox-mode .lesson-text,
+.book-root.boox-mode .tense-atlas-use,
+.book-root.boox-mode .tense-atlas-notes,
 .book-root.boox-mode .gl-text,
 .book-root.boox-mode .bio-paragraph {
   line-height: 1.85 !important;
+}
+.book-root.boox-mode .tense-atlas-card,
+.book-root.boox-mode .tense-era-header,
+.book-root.boox-mode .tense-atlas-example,
+.book-root.boox-mode .tense-atlas-comparison {
+  border-color: #000000 !important;
+}
+.book-root.boox-mode .tense-atlas-card *,
+.book-root.boox-mode .tense-era-header *,
+.book-root.boox-mode .tense-atlas-comparison * {
+  color: #000000 !important;
 }
 .book-root.boox-mode .mobile-bar {
   border-bottom: 2px solid #000000 !important;
@@ -7445,6 +7736,10 @@ export const styles = `
   .song-title,
   .gl-title,
   .expressions-hero h2,
+  .tense-atlas-hero h2,
+  .tense-era-header h3,
+  .tense-atlas-card-head h4,
+  .tense-atlas-comparison h3,
   .indicative-hero-block h2,
   .subj-hero-block h2,
   .conditional-pattern-block h2,
@@ -7469,6 +7764,13 @@ export const styles = `
   .song-lyric-en,
   .expression-card p,
   .expression-example p,
+  .tense-atlas-hero p,
+  .tense-atlas-guide span,
+  .tense-era-header p,
+  .tense-atlas-use,
+  .tense-atlas-signals span,
+  .tense-atlas-notes,
+  .tense-atlas-comparison-copy p,
   .indicative-example,
   .subj-tense-examples,
   .trigger-example,
@@ -7507,6 +7809,9 @@ export const styles = `
   .home-daily-grid button,
   .lesson-mini-card,
   .expression-card,
+  .tense-atlas-hero,
+  .tense-atlas-card,
+  .tense-atlas-comparison,
   .indicative-card,
   .subj-tense-card,
   .trigger-card,
@@ -7542,6 +7847,43 @@ export const styles = `
   .poem-vocab-grid,
   .writing-feedback-grid {
     grid-template-columns: 1fr !important;
+  }
+  .tense-atlas-hero {
+    padding: 20px;
+  }
+  .tense-atlas-hero h2 {
+    font-size: 32px;
+  }
+  .tense-atlas-guide,
+  .tense-era-header,
+  .tense-atlas-card-head,
+  .tense-atlas-signals {
+    grid-template-columns: 1fr !important;
+  }
+  .tense-atlas-index {
+    display: grid;
+    grid-template-columns: 1fr;
+  }
+  .tense-atlas-index a {
+    border-radius: 8px;
+    align-items: flex-start;
+  }
+  .tense-atlas-card {
+    padding: 16px;
+    scroll-margin-top: 180px;
+  }
+  .tense-atlas-card-head h4 {
+    font-size: 26px;
+  }
+  .tense-atlas-formula {
+    border-radius: 8px;
+    white-space: normal;
+  }
+  .tense-atlas-signals {
+    gap: 5px;
+  }
+  .tense-atlas-card .lesson-table-card-value {
+    font-size: clamp(17px, 5vw, 20px);
   }
   .lesson-table,
   .tense-group-table,
