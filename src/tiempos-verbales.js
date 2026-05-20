@@ -182,12 +182,12 @@ export const TIEMPOS_VERBALES_LESSON = {
   id: 'tiempos-verbales',
   level: 'A2',
   title: 'Tiempos Verbales',
-  subtitle: 'Pasado, presente y futuro en un mapa claro',
-  intro: 'Esta lección convierte los tiempos verbales en una referencia de lectura: primero entiendes cuándo usar cada tiempo, después miras la fórmula, y al final repasas la conjugación sin que la tabla se rompa en el teléfono o en el lector de tinta.',
+  subtitle: 'Pasado, presente y futuro en una referencia clara',
+  intro: 'Esta lección organiza los tiempos verbales para leerlos sin confusión: primero entiendes cuándo usar cada tiempo, después miras la fórmula, y al final repasas la conjugación sin que la tabla se rompa en el teléfono o en el lector de tinta.',
   blocks: [
     {
       type: 'tense-atlas',
-      title: 'El mapa vivo de los tiempos',
+      title: 'Guía clara de los tiempos',
       subtitle: 'Tres zonas, dieciséis herramientas. No memorices todas al mismo tiempo: aprende qué problema resuelve cada tiempo.',
       guide: [
         'Pasado: cuenta lo que ya ocurrió, distingue evento, costumbre y anterioridad.',

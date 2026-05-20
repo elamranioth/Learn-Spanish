@@ -239,6 +239,7 @@ export const styles = `
 .book-root.focus-mode .sidebar,
 .book-root.focus-mode .level-bar,
 .book-root.focus-mode .resume-banner,
+.book-root.focus-mode .install-banner,
 .book-root.focus-mode .update-banner,
 .book-root.focus-mode .header-search,
 .book-root.focus-mode .top-tool-btn:not(.focus-toggle),
@@ -381,10 +382,68 @@ export const styles = `
 }
 .resume-btn-dismiss:hover { background: rgba(255,255,255,0.28); }
 
+.install-banner {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 13px 18px;
+  background: var(--paper);
+  color: var(--ink);
+  border-bottom: 1px solid var(--rule);
+  border-left: 4px solid var(--green);
+  position: relative;
+  z-index: 20;
+  animation: resume-slide-down 280ms cubic-bezier(0.4, 0.2, 0.2, 1);
+}
+.install-banner .resume-banner-label {
+  color: var(--green);
+}
+.install-banner .resume-banner-title {
+  color: var(--ink);
+  font-style: normal;
+}
+.install-banner .resume-btn-dismiss {
+  color: var(--ink-mute);
+  background: var(--paper-light);
+  border: 1px solid var(--rule);
+}
+.install-banner .resume-btn-dismiss:hover {
+  color: var(--ink);
+  background: var(--green-tint);
+}
+.install-btn-primary {
+  background: var(--green);
+  color: #ffffff;
+}
+.install-btn-primary:hover {
+  background: #24472f;
+}
+.install-banner-message {
+  display: block;
+  color: var(--ink-mute);
+  font-size: 13px;
+  line-height: 1.35;
+  margin-top: 3px;
+}
+.top-tool-btn.install-toggle.ready {
+  border-color: var(--green);
+  color: var(--green);
+  background: var(--green-tint);
+}
+
 @media (max-width: 700px) {
-  .resume-banner {
+  .resume-banner,
+  .install-banner {
     align-items: flex-start;
     padding: 12px 14px;
+  }
+  .install-banner {
+    flex-direction: column;
+  }
+  .install-banner .resume-banner-actions {
+    width: 100%;
+    justify-content: space-between;
   }
   .resume-banner-title { font-size: 18px; }
   .resume-btn-primary { font-size: 13px; padding: 7px 12px; }
@@ -6723,6 +6782,7 @@ export const styles = `
 .book-root.boox-mode .sync-modal,
 .book-root.boox-mode .dict-popup,
 .book-root.boox-mode .update-banner,
+.book-root.boox-mode .install-banner,
 .book-root.boox-mode .resume-banner {
   background: #ffffff !important;
   color: #000000 !important;
@@ -6757,6 +6817,7 @@ export const styles = `
 .book-root.boox-mode .level-pill.active,
 .book-root.boox-mode .chapter-btn.active,
 .book-root.boox-mode .section-group.active > .section-btn,
+.book-root.boox-mode .top-tool-btn.install-toggle.ready,
 .book-root.boox-mode .lesson-status-btn.active,
 .book-root.boox-mode .memoria-view-btn.active {
   background: #ffffff !important;

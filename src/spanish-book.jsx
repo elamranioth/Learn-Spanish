@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { BookOpen, Menu, X, ChevronLeft, ChevronRight, ChevronDown, Bookmark, Languages, Quote, Lightbulb, NotebookPen, Sparkles, RotateCcw, Check, Clock, Zap, BookText, Library, ListTree, MessageSquare, GraduationCap, Compass, Search, Star, AlertTriangle, PenLine, BarChart3, Headphones } from 'lucide-react';
+import { BookOpen, Menu, X, ChevronLeft, ChevronRight, ChevronDown, Bookmark, Languages, Quote, Lightbulb, NotebookPen, Sparkles, RotateCcw, Check, Clock, Zap, BookText, Library, ListTree, MessageSquare, GraduationCap, Compass, Search, Star, AlertTriangle, PenLine, BarChart3, Headphones, Download } from 'lucide-react';
 import { AppMessages } from './app-messages.jsx';
 import {
   AudioSettings,
@@ -65,6 +65,7 @@ const AUDIO_SETTINGS_KEY = 'audio-settings-v1';
 const WRITING_PRACTICE_KEY = 'writing-practice-v1';
 const TRANSLATION_MODE_KEY = 'translation-mode-v1';
 const BOOX_MODE_KEY = 'boox-mode-v1';
+const INSTALL_DISMISSED_KEY = 'lexiora-install-dismissed-v1';
 
 // Icon for each section — used in sidebar nav and chapter headers
 const SECTION_ICONS = {
@@ -7020,35 +7021,8 @@ function ChapterContent({ chapter, sectionId, section, activeNestedTarget, onOpe
 }
 
 function TenseAtlasBlock({ block }) {
-  const allTenses = block.eras.flatMap((era) => era.tenses.map((tense) => ({
-    ...tense,
-    eraLabel: era.label,
-  })));
-
   return (
     <section className="block tense-atlas-block">
-      <div className="tense-atlas-hero">
-        <div className="tense-atlas-kicker">Mapa de referencia</div>
-        <h2>{block.title}</h2>
-        <p><InlineDictionaryText text={block.subtitle} /></p>
-        {block.guide && (
-          <div className="tense-atlas-guide">
-            {block.guide.map((point) => (
-              <span key={point}><InlineDictionaryText text={point} /></span>
-            ))}
-          </div>
-        )}
-      </div>
-
-      <nav className="tense-atlas-index" aria-label="Índice de tiempos verbales">
-        {allTenses.map((tense, index) => (
-          <a key={tense.id} href={`#${tense.id}`}>
-            <span>{String(index + 1).padStart(2, '0')}</span>
-            {tense.title}
-          </a>
-        ))}
-      </nav>
-
       {block.eras.map((era, eraIndex) => (
         <section key={era.id} className={`tense-era-section ${era.tone}`}>
           <header className="tense-era-header">
@@ -8650,6 +8624,10 @@ export default function SpanishBook() {
   const [googleBusy, setGoogleBusy] = useState(false);
   const [syncMessage, setSyncMessage] = useState('');
   const [syncAdvancedOpen, setSyncAdvancedOpen] = useState(false);
+  const [installPrompt, setInstallPrompt] = useState(null);
+  const [installDismissed, setInstallDismissed] = useState(false);
+  const [installMessage, setInstallMessage] = useState('');
+  const [isInstalledApp, setIsInstalledApp] = useState(false);
   const [studyTime, setStudyTime] = useState(() => normalizeStudyTimeState());
   const [studySessionSeconds, setStudySessionSeconds] = useState(0);
   const studyPersistTickRef = React.useRef(0);
@@ -8723,6 +8701,10 @@ export default function SpanishBook() {
         if (boox?.value === 'true') setBooxMode(true);
       } catch (_) {}
       try {
+        const dismissed = await window.storage.get(INSTALL_DISMISSED_KEY);
+        if (dismissed?.value === 'true') setInstallDismissed(true);
+      } catch (_) {}
+      try {
         const client = await window.storage.get(GOOGLE_CLIENT_ID_KEY);
         if (client?.value && !import.meta.env.VITE_GOOGLE_CLIENT_ID) setGoogleClientId(client.value);
       } catch (_) {}
@@ -8743,6 +8725,42 @@ export default function SpanishBook() {
     }
     window.addEventListener('learn-spanish-update-ready', handleUpdateReady);
     return () => window.removeEventListener('learn-spanish-update-ready', handleUpdateReady);
+  }, []);
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return undefined;
+
+    const detectInstalled = () => {
+      const standalone = window.matchMedia?.('(display-mode: standalone)')?.matches;
+      const iosStandalone = Boolean(window.navigator?.standalone);
+      setIsInstalledApp(Boolean(standalone || iosStandalone));
+    };
+
+    function handleBeforeInstallPrompt(event) {
+      event.preventDefault();
+      setInstallPrompt(event);
+      setInstallMessage('');
+    }
+
+    function handleAppInstalled() {
+      setIsInstalledApp(true);
+      setInstallPrompt(null);
+      setInstallDismissed(true);
+      setInstallMessage('Lexiora is installed on this device.');
+    }
+
+    detectInstalled();
+    window.addEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
+    window.addEventListener('appinstalled', handleAppInstalled);
+
+    const media = window.matchMedia?.('(display-mode: standalone)');
+    media?.addEventListener?.('change', detectInstalled);
+
+    return () => {
+      window.removeEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
+      window.removeEventListener('appinstalled', handleAppInstalled);
+      media?.removeEventListener?.('change', detectInstalled);
+    };
   }, []);
 
   useEffect(() => {
@@ -8846,6 +8864,48 @@ export default function SpanishBook() {
       try { window.storage.set(BOOX_MODE_KEY, String(next)); } catch (_) {}
       return next;
     });
+  }
+
+  function getInstallHelpMessage() {
+    const ua = typeof navigator !== 'undefined' ? navigator.userAgent || '' : '';
+    const isIOS = /iphone|ipad|ipod/i.test(ua);
+    if (isIOS) {
+      return 'On iPhone or iPad: tap Share, then Add to Home Screen. iOS does not show the same install prompt as Android.';
+    }
+    return 'If no install window opens, use the browser menu and choose Install app or Add to Home screen. Refresh once if the option is still missing.';
+  }
+
+  async function installLexiora() {
+    setInstallDismissed(false);
+    if (isInstalledApp) {
+      setInstallMessage('Lexiora is already installed on this device.');
+      return;
+    }
+    if (!installPrompt) {
+      setInstallMessage(getInstallHelpMessage());
+      return;
+    }
+
+    try {
+      const prompt = installPrompt;
+      setInstallMessage('Opening the install prompt...');
+      await prompt.prompt();
+      const choice = await prompt.userChoice;
+      setInstallPrompt(null);
+      if (choice?.outcome === 'accepted') {
+        setInstallMessage('Great. Lexiora is installing on this device.');
+        setInstallDismissed(true);
+      } else {
+        setInstallMessage('Install was dismissed. You can try again after refreshing the page.');
+      }
+    } catch (_) {
+      setInstallMessage(getInstallHelpMessage());
+    }
+  }
+
+  function dismissInstallBanner() {
+    setInstallDismissed(true);
+    try { window.storage.set(INSTALL_DISMISSED_KEY, 'true'); } catch (_) {}
   }
 
   // Background-translate a word and update the saved entry with the result.
@@ -9462,6 +9522,9 @@ export default function SpanishBook() {
     );
   }
 
+  const showInstallBanner = !isInstalledApp && !installDismissed;
+  const installReady = Boolean(installPrompt);
+
   return (
     <div ref={bookRootRef} className={`book-root translation-mode-${translationMode} ${booxMode ? 'boox-mode' : ''} ${focusMode ? 'focus-mode' : ''}`}>
       <DictionaryPopup savedWords={savedWords} onSave={handleSaveWord} onRemove={handleRemoveWord} />
@@ -9491,6 +9554,17 @@ export default function SpanishBook() {
           Tools
         </button>
         <div className={`top-tools ${toolsOpen ? 'open' : ''}`}>
+          {!isInstalledApp && (
+            <button
+              className={`top-tool-btn install-toggle ${installReady ? 'ready' : ''}`}
+              onClick={installLexiora}
+              aria-label="Install Lexiora on this device"
+              title={installReady ? 'Install Lexiora' : 'Install help'}
+            >
+              <Download size={15} />
+              <span>Install</span>
+            </button>
+          )}
           <button
             className={`top-tool-btn ${translationMode === 'spanish' ? 'active' : ''}`}
             onClick={toggleTranslationMode}
@@ -9716,6 +9790,26 @@ export default function SpanishBook() {
         {/* MAIN */}
         <main className="book-main">
           {/* Resume / update notices live inside the mobile scroll panel so they never cover lesson text. */}
+          {showInstallBanner && (
+            <div className="install-banner">
+              <div className="resume-banner-text">
+                <span className="resume-banner-label">Install Lexiora</span>
+                <span className="resume-banner-title">
+                  {installReady ? 'Add the app to this device' : 'Add to Home Screen if your browser hides the icon'}
+                </span>
+                {installMessage && <span className="install-banner-message">{installMessage}</span>}
+              </div>
+              <div className="resume-banner-actions">
+                <button className="resume-btn-primary install-btn-primary" onClick={installLexiora}>
+                  <Download size={15} />
+                  Install
+                </button>
+                <button className="resume-btn-dismiss" onClick={dismissInstallBanner} aria-label="Dismiss install banner">
+                  <X size={15} />
+                </button>
+              </div>
+            </div>
+          )}
           {resumeOffer && (
             <div className="resume-banner">
               <div className="resume-banner-text">
