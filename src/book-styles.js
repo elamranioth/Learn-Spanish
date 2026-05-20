@@ -6853,6 +6853,56 @@ export const styles = `
 .book-root.boox-mode .tense-atlas-comparison * {
   color: #000000 !important;
 }
+.book-root.boox-mode .lesson-table-shell {
+  margin: 12px 0 8px;
+}
+.book-root.boox-mode .lesson-table-shell .lesson-table-wrap {
+  display: block !important;
+  margin: 0;
+  overflow: visible;
+}
+.book-root.boox-mode .lesson-table-cards {
+  display: none !important;
+}
+.book-root.boox-mode .lesson-table {
+  width: 100%;
+  min-width: 0 !important;
+  table-layout: fixed;
+  border: 1px solid #000000 !important;
+  border-radius: 0;
+  background: #ffffff !important;
+}
+.book-root.boox-mode .lesson-table th,
+.book-root.boox-mode .lesson-table td {
+  padding: 9px 12px !important;
+  border-bottom: 1px solid #b8b8b8 !important;
+  line-height: 1.2 !important;
+}
+.book-root.boox-mode .lesson-table thead th {
+  border-bottom: 1.5px solid #000000 !important;
+  color: #000000 !important;
+  font-size: 12px !important;
+  letter-spacing: 0.18em !important;
+  white-space: normal;
+}
+.book-root.boox-mode .lesson-table tbody td {
+  font-size: 19px !important;
+  font-weight: 800 !important;
+}
+.book-root.boox-mode .lesson-table th:first-child,
+.book-root.boox-mode .lesson-table td:first-child {
+  width: 25%;
+  text-align: left !important;
+  font-style: italic;
+  font-weight: 500 !important;
+}
+.book-root.boox-mode .lesson-table th:not(:first-child),
+.book-root.boox-mode .lesson-table td:not(:first-child) {
+  text-align: center !important;
+}
+.book-root.boox-mode .lesson-table tr:last-child td {
+  border-bottom: 0 !important;
+}
 .book-root.boox-mode .mobile-bar {
   border-bottom: 2px solid #000000 !important;
 }
