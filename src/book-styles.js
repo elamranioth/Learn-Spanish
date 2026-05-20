@@ -6853,8 +6853,17 @@ export const styles = `
 .book-root.boox-mode .tense-atlas-comparison * {
   color: #000000 !important;
 }
+.book-root.boox-mode .tense-atlas-card {
+  border: 1px solid #d4c8b5 !important;
+  border-top: 1px solid #d4c8b5 !important;
+  border-radius: 5px !important;
+  padding: 18px 20px !important;
+}
 .book-root.boox-mode .lesson-table-shell {
-  margin: 12px 0 8px;
+  margin: 18px -20px -18px;
+  padding: 18px 20px 20px;
+  border-top: 1px solid #d4c8b5;
+  background: #ffffff !important;
 }
 .book-root.boox-mode .lesson-table-shell .lesson-table-wrap {
   display: block !important;
@@ -6868,33 +6877,40 @@ export const styles = `
   width: 100%;
   min-width: 0 !important;
   table-layout: fixed;
-  border: 1px solid #000000 !important;
+  border: 0 !important;
   border-radius: 0;
+  border-collapse: collapse;
   background: #ffffff !important;
 }
 .book-root.boox-mode .lesson-table th,
 .book-root.boox-mode .lesson-table td {
-  padding: 9px 12px !important;
-  border-bottom: 1px solid #b8b8b8 !important;
-  line-height: 1.2 !important;
+  padding: 8px 14px !important;
+  border: 0 !important;
+  border-bottom: 1px solid #d7cab8 !important;
+  line-height: 1.18 !important;
+  background: #ffffff !important;
 }
 .book-root.boox-mode .lesson-table thead th {
   border-bottom: 1.5px solid #000000 !important;
   color: #000000 !important;
   font-size: 12px !important;
-  letter-spacing: 0.18em !important;
-  white-space: normal;
+  letter-spacing: 0.22em !important;
+  padding-top: 4px !important;
+  padding-bottom: 13px !important;
+  white-space: nowrap;
 }
 .book-root.boox-mode .lesson-table tbody td {
   font-size: 19px !important;
   font-weight: 800 !important;
+  vertical-align: middle !important;
 }
 .book-root.boox-mode .lesson-table th:first-child,
 .book-root.boox-mode .lesson-table td:first-child {
-  width: 25%;
+  width: 24%;
   text-align: left !important;
   font-style: italic;
   font-weight: 500 !important;
+  padding-left: 14px !important;
 }
 .book-root.boox-mode .lesson-table th:not(:first-child),
 .book-root.boox-mode .lesson-table td:not(:first-child) {
@@ -6902,6 +6918,14 @@ export const styles = `
 }
 .book-root.boox-mode .lesson-table tr:last-child td {
   border-bottom: 0 !important;
+}
+.book-root.boox-mode .lesson-table .render-form {
+  white-space: nowrap;
+}
+.book-root.boox-mode .lesson-table .render-form .form-part + .ending,
+.book-root.boox-mode .lesson-table .render-form .form-part + .irreg,
+.book-root.boox-mode .lesson-table .render-form .irreg + .form-root {
+  margin-left: 0;
 }
 .book-root.boox-mode .mobile-bar {
   border-bottom: 2px solid #000000 !important;
