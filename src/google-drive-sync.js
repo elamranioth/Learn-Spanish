@@ -151,7 +151,7 @@ export function mergeSyncPayloads(localPayload, remotePayload) {
   const newerSettings = localTime >= remoteTime ? localPayload : remotePayload;
   return {
     ...newerSettings,
-    app: 'Learn Spanish',
+    app: 'Lexiora',
     version: 4,
     exportedAt: new Date().toISOString(),
     savedWords: mergeSavedWords(localPayload.savedWords, remotePayload.savedWords),

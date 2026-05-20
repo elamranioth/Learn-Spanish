@@ -8341,7 +8341,7 @@ function HomeView({
           <GraduationCap size={18} />
           Plan de estudio
         </div>
-        <h1 className="home-title">Learn Spanish</h1>
+        <h1 className="home-title">Lexiora</h1>
         <p className="home-subtitle">
           Hoy: una leccion clara, 10 palabras, lectura en voz alta, Memoria, y una frase escrita.
         </p>
@@ -9142,7 +9142,7 @@ export default function SpanishBook() {
 
   function buildSyncPayload() {
     return {
-      app: 'Learn Spanish',
+      app: 'Lexiora',
       version: 2,
       exportedAt: new Date().toISOString(),
       savedWords,
@@ -9351,7 +9351,7 @@ export default function SpanishBook() {
           <Menu size={20} />
         </button>
         <div className="mobile-title">
-          <span className="mobile-brand-script">Español</span>
+          <span className="mobile-brand-script">Lexiora</span>
         </div>
         <div className={`study-timer ${isStudyTimerRunning ? 'running' : ''}`} title={studyTimerLabel}>
           <Clock size={14} />
@@ -9421,7 +9421,7 @@ export default function SpanishBook() {
               <X size={15} />
             </button>
             <div className="sync-kicker">Device Sync</div>
-            <h2>Sync your Spanish book across devices</h2>
+            <h2>Sync Lexiora across devices</h2>
             <p>
               Sign in with Google Drive to keep one private study file across your phone, tablet, Boox, and laptop.
             </p>
@@ -9483,8 +9483,8 @@ export default function SpanishBook() {
                 <BookOpen size={18} />
               </div>
               <div className="brand-text">
-                <div className="brand-eyebrow">Un libro de</div>
-                <div className="brand-title">Español</div>
+                <div className="brand-eyebrow">Aprende español</div>
+                <div className="brand-title">Lexiora</div>
               </div>
               <button className="sidebar-close" onClick={() => setSidebarOpen(false)} aria-label="Close menu">
                 <X size={18} />

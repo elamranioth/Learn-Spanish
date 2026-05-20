@@ -1,4 +1,4 @@
-# Learn Spanish
+# Lexiora
 
 An interactive Spanish reading book built with React and Vite. It includes a daily study path, progress map, lesson chapters, stories, poems, a deduplicated songbook, verb practice, text-to-speech pronunciation, spaced-repetition vocabulary, grouped memorization, level filtering, resume reading, saved vocabulary review/export tools, and installable offline support.
 

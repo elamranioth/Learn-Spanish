@@ -1,12 +1,12 @@
 {
-  "name": "Learn Spanish",
-  "short_name": "Spanish",
+  "name": "Lexiora",
+  "short_name": "Lexiora",
   "description": "Interactive Spanish reading, pronunciation, conjugation practice, and saved vocabulary.",
   "start_url": ".",
   "scope": ".",
   "display": "standalone",
   "background_color": "#ffffff",
-  "theme_color": "#2f5d3a",
+  "theme_color": "#24472f",
   "icons": [
     {
       "src": "icon-192.png",
