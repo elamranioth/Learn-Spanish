@@ -2809,6 +2809,9 @@ export const styles = `
 .tense-mobile-stack {
   display: none;
 }
+.tense-reader-table {
+  display: none;
+}
 
 @media (max-width: 700px) {
   .tense-group-table th,
@@ -6949,49 +6952,82 @@ export const styles = `
   border-radius: 5px;
   overflow: hidden;
 }
+.book-root.boox-mode .verb-table-block .tense-stack {
+  display: none !important;
+}
+.book-root.boox-mode .verb-table-block .tense-reader-table {
+  display: table !important;
+  width: 100%;
+  min-width: 0 !important;
+  table-layout: fixed;
+  border-collapse: collapse;
+  border: 1px solid #d8cbb8;
+  border-radius: 5px;
+  background: #ffffff !important;
+  overflow: hidden;
+}
 .book-root.boox-mode .tense-mobile-stack {
   display: none !important;
 }
+.book-root.boox-mode .tense-reader-table th,
+.book-root.boox-mode .tense-reader-table td,
 .book-root.boox-mode .tense-group-table th,
 .book-root.boox-mode .tense-group-table td {
   border-left: 0 !important;
   border-bottom: 1px solid #d7cab8 !important;
-  padding: 8px 14px !important;
+  padding: 8px 10px !important;
   line-height: 1.18 !important;
   background: #ffffff !important;
 }
+.book-root.boox-mode .tense-reader-table thead th,
 .book-root.boox-mode .tense-group-table thead th {
   border-bottom: 1.5px solid #000000 !important;
   color: #7b3b17 !important;
-  font-size: 12px !important;
-  letter-spacing: 0.2em !important;
+  font-size: 11px !important;
+  letter-spacing: 0.14em !important;
   text-align: center !important;
   white-space: nowrap;
+  text-transform: uppercase;
 }
+.book-root.boox-mode .tense-reader-table thead tr,
 .book-root.boox-mode .tense-group-table thead tr {
   border-bottom: 1.5px solid #000000 !important;
 }
+.book-root.boox-mode .tense-reader-table tbody th.tg-pronoun,
 .book-root.boox-mode .tense-group-table tbody th.tg-pronoun {
-  width: 24%;
+  width: 17%;
   color: #57524a !important;
-  font-size: 18px !important;
+  font-size: 17px !important;
   font-style: italic;
   font-weight: 400 !important;
   text-align: left !important;
 }
+.book-root.boox-mode .tense-reader-table tbody td.tg-form,
 .book-root.boox-mode .tense-group-table tbody td.tg-form {
   color: #000000 !important;
-  font-size: 19px !important;
+  font-size: 18px !important;
   font-weight: 800 !important;
   text-align: center !important;
   white-space: nowrap;
 }
+.book-root.boox-mode .tense-reader-table tr:last-child th,
+.book-root.boox-mode .tense-reader-table tr:last-child td,
 .book-root.boox-mode .tense-group-table tr:last-child th,
 .book-root.boox-mode .tense-group-table tr:last-child td {
   border-bottom: 0 !important;
 }
 .book-root.boox-mode .tg-th-inner {
   gap: 4px;
+}
+.book-root.boox-mode .tense-reader-table .form-part,
+.book-root.boox-mode .tense-reader-table .ending,
+.book-root.boox-mode .tense-reader-table .irreg {
+  color: #000000 !important;
+}
+.book-root.boox-mode .tense-reader-table .render-form .form-part + .ending,
+.book-root.boox-mode .tense-reader-table .render-form .form-part + .irreg,
+.book-root.boox-mode .tense-reader-table .render-form .irreg + .form-root {
+  margin-left: 0;
 }
 .book-root.boox-mode .tense-group-table .speak-btn {
   display: none !important;
@@ -8255,58 +8291,92 @@ export const styles = `
     overflow: hidden;
   }
 
+  .verb-table-block .tense-stack {
+    display: none !important;
+  }
+
+  .verb-table-block .tense-reader-table {
+    display: table !important;
+    width: 100%;
+    min-width: 0 !important;
+    table-layout: fixed;
+    border-collapse: collapse;
+    border: 1px solid #d8cbb8;
+    border-radius: 5px;
+    background: #ffffff;
+    overflow: hidden;
+  }
+
   .verb-table-block .tense-mobile-stack {
     display: none !important;
   }
 
+  .tense-reader-table th,
+  .tense-reader-table td,
   .tense-group-table th,
   .tense-group-table td {
     border-left: 0 !important;
     border-bottom: 1px solid #d7cab8 !important;
-    padding: 8px 14px !important;
+    padding: 8px 10px !important;
     line-height: 1.18 !important;
     background: #ffffff;
   }
 
+  .tense-reader-table thead th,
   .tense-group-table thead th {
     border-bottom: 1.5px solid #111111 !important;
     color: #7b3b17 !important;
-    font-size: 12px !important;
-    letter-spacing: 0.2em !important;
+    font-size: 11px !important;
+    letter-spacing: 0.14em !important;
     text-align: center !important;
+    text-transform: uppercase;
     white-space: nowrap;
   }
 
+  .tense-reader-table thead tr,
   .tense-group-table thead tr {
     border-bottom: 1.5px solid #111111 !important;
   }
 
+  .tense-reader-table tbody th.tg-pronoun,
   .tense-group-table tbody th.tg-pronoun {
-    width: 24%;
+    width: 17%;
     color: #57524a;
-    font-size: 18px !important;
+    font-size: 17px !important;
     font-style: italic;
     font-weight: 400 !important;
     text-align: left !important;
   }
 
+  .tense-reader-table tbody td.tg-form,
   .tense-group-table tbody td.tg-form {
     color: #000000;
-    font-size: 19px !important;
+    font-size: 18px !important;
     font-weight: 800 !important;
     text-align: center !important;
     white-space: nowrap;
   }
 
+  .tense-reader-table .form-part,
+  .tense-reader-table .ending,
+  .tense-reader-table .irreg,
   .tense-group-table .form-part,
   .tense-group-table .ending,
   .tense-group-table .irreg {
     color: #000000 !important;
   }
 
+  .tense-reader-table tr:last-child th,
+  .tense-reader-table tr:last-child td,
   .tense-group-table tr:last-child th,
   .tense-group-table tr:last-child td {
     border-bottom: 0 !important;
+  }
+
+  .tense-reader-table .render-form .form-part + .ending,
+  .tense-reader-table .render-form .form-part + .irreg,
+  .tense-reader-table .render-form .irreg + .form-root {
+    margin-left: 0;
   }
 
   .tg-th-inner {

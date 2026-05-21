@@ -6848,6 +6848,28 @@ function ChapterContent({ chapter, sectionId, section, activeNestedTarget, onOpe
                   <h2 className="verb-table-title">Indicativo de <em>"{chapter.title.toLowerCase()}"</em></h2>
                   <VerbPractice tenses={block.tenses} verbName={chapter.title} />
                 </div>
+                <table className="tense-reader-table" aria-label={`Indicativo de ${chapter.title}`}>
+                  <thead>
+                    <tr>
+                      <th scope="col">Pronombre</th>
+                      {block.tenses.map((t) => (
+                        <th key={t.name} scope="col">{t.name}</th>
+                      ))}
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {block.tenses[0]?.forms.map((_, ri) => (
+                      <tr key={ri}>
+                        <th scope="row" className="tg-pronoun">{block.tenses[0].forms[ri].p}</th>
+                        {block.tenses.map((t) => (
+                          <td key={t.name} className="tg-form">
+                            <RenderForm raw={t.forms[ri].f} />
+                          </td>
+                        ))}
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
                 <div className="tense-stack">
                   {groups.map((names, gi) => {
                     const tenses = names.map((n) => tenseByName[n]).filter(Boolean);
