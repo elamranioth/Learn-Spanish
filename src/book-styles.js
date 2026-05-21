@@ -40,6 +40,16 @@ export const styles = `
   -moz-osx-font-smoothing: grayscale;
 }
 
+.home-dashboard > section,
+.section-overview,
+.lesson-section,
+.lazy-loading-block,
+.memoria-card,
+.section-lesson-card {
+  content-visibility: auto;
+  contain-intrinsic-size: 1px 380px;
+}
+
 /* Apply font scale to all reading-related text */
 .reading-paragraph,
 .fold-body .reading-paragraph,
@@ -833,11 +843,15 @@ export const styles = `
   font-size: 13px;
   font-family: 'Literata', Georgia, serif;
 }
+.sync-stats strong {
+  margin-right: 4px;
+  color: var(--ink);
+}
 .sync-status-pill {
-  display: inline-flex;
-  flex-direction: column;
-  align-items: flex-start;
-  gap: 2px;
+  display: inline-grid;
+  grid-template-columns: auto 1fr;
+  align-items: center;
+  gap: 5px 8px;
   border: 1px solid var(--rule);
   border-radius: 8px;
   padding: 8px 10px;
@@ -851,21 +865,44 @@ export const styles = `
   border-color: var(--green);
   color: var(--green);
 }
+.sync-status-pill.needs-setup {
+  border-color: var(--sienna);
+  color: var(--sienna);
+}
 .sync-status-pill small {
+  grid-column: 1 / -1;
   color: var(--ink-mute);
   font-size: 12px;
 }
 .sync-actions {
   justify-content: flex-start;
+  flex-wrap: wrap;
 }
-.sync-actions button:nth-last-child(-n + 2) {
+.sync-actions button.sync-primary-action {
   border-color: var(--green);
   background: var(--green);
   color: #fff;
 }
+.sync-actions button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+}
 .sync-actions button:disabled {
   opacity: 0.45;
   cursor: not-allowed;
+}
+.sync-setup-note {
+  margin-top: 14px;
+  padding: 11px 12px;
+  border: 1px solid var(--rule);
+  border-left: 3px solid var(--sienna);
+  border-radius: 8px;
+  background: var(--paper-light);
+  color: var(--ink-soft);
+  font-size: 14px;
+  line-height: 1.45;
 }
 .sync-advanced-toggle {
   width: 100%;
@@ -1059,6 +1096,61 @@ export const styles = `
   font-size: 13px;
   font-weight: 700;
   text-align: center;
+}
+.teacher-panel {
+  margin: 0 0 28px;
+}
+.teacher-card-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 12px;
+  margin-top: 12px;
+}
+.teacher-card {
+  border: 1px solid var(--rule);
+  border-left: 3px solid var(--green);
+  border-radius: 8px;
+  background: var(--paper-light);
+  color: var(--ink);
+  padding: 15px;
+  text-align: left;
+  display: grid;
+  gap: 8px;
+  min-height: 148px;
+  cursor: pointer;
+  touch-action: manipulation;
+}
+.teacher-card:hover {
+  border-color: var(--green);
+  background: var(--green-tint);
+}
+.teacher-card-title {
+  font-family: 'Cormorant Garamond', Georgia, serif;
+  font-size: 23px;
+  font-weight: 800;
+  line-height: 1.05;
+}
+.teacher-card-detail {
+  color: var(--ink-soft);
+  font-size: 14px;
+  line-height: 1.45;
+}
+.teacher-card-action {
+  align-self: end;
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  color: var(--green);
+  font-size: 12px;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+.lazy-loading-block {
+  border: 1px dashed var(--rule);
+  border-radius: 8px;
+  padding: 18px;
+  background: var(--paper-light);
 }
 .home-stats {
   display: grid;
@@ -6734,6 +6826,7 @@ export const styles = `
 }
 
 .book-root.boox-mode {
+  color-scheme: light;
   --paper: #ffffff;
   --paper-light: #ffffff;
   --ink: #000000;
@@ -6775,6 +6868,9 @@ export const styles = `
 .book-root.boox-mode .level-bar,
 .book-root.boox-mode .level-bar-inner,
 .book-root.boox-mode .home-panel,
+.book-root.boox-mode .lazy-loading-block,
+.book-root.boox-mode .teacher-panel,
+.book-root.boox-mode .teacher-card,
 .book-root.boox-mode .section-card,
 .book-root.boox-mode .lesson-section,
 .book-root.boox-mode .tense-atlas-hero,
@@ -6783,6 +6879,9 @@ export const styles = `
 .book-root.boox-mode .memoria-card,
 .book-root.boox-mode .memoria-face,
 .book-root.boox-mode .sync-modal,
+.book-root.boox-mode .sync-status-pill,
+.book-root.boox-mode .sync-setup-note,
+.book-root.boox-mode .sync-message,
 .book-root.boox-mode .dict-popup,
 .book-root.boox-mode .update-banner,
 .book-root.boox-mode .install-banner,
@@ -6796,6 +6895,8 @@ export const styles = `
 .book-root.boox-mode textarea,
 .book-root.boox-mode .chapter-btn,
 .book-root.boox-mode .section-btn,
+.book-root.boox-mode .lazy-loading-block,
+.book-root.boox-mode .teacher-card,
 .book-root.boox-mode .section-overview-stats span,
 .book-root.boox-mode .section-lesson-card,
 .book-root.boox-mode .lesson-table,
@@ -6813,6 +6914,8 @@ export const styles = `
 .book-root.boox-mode .contextual-quiz-card,
 .book-root.boox-mode .trigger-card,
 .book-root.boox-mode .subj-tip-card,
+.book-root.boox-mode .sync-status-pill,
+.book-root.boox-mode .sync-setup-note,
 .book-root.boox-mode .participle-workshop-grid article {
   border-color: #000000 !important;
 }
@@ -6843,7 +6946,16 @@ export const styles = `
 .book-root.boox-mode .tense-atlas-notes,
 .book-root.boox-mode .gl-text,
 .book-root.boox-mode .bio-paragraph {
+  max-width: 70ch;
   line-height: 1.85 !important;
+}
+.book-root.boox-mode .teacher-card-grid {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+.book-root.boox-mode .teacher-card-title,
+.book-root.boox-mode .teacher-card-detail,
+.book-root.boox-mode .teacher-card-action {
+  color: #000000 !important;
 }
 .book-root.boox-mode .tense-atlas-card,
 .book-root.boox-mode .tense-era-header,
@@ -7747,12 +7859,14 @@ export const styles = `
   }
   .home-stats,
   .home-daily-grid,
+  .teacher-card-grid,
   .section-lesson-grid,
   .writing-feedback-grid {
     grid-template-columns: 1fr;
   }
   .home-stat,
   .home-daily-grid button,
+  .teacher-card,
   .section-lesson-card,
   .home-progress-row,
   .lesson-mini-card,

@@ -142,6 +142,67 @@ const EXACT_TRANSLATIONS = {
   'está': { main: 'is', pos: 'verb form of estar', source: 'Local dictionary', stored: true },
 };
 
+const DICTIONARY_CACHE_KEY = 'lexiora-dictionary-cache-v1';
+const DICTIONARY_CACHE_LIMIT = 500;
+
+function canUseDictionaryCache() {
+  try {
+    return typeof window !== 'undefined' && Boolean(window.localStorage);
+  } catch (_) {
+    return false;
+  }
+}
+
+function readDictionaryCache() {
+  if (!canUseDictionaryCache()) return {};
+  try {
+    const raw = window.localStorage.getItem(DICTIONARY_CACHE_KEY);
+    return raw ? JSON.parse(raw) || {} : {};
+  } catch (_) {
+    return {};
+  }
+}
+
+function writeDictionaryCache(cache) {
+  if (!canUseDictionaryCache()) return;
+  try {
+    const entries = Object.entries(cache || {})
+      .sort((a, b) => (b[1]?.cachedAt || 0) - (a[1]?.cachedAt || 0))
+      .slice(0, DICTIONARY_CACHE_LIMIT);
+    window.localStorage.setItem(DICTIONARY_CACHE_KEY, JSON.stringify(Object.fromEntries(entries)));
+  } catch (_) {}
+}
+
+export function getCachedDictionaryTranslation(word) {
+  const key = normalizeDictionaryExact(word);
+  if (!key) return null;
+  const cached = readDictionaryCache()[key];
+  if (!cached?.main) return null;
+  return {
+    ...cached,
+    source: cached.source || 'Dictionary cache',
+    cached: true,
+  };
+}
+
+export function cacheDictionaryTranslation(word, result) {
+  const key = normalizeDictionaryExact(word);
+  if (!key || !result?.main || result.stored) return;
+  const cache = readDictionaryCache();
+  cache[key] = {
+    main: result.main,
+    extras: result.extras || [],
+    pos: result.pos || '',
+    meanings: result.meanings || [],
+    examples: result.examples || [],
+    source: result.source || 'Dictionary',
+    isDefinition: Boolean(result.isDefinition),
+    matchedWord: result.matchedWord || word,
+    cachedAt: Date.now(),
+  };
+  writeDictionaryCache(cache);
+}
+
 export function cleanDictionaryWord(raw) {
   return String(raw || '')
     .replace(/Ã¡/g, 'á')
@@ -264,8 +325,18 @@ export async function translateWord(word) {
   const clean = cleanDictionaryWord(word);
   const exact = normalizeDictionaryExact(clean);
   if (EXACT_TRANSLATIONS[exact]) return { ...EXACT_TRANSLATIONS[exact], matchedWord: exact };
+  const cached = getCachedDictionaryTranslation(exact);
+  if (cached) return cached;
   const candidates = [...new Set([clean, ...getDictionaryLookupVariants(clean)])].filter(Boolean).slice(0, 4);
   const timeout = (ms) => (typeof AbortSignal !== 'undefined' && AbortSignal.timeout) ? AbortSignal.timeout(ms) : undefined;
+
+  const cacheAndReturn = (result, key = clean) => {
+    if (result) {
+      cacheDictionaryTranslation(key, result);
+      if (result.matchedWord && result.matchedWord !== key) cacheDictionaryTranslation(result.matchedWord, result);
+    }
+    return result;
+  };
 
   async function tryCandidate(candidate) {
     const w = encodeURIComponent(candidate);
@@ -289,7 +360,7 @@ export async function translateWord(word) {
               }
               if (examples.length >= 2) break;
             }
-            return { main, extras, pos: lemma.pos || lemma.translations?.[0]?.pos || '', examples, source: 'Linguee', matchedWord: candidate };
+            return cacheAndReturn({ main, extras, pos: lemma.pos || lemma.translations?.[0]?.pos || '', examples, source: 'Linguee', matchedWord: candidate }, candidate);
           }
         }
       } else {
@@ -309,7 +380,7 @@ export async function translateWord(word) {
         if (phrases.length > 0) {
           const main = phrases[0];
           const extras = phrases.slice(1, 5).filter(p => p.toLowerCase() !== main.toLowerCase());
-          return { main, extras, pos: '', meanings: meanings.slice(0, 3), source: 'Glosbe', matchedWord: candidate };
+          return cacheAndReturn({ main, extras, pos: '', meanings: meanings.slice(0, 3), source: 'Glosbe', matchedWord: candidate }, candidate);
         }
       } else {
         errors.push(`Glosbe ${candidate}: HTTP ${r.status}`);
@@ -327,7 +398,7 @@ export async function translateWord(word) {
           const meaning = entry?.meanings?.[0];
           const def = meaning?.definitions?.[0]?.definition?.trim();
           if (def) {
-            return { main: def, extras: [], pos: meaning?.partOfSpeech || '', source: 'Diccionario', isDefinition: true, matchedWord: candidate };
+            return cacheAndReturn({ main: def, extras: [], pos: meaning?.partOfSpeech || '', source: 'Diccionario', isDefinition: true, matchedWord: candidate }, candidate);
           }
         }
       } else {
@@ -342,7 +413,7 @@ export async function translateWord(word) {
 
   for (const candidate of candidates) {
     const result = await tryCandidate(candidate);
-    if (result) return result;
+    if (result) return cacheAndReturn(result, clean);
   }
 
   const googleQuery = encodeURIComponent(clean);
@@ -351,7 +422,7 @@ export async function translateWord(word) {
     if (r.ok) {
       const data = await r.json();
       const main = data?.sentences?.[0]?.trans?.trim();
-      if (main && main.toLowerCase() !== clean.toLowerCase()) return { main, extras: [], pos: '', source: 'Google' };
+      if (main && main.toLowerCase() !== clean.toLowerCase()) return cacheAndReturn({ main, extras: [], pos: '', source: 'Google', matchedWord: clean });
     }
   } catch (e) {
     errors.push(`Google: ${e.message}`);
@@ -363,7 +434,7 @@ export async function translateWord(word) {
       const data = await r.json();
       const main = data?.responseData?.translatedText?.trim();
       if (main && main.toLowerCase() !== clean.toLowerCase() && !/PLEASE|MYMEMORY|INVALID|QUOTA/i.test(main)) {
-        return { main, extras: [], pos: '', source: 'MyMemory' };
+        return cacheAndReturn({ main, extras: [], pos: '', source: 'MyMemory', matchedWord: clean });
       }
     }
   } catch (e) {

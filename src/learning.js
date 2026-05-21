@@ -242,6 +242,103 @@ export function buildLearnerProfile({ chapters = [], visitedChapters = [], lesso
   };
 }
 
+export function buildTeacherInsights({
+  learnerProfile = {},
+  reviewQueue = [],
+  dailyStats = {},
+  studyTime = {},
+  savedWords = [],
+  recommendations = [],
+} = {}) {
+  const insights = [];
+  const dueWords = learnerProfile.vocabulary?.due || 0;
+  const difficultWords = learnerProfile.vocabulary?.difficult || 0;
+  const weakWriting = learnerProfile.writing?.needsPractice || 0;
+  const todaySeconds = studyTime.todaySeconds || 0;
+
+  if (dueWords > 0) {
+    insights.push({
+      key: 'memoria',
+      title: 'Start with Memoria',
+      detail: `${dueWords} words are ready for review. Clear them before adding new ones.`,
+      action: 'memoria',
+      actionLabel: 'Review words',
+    });
+  }
+
+  if (!dailyStats.grammarDone && recommendations[0]) {
+    insights.push({
+      key: 'grammar',
+      title: 'One grammar point',
+      detail: `Open "${recommendations[0].title}" and mark it understood only after one example feels easy.`,
+      action: 'daily',
+      actionLabel: 'Open next',
+    });
+  }
+
+  if (weakWriting > 0) {
+    insights.push({
+      key: 'writing',
+      title: 'Rewrite one short answer',
+      detail: `${weakWriting} writing practice ${weakWriting === 1 ? 'entry needs' : 'entries need'} a cleaner second try.`,
+      action: 'writing',
+      actionLabel: 'Write now',
+    });
+  }
+
+  if (!dailyStats.readingDone) {
+    insights.push({
+      key: 'reading',
+      title: 'Read with audio',
+      detail: 'Pick one reading paragraph, listen once, then read it aloud without racing.',
+      action: 'reading',
+      actionLabel: 'Open reading',
+    });
+  }
+
+  if (todaySeconds < 10 * 60) {
+    insights.push({
+      key: 'time',
+      title: 'Keep today small',
+      detail: 'Aim for ten focused minutes. The streak matters more than a long session.',
+      action: 'daily',
+      actionLabel: 'Continue',
+    });
+  }
+
+  if (difficultWords > 0 && dueWords === 0) {
+    insights.push({
+      key: 'difficult',
+      title: 'Check difficult words',
+      detail: `${difficultWords} saved words are marked difficult. Say each one in a sentence.`,
+      action: 'memoria',
+      actionLabel: 'Open Memoria',
+    });
+  }
+
+  if (!insights.length && reviewQueue[0]) {
+    insights.push({
+      key: 'queue',
+      title: 'Next best step',
+      detail: `${reviewQueue[0].title}: ${reviewQueue[0].detail || 'review this before moving on.'}`,
+      action: reviewQueue[0].type === 'writing' ? 'writing' : reviewQueue[0].type === 'memoria' || reviewQueue[0].type === 'palabra' ? 'memoria' : 'daily',
+      actionLabel: 'Open',
+    });
+  }
+
+  if (!insights.length && savedWords.length >= 10) {
+    insights.push({
+      key: 'steady',
+      title: 'Good rhythm',
+      detail: 'Review a few saved words, then read one fresh lesson. Do not overfill the day.',
+      action: 'daily',
+      actionLabel: 'Continue',
+    });
+  }
+
+  return insights.slice(0, 3);
+}
+
 export function buildUnifiedReviewQueue({ chapters = [], lessonStatuses = {}, palabrasProgress = {}, savedWords = [], writingEntries = [] } = {}, now = Date.now()) {
   const queue = [];
   for (const state of Object.values(palabrasProgress || {})) {

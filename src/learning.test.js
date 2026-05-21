@@ -3,12 +3,14 @@ import {
   analyzeWritingDraft,
   buildEnhancedSearchResults,
   buildLearnerProfile,
+  buildTeacherInsights,
   buildUnifiedReviewQueue,
   normalizeAnswer,
   scheduleReview,
 } from './learning.js';
 import {
   findStoredDictionaryEntry,
+  getCachedDictionaryTranslation,
   getDictionaryLookupVariants,
   normalizeDictionaryExact,
   normalizeDictionaryLookup,
@@ -58,6 +60,7 @@ test('dictionary lookup preserves meaning for accent-only word pairs', () => {
   const saved = [{ word: 'si', translation: 'if' }, { word: 'sí', translation: 'yes' }];
   assert.equal(findStoredDictionaryEntry('Sí', saved)?.main, 'yes');
   assert.equal(findStoredDictionaryEntry('si', saved)?.main, 'if');
+  assert.equal(getCachedDictionaryTranslation('SÃ­'), null);
 });
 
 test('writing analysis rewards richer Spanish drafts', () => {
@@ -107,6 +110,20 @@ test('learner profile and unified queue combine multiple study sources', () => {
   assert.ok(queue.some((item) => item.type === 'palabra'));
   assert.ok(queue.some((item) => item.type === 'memoria'));
   assert.ok(queue.some((item) => item.type === 'writing'));
+});
+
+test('teacher insights choose the next useful study action', () => {
+  const insights = buildTeacherInsights({
+    learnerProfile: {
+      vocabulary: { due: 3, difficult: 1 },
+      writing: { needsPractice: 1 },
+    },
+    dailyStats: { grammarDone: false, readingDone: false },
+    studyTime: { todaySeconds: 120 },
+    recommendations: [{ title: 'Direct Object Pronouns' }],
+  });
+  assert.equal(insights[0].action, 'memoria');
+  assert.ok(insights.some((item) => item.action === 'daily'));
 });
 
 test('progress counts nested lesson cards consistently', () => {

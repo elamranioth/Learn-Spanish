@@ -1,6 +1,8 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { BookOpen, Menu, X, ChevronLeft, ChevronRight, ChevronDown, Bookmark, Languages, Quote, Lightbulb, NotebookPen, Sparkles, RotateCcw, Check, Clock, Zap, BookText, Library, ListTree, MessageSquare, GraduationCap, Compass, Search, Star, AlertTriangle, PenLine, BarChart3, Headphones, Download } from 'lucide-react';
 import { AppMessages } from './app-messages.jsx';
+import InstallBanner from './install-banner.jsx';
+import TeacherPanel from './teacher-panel.jsx';
 import {
   AudioSettings,
   ExamplePair,
@@ -13,10 +15,6 @@ import {
   warmupAudio,
 } from './audio-text.jsx';
 import { styles } from './book-styles.js';
-import { CANCIONES_SONGS } from './canciones.js';
-import { COMPOUND_TENSES_INDICATIVE_LESSON } from './compound-tenses-indicative.js';
-import { COMPOUND_TENSES_SUBJUNCTIVE_LESSON } from './compound-tenses-subjunctive.js';
-import { TIEMPOS_VERBALES_LESSON } from './tiempos-verbales.js';
 import {
   findGoogleSyncFile,
   GOOGLE_CLIENT_ID_KEY,
@@ -30,6 +28,7 @@ import {
   analyzeWritingDraft,
   buildEnhancedSearchResults,
   buildLearnerProfile,
+  buildTeacherInsights,
   buildUnifiedReviewQueue,
   scheduleReview,
 } from './learning.js';
@@ -42,7 +41,6 @@ import {
 } from './progress.js';
 import { buildSectionLessonCards, getNestedLessonKey } from './section-lessons.js';
 import { SectionOverviewView } from './section-overview.jsx';
-import { SPANISH_EXPRESSIONS_LIBRARY } from './spanish-expressions-library.js';
 import {
   cleanDictionaryWord,
   findStoredDictionaryEntry as findStoredDictionaryEntrySmart,
@@ -52,6 +50,8 @@ import {
   translateWord as translateWordSmart,
 } from './spanish-dictionary.js';
 import { STUDY_TIME_KEY, formatStudyDuration, normalizeStudyTimeState, recordStudySecond } from './study-time.js';
+
+const SyncPanel = React.lazy(() => import('./sync-panel.jsx'));
 
 /* =============================================================
    SPANISH — A Personal Reading Book
@@ -84,6 +84,56 @@ const SECTION_ICONS = {
 function SectionIcon({ id, size = 18, className = '' }) {
   const Ico = SECTION_ICONS[id] || BookOpen;
   return <Ico size={size} className={className} />;
+}
+
+const LESSON_DATA_LOADERS = {
+  tiemposVerbales: () => import('./tiempos-verbales.js').then((module) => module.TIEMPOS_VERBALES_LESSON),
+  compoundIndicative: () => import('./compound-tenses-indicative.js').then((module) => module.COMPOUND_TENSES_INDICATIVE_LESSON),
+  compoundSubjunctive: () => import('./compound-tenses-subjunctive.js').then((module) => module.COMPOUND_TENSES_SUBJUNCTIVE_LESSON),
+  canciones: () => import('./canciones.js').then((module) => module.CANCIONES_SONGS),
+  expressions: () => import('./spanish-expressions-library.js').then((module) => module.SPANISH_EXPRESSIONS_LIBRARY),
+};
+
+function lazyChapter(lazyKey, fallback) {
+  return {
+    ...fallback,
+    lazyKey,
+    blocks: [
+      {
+        type: 'lazy-loading',
+        heading: fallback.title,
+        text: 'Loading this lesson pack...',
+      },
+    ],
+  };
+}
+
+function hydrateSectionsWithLazyData(sections, loadedData) {
+  return sections.map((section) => ({
+    ...section,
+    chapters: (section.chapters || []).map((chapter) => {
+      const loadedChapter = chapter.lazyKey && loadedData[chapter.lazyKey] ? loadedData[chapter.lazyKey] : chapter;
+      return {
+        ...loadedChapter,
+        lazyKey: chapter.lazyKey,
+        blocks: (loadedChapter.blocks || []).map((block) => {
+          if (block.lazySongsKey) return { ...block, songs: loadedData[block.lazySongsKey] || [] };
+          if (block.lazyLibraryKey) return { ...block, library: loadedData[block.lazyLibraryKey] || [] };
+          return block;
+        }),
+      };
+    }),
+  }));
+}
+
+function collectLazyKeysForChapter(chapter) {
+  const keys = [];
+  if (chapter?.lazyKey) keys.push(chapter.lazyKey);
+  for (const block of chapter?.blocks || []) {
+    if (block.lazySongsKey) keys.push(block.lazySongsKey);
+    if (block.lazyLibraryKey) keys.push(block.lazyLibraryKey);
+  }
+  return keys;
 }
 
 const SECTIONS = [
@@ -346,9 +396,24 @@ const SECTIONS = [
           },
         ],
       },
-      TIEMPOS_VERBALES_LESSON,
-      COMPOUND_TENSES_INDICATIVE_LESSON,
-      COMPOUND_TENSES_SUBJUNCTIVE_LESSON,
+      lazyChapter('tiemposVerbales', {
+        id: 'tiempos-verbales',
+        level: 'A1-B2',
+        title: 'Tiempos Verbales',
+        subtitle: 'mapa completo de tiempos',
+      }),
+      lazyChapter('compoundIndicative', {
+        id: 'tiempos-compuestos-indicativo',
+        level: 'B1',
+        title: 'Tiempos Compuestos del Indicativo',
+        subtitle: 'haber + participio',
+      }),
+      lazyChapter('compoundSubjunctive', {
+        id: 'tiempos-compuestos-subjuntivo',
+        level: 'B2',
+        title: 'Tiempos compuestos',
+        subtitle: 'subjuntivo y comparacion',
+      }),
     ],
   },
   {
@@ -4913,7 +4978,8 @@ const SECTIONS = [
         blocks: [
           {
             type: 'foldable-songs',
-            songs: CANCIONES_SONGS,
+            lazySongsKey: 'canciones',
+            songs: [],
           },
           {
             type: 'takeaway',
@@ -4957,7 +5023,8 @@ const SECTIONS = [
         blocks: [
           {
             type: 'expressions-library',
-            library: SPANISH_EXPRESSIONS_LIBRARY,
+            lazyLibraryKey: 'expressions',
+            library: [],
           },
         ],
       },
@@ -6661,6 +6728,17 @@ function ChapterContent({ chapter, sectionId, section, activeNestedTarget, onOpe
                 ))}
               </section>
             );
+          case 'lazy-loading':
+            return (
+              <section key={i} className="block lazy-loading-block">
+                <div className="home-section-heading">
+                  <Sparkles size={16} />
+                  Loading lesson pack
+                </div>
+                <h2 className="lesson-heading">{block.heading}</h2>
+                <p className="lesson-text">{block.text}</p>
+              </section>
+            );
           case 'foldable-poems':
             return (
               <FoldablePoemsBlock
@@ -6673,6 +6751,14 @@ function ChapterContent({ chapter, sectionId, section, activeNestedTarget, onOpe
               />
             );
           case 'foldable-songs':
+            if (block.lazySongsKey && !block.songs?.length) {
+              return (
+                <section key={i} className="block lazy-loading-block">
+                  <div className="home-section-heading"><Sparkles size={16} /> Loading canciones</div>
+                  <p className="lesson-text">Preparing the songbook...</p>
+                </section>
+              );
+            }
             return (
               <FoldableSongsBlock
                 key={i}
@@ -6776,6 +6862,14 @@ function ChapterContent({ chapter, sectionId, section, activeNestedTarget, onOpe
               </section>
             );
           case 'expressions-library':
+            if (block.lazyLibraryKey && !block.library?.groups) {
+              return (
+                <section key={i} className="block lazy-loading-block">
+                  <div className="home-section-heading"><Sparkles size={16} /> Loading expresiones</div>
+                  <p className="lesson-text">Preparing the expression library...</p>
+                </section>
+              );
+            }
             return <ExpressionsLibraryBlock key={i} library={block.library} />;
           case 'steps':
             return (
@@ -8425,6 +8519,13 @@ function getStudyStreak(studyTime = {}) {
   return streak;
 }
 
+function isLikelyBooxDevice() {
+  if (typeof navigator === 'undefined') return false;
+  const brands = (navigator.userAgentData?.brands || []).map((brand) => brand.brand).join(' ');
+  const ua = `${navigator.userAgent || ''} ${brands}`;
+  return /boox|onyx|e-?ink/i.test(ua);
+}
+
 function HomeView({
   totalLessons,
   visitedCount,
@@ -8438,6 +8539,7 @@ function HomeView({
   studyTime,
   dailyPlan,
   dailyProgress,
+  teacherInsights,
   writingCount,
   sectionProgress,
   recommendations,
@@ -8450,6 +8552,7 @@ function HomeView({
   onOpenReading,
   onOpenWriting,
   onSelectChapter,
+  onTeacherAction,
 }) {
   const progress = totalLessons ? Math.round((visitedCount / totalLessons) * 100) : 0;
 
@@ -8490,6 +8593,8 @@ function HomeView({
           <span>{dailyProgress.streak} day streak</span>
         </div>
       </section>
+
+      <TeacherPanel insights={teacherInsights} onAction={onTeacherAction} />
 
       <section className="home-stats" aria-label="Study progress">
         <div className="home-stat">
@@ -8652,11 +8757,13 @@ export default function SpanishBook() {
   const [isInstalledApp, setIsInstalledApp] = useState(false);
   const [studyTime, setStudyTime] = useState(() => normalizeStudyTimeState());
   const [studySessionSeconds, setStudySessionSeconds] = useState(0);
+  const [lazyLessonData, setLazyLessonData] = useState({});
   const studyPersistTickRef = React.useRef(0);
   const studySessionIdRef = React.useRef('');
   const syncDirtyRef = React.useRef(false);
   const syncHydratingRef = React.useRef(false);
   const lastAutoSyncAtRef = React.useRef(0);
+  const lazyLessonLoadingRef = React.useRef(new Set());
   const bookRootRef = React.useRef(null);
   const mobileBarRef = React.useRef(null);
 
@@ -8721,6 +8828,7 @@ export default function SpanishBook() {
       try {
         const boox = await window.storage.get(BOOX_MODE_KEY);
         if (boox?.value === 'true') setBooxMode(true);
+        else if (!boox?.value && isLikelyBooxDevice()) setBooxMode(true);
       } catch (_) {}
       try {
         const dismissed = await window.storage.get(INSTALL_DISMISSED_KEY);
@@ -9020,9 +9128,10 @@ export default function SpanishBook() {
       setTimeout(() => backgroundTranslate(w.word), i * 800);
     });
   }, [savedWords.length]);
+  const activeSections = useMemo(() => hydrateSectionsWithLazyData(SECTIONS, lazyLessonData), [lazyLessonData]);
   const visibleFlatChapters = useMemo(() => {
-    return buildVisibleFlatChapters(SECTIONS, levelFilter);
-  }, [levelFilter]);
+    return buildVisibleFlatChapters(activeSections, levelFilter);
+  }, [activeSections, levelFilter]);
 
   // If the active chapter is filtered out, jump to the first visible one.
   useEffect(() => {
@@ -9039,13 +9148,32 @@ export default function SpanishBook() {
     () => visibleFlatChapters.find((c) => c.id === activeChapterId),
     [visibleFlatChapters, activeChapterId]
   );
+
+  function loadLazyLessonData(key) {
+    if (!key || Object.prototype.hasOwnProperty.call(lazyLessonData, key) || lazyLessonLoadingRef.current.has(key)) return;
+    const loader = LESSON_DATA_LOADERS[key];
+    if (!loader) return;
+    lazyLessonLoadingRef.current.add(key);
+    loader()
+      .then((value) => {
+        setLazyLessonData((current) => ({ ...current, [key]: value }));
+      })
+      .catch((error) => {
+        console.warn('Could not load lesson pack', key, error);
+        setLazyLessonData((current) => ({ ...current, [key]: null }));
+      })
+      .finally(() => {
+        lazyLessonLoadingRef.current.delete(key);
+      });
+  }
+
   const activeSection = useMemo(
-    () => SECTIONS.find((section) => section.id === activeSectionId),
-    [activeSectionId]
+    () => activeSections.find((section) => section.id === activeSectionId),
+    [activeSections, activeSectionId]
   );
   const sectionLanding = useMemo(
-    () => SECTIONS.find((section) => section.id === sectionLandingId),
-    [sectionLandingId]
+    () => activeSections.find((section) => section.id === sectionLandingId),
+    [activeSections, sectionLandingId]
   );
   const sectionLandingChapters = useMemo(
     () => visibleFlatChapters.filter((chapter) => chapter.sectionId === sectionLandingId),
@@ -9056,13 +9184,27 @@ export default function SpanishBook() {
     [sectionLanding, sectionLandingChapters]
   );
 
+  useEffect(() => {
+    const keys = new Set();
+    collectLazyKeysForChapter(activeChapter).forEach((key) => keys.add(key));
+    if (sectionLandingId) {
+      sectionLandingChapters.forEach((chapter) => collectLazyKeysForChapter(chapter).forEach((key) => keys.add(key)));
+    }
+    if (!showHome && activeSectionId) {
+      visibleFlatChapters
+        .filter((chapter) => chapter.sectionId === activeSectionId)
+        .forEach((chapter) => collectLazyKeysForChapter(chapter).forEach((key) => keys.add(key)));
+    }
+    keys.forEach((key) => loadLazyLessonData(key));
+  }, [activeChapter, sectionLandingId, sectionLandingChapters, showHome, activeSectionId, visibleFlatChapters, lazyLessonData]);
+
   const currentIndex = visibleFlatChapters.findIndex((c) => c.id === activeChapterId);
   const prevChapter = currentIndex > 0 ? visibleFlatChapters[currentIndex - 1] : null;
   const nextChapter = currentIndex >= 0 && currentIndex < visibleFlatChapters.length - 1 ? visibleFlatChapters[currentIndex + 1] : null;
   const visitedSet = useMemo(() => new Set(visitedChapters), [visitedChapters]);
   const studyProgress = useMemo(
-    () => summarizeStudyProgress(SECTIONS, visibleFlatChapters, visitedChapters, lessonStatuses),
-    [visibleFlatChapters, visitedChapters, lessonStatuses]
+    () => summarizeStudyProgress(activeSections, visibleFlatChapters, visitedChapters, lessonStatuses),
+    [activeSections, visibleFlatChapters, visitedChapters, lessonStatuses]
   );
   const visibleStudyLessons = studyProgress.lessons;
   const visibleVisitedCount = studyProgress.completed;
@@ -9107,8 +9249,8 @@ export default function SpanishBook() {
     };
   }, [palabrasProgress]);
   const sectionProgress = useMemo(() => {
-    return buildSectionProgress(SECTIONS, visibleFlatChapters, visitedChapters, lessonStatuses);
-  }, [visibleFlatChapters, visitedChapters, lessonStatuses]);
+    return buildSectionProgress(activeSections, visibleFlatChapters, visitedChapters, lessonStatuses);
+  }, [activeSections, visibleFlatChapters, visitedChapters, lessonStatuses]);
   const palabrasChapter = visibleFlatChapters.find((c) => c.id === 'palabras-5000');
   const grammarChapter = visibleFlatChapters.find((c) => c.sectionId === 'gramatica');
   const verbChapter = visibleFlatChapters.find((c) => c.sectionId === 'verbos') || visibleFlatChapters.find((c) => c.sectionId === 'verbos2');
@@ -9181,6 +9323,14 @@ export default function SpanishBook() {
     total: dailyPlan.length,
     streak: dailyStats.streak,
   }), [dailyPlan, dailyStats.streak]);
+  const teacherInsights = useMemo(() => buildTeacherInsights({
+    learnerProfile,
+    reviewQueue,
+    dailyStats,
+    studyTime,
+    savedWords,
+    recommendations: recommendedChapters,
+  }), [learnerProfile, reviewQueue, dailyStats, studyTime, savedWords, recommendedChapters]);
   const isStudyTimerRunning = Boolean(activeChapter && !showHome && !showMemoria && !showWriting && !sectionLandingId);
   const activeStudyId = activeNestedTarget?.cardId || activeChapter?.id;
   const studyTimerLabel = isStudyTimerRunning
@@ -9242,7 +9392,7 @@ export default function SpanishBook() {
 
   function selectChapter(c) {
     const nextChapterId = c.parentChapterId || c.id;
-    const nextSectionId = c.sectionId || SECTIONS.find((section) => section.chapters.some((chapter) => chapter.id === nextChapterId))?.id || activeSectionId;
+    const nextSectionId = c.sectionId || activeSections.find((section) => section.chapters.some((chapter) => chapter.id === nextChapterId))?.id || activeSectionId;
     setActiveChapterId(nextChapterId);
     setActiveSectionId(nextSectionId);
     setSectionLandingId(null);
@@ -9321,6 +9471,14 @@ export default function SpanishBook() {
     return undefined;
   }
 
+  function handleTeacherAction(action) {
+    if (action === 'memoria') return openMemoriaView();
+    if (action === 'writing') return openWritingView();
+    if (action === 'reading' && readingChapter) return selectChapter(readingChapter);
+    if (action === 'verb' && verbChapter) return selectChapter(verbChapter);
+    return startDailyLesson();
+  }
+
   function startDailyLesson() {
     const nextStep = dailyPlan.find((item) => !item.complete) || dailyPlan[0];
     return handleDailyStep(nextStep?.key || 'palabras');
@@ -9328,7 +9486,7 @@ export default function SpanishBook() {
 
   function jumpToResume() {
     if (!resumeOffer) return;
-    const sec = SECTIONS.find(s => s.id === resumeOffer.sectionId);
+    const sec = activeSections.find(s => s.id === resumeOffer.sectionId);
     const chap = sec?.chapters.find(c => c.id === resumeOffer.chapterId);
     if (chap) {
       selectChapter({
@@ -9348,7 +9506,7 @@ export default function SpanishBook() {
   function buildSyncPayload() {
     return {
       app: 'Lexiora',
-      version: 2,
+      version: 5,
       exportedAt: new Date().toISOString(),
       savedWords,
       visitedChapters,
@@ -9546,6 +9704,14 @@ export default function SpanishBook() {
 
   const showInstallBanner = !isInstalledApp && !installDismissed;
   const installReady = Boolean(installPrompt);
+  const hasBundledGoogleClient = Boolean(import.meta.env.VITE_GOOGLE_CLIENT_ID);
+  const syncStats = useMemo(() => ([
+    { label: 'Memoria words', value: savedWords.length },
+    { label: 'Palabras reviews', value: Object.keys(palabrasProgress || {}).length },
+    { label: 'lesson marks', value: Object.keys(lessonStatuses || {}).length },
+    { label: 'study time', value: formatStudyDuration(studyTime.totalSeconds) },
+    { label: 'reader profile', value: booxMode ? 'Boox' : 'Normal' },
+  ]), [savedWords.length, palabrasProgress, lessonStatuses, studyTime.totalSeconds, booxMode]);
 
   return (
     <div ref={bookRootRef} className={`book-root translation-mode-${translationMode} ${booxMode ? 'boox-mode' : ''} ${focusMode ? 'focus-mode' : ''}`}>
@@ -9634,62 +9800,25 @@ export default function SpanishBook() {
       </div>
 
       {syncOpen && (
-        <div className="sync-modal-overlay" role="dialog" aria-modal="true" aria-label="Device sync">
-          <div className="sync-modal">
-            <button className="sync-close" onClick={() => setSyncOpen(false)} aria-label="Close sync">
-              <X size={15} />
-            </button>
-            <div className="sync-kicker">Device Sync</div>
-            <h2>Sync Lexiora across devices</h2>
-            <p>
-              Sign in with Google Drive to keep one private study file across your phone, tablet, Boox, and laptop.
-            </p>
-            <div className="sync-stats">
-              <span>{savedWords.length} Memoria words</span>
-              <span>{Object.keys(palabrasProgress || {}).length} Palabras reviews</span>
-              <span>{Object.keys(lessonStatuses || {}).length} lesson marks</span>
-              <span>{formatStudyDuration(studyTime.totalSeconds)} total time</span>
-              <span>{booxMode ? 'Boox mode on' : 'Boox mode off'}</span>
-            </div>
-            <div className={`sync-status-pill ${googleAccessToken ? 'connected' : ''}`}>
-              {googleAccessToken ? 'Google connected - auto-sync on' : 'Google not connected yet'}
-              {googleLastSyncedAt && <small>Last sync: {googleLastSyncedAt}</small>}
-            </div>
-            {!import.meta.env.VITE_GOOGLE_CLIENT_ID && !googleClientId.trim() && (
-              <button className="sync-advanced-toggle" onClick={() => setSyncAdvancedOpen((open) => !open)}>
-                {syncAdvancedOpen ? 'Hide setup' : 'First-time Google setup'}
-              </button>
-            )}
-            {(!import.meta.env.VITE_GOOGLE_CLIENT_ID && (syncAdvancedOpen || googleClientId.trim())) && (
-              <>
-                <label className="sync-client-field">
-                  <span>Google OAuth Client ID</span>
-                  <input
-                    value={googleClientId}
-                    onChange={(e) => setGoogleClientId(e.target.value)}
-                    placeholder="1234567890-abc.apps.googleusercontent.com"
-                    disabled={Boolean(import.meta.env.VITE_GOOGLE_CLIENT_ID)}
-                  />
-                </label>
-                <p className="sync-help">
-                  First time only. After it is saved, this screen becomes a normal Google sign-in and sync panel.
-                </p>
-              </>
-            )}
-            <div className="sync-actions">
-              {!import.meta.env.VITE_GOOGLE_CLIENT_ID && googleClientId.trim() && (
-                <button onClick={saveGoogleClientId}>Save Client ID</button>
-              )}
-              <button onClick={signInGoogleDrive} disabled={googleBusy || !googleClientId.trim()}>
-                {googleBusy ? 'Working...' : googleAccessToken ? 'Reconnect Google' : 'Sign in with Google'}
-              </button>
-              <button onClick={() => syncWithGoogleDrive()} disabled={googleBusy || !googleClientId.trim()}>
-                {googleBusy ? 'Syncing...' : 'Sync now'}
-              </button>
-            </div>
-            {syncMessage && <div className="sync-message">{syncMessage}</div>}
-          </div>
-        </div>
+        <React.Suspense fallback={<div className="sync-modal-overlay" aria-label="Loading sync"><div className="sync-modal">Loading sync...</div></div>}>
+          <SyncPanel
+            open={syncOpen}
+            onClose={() => setSyncOpen(false)}
+            googleAccessToken={googleAccessToken}
+            googleLastSyncedAt={googleLastSyncedAt}
+            googleBusy={googleBusy}
+            googleClientId={googleClientId}
+            setGoogleClientId={setGoogleClientId}
+            syncAdvancedOpen={syncAdvancedOpen}
+            setSyncAdvancedOpen={setSyncAdvancedOpen}
+            hasBundledGoogleClient={hasBundledGoogleClient}
+            syncStats={syncStats}
+            saveGoogleClientId={saveGoogleClientId}
+            signInGoogleDrive={signInGoogleDrive}
+            syncWithGoogleDrive={syncWithGoogleDrive}
+            syncMessage={syncMessage}
+          />
+        </React.Suspense>
       )}
 
       <div className="book-shell">
@@ -9731,7 +9860,7 @@ export default function SpanishBook() {
                 </button>
               </div>
 
-              {SECTIONS.map((s) => {
+              {activeSections.map((s) => {
                 const visibleChapters = visibleFlatChapters.filter((chapter) => chapter.sectionId === s.id);
                 const sectionLessons = buildSectionLessonCards(s, visibleChapters);
                 const isActive = s.id === activeSectionId && !showMemoria && !showHome && !showWriting;
@@ -9813,24 +9942,12 @@ export default function SpanishBook() {
         <main className="book-main">
           {/* Resume / update notices live inside the mobile scroll panel so they never cover lesson text. */}
           {showInstallBanner && (
-            <div className="install-banner">
-              <div className="resume-banner-text">
-                <span className="resume-banner-label">Install Lexiora</span>
-                <span className="resume-banner-title">
-                  {installReady ? 'Add the app to this device' : 'Add to Home Screen if your browser hides the icon'}
-                </span>
-                {installMessage && <span className="install-banner-message">{installMessage}</span>}
-              </div>
-              <div className="resume-banner-actions">
-                <button className="resume-btn-primary install-btn-primary" onClick={installLexiora}>
-                  <Download size={15} />
-                  Install
-                </button>
-                <button className="resume-btn-dismiss" onClick={dismissInstallBanner} aria-label="Dismiss install banner">
-                  <X size={15} />
-                </button>
-              </div>
-            </div>
+            <InstallBanner
+              installReady={installReady}
+              installMessage={installMessage}
+              onInstall={installLexiora}
+              onDismiss={dismissInstallBanner}
+            />
           )}
           {resumeOffer && (
             <div className="resume-banner">
@@ -9878,6 +9995,7 @@ export default function SpanishBook() {
                 studyTime={studyTime}
                 dailyPlan={dailyPlan}
                 dailyProgress={dailyProgress}
+                teacherInsights={teacherInsights}
                 writingCount={writingEntries.length}
                 sectionProgress={sectionProgress}
                 recommendations={recommendedChapters}
@@ -9890,6 +10008,7 @@ export default function SpanishBook() {
                 onOpenReading={() => readingChapter && selectChapter(readingChapter)}
                 onOpenWriting={openWritingView}
                 onSelectChapter={selectChapter}
+                onTeacherAction={handleTeacherAction}
               />
             ) : showMemoria ? (
               <MemoriaView
