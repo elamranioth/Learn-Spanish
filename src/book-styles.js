@@ -1100,6 +1100,128 @@ export const styles = `
 .teacher-panel {
   margin: 0 0 28px;
 }
+.daily-teacher-panel {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 180px;
+  gap: 18px;
+  align-items: stretch;
+  margin: 22px 0 18px;
+  padding: 18px;
+  border: 1px solid var(--green);
+  border-radius: 8px;
+  background: linear-gradient(180deg, #ffffff 0%, var(--green-tint) 100%);
+}
+.daily-teacher-main {
+  min-width: 0;
+}
+.daily-teacher-main .home-section-heading {
+  margin: 0 0 8px;
+}
+.daily-teacher-main h2 {
+  margin: 0;
+  font-family: 'Cormorant Garamond', Georgia, serif;
+  font-size: 36px;
+  line-height: 1.05;
+  color: var(--ink);
+}
+.daily-teacher-main p {
+  margin: 9px 0 0;
+  color: var(--ink-soft);
+  font-size: 16px;
+  line-height: 1.5;
+}
+.daily-teacher-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 14px;
+}
+.daily-teacher-actions button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  border: 1px solid var(--green);
+  border-radius: 6px;
+  background: var(--green);
+  color: #ffffff;
+  min-height: 38px;
+  padding: 7px 13px;
+  font-family: 'Literata', Georgia, serif;
+  font-weight: 800;
+  cursor: pointer;
+  touch-action: manipulation;
+}
+.daily-teacher-actions button.secondary {
+  background: var(--paper);
+  color: var(--green);
+}
+.daily-teacher-card {
+  border: 1px solid rgba(47, 93, 58, 0.28);
+  border-radius: 8px;
+  background: var(--paper);
+  display: grid;
+  place-items: center;
+  align-content: center;
+  gap: 3px;
+  min-height: 148px;
+  text-align: center;
+}
+.daily-teacher-card span {
+  font-family: 'Cormorant Garamond', Georgia, serif;
+  font-size: 38px;
+  line-height: 1;
+  color: var(--green);
+  font-weight: 800;
+}
+.daily-teacher-card strong {
+  font-size: 12px;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: var(--ink);
+}
+.daily-teacher-card em {
+  color: var(--ink-mute);
+  font-size: 13px;
+}
+.teacher-metrics {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 10px;
+  margin: 0 0 24px;
+}
+.teacher-metric {
+  border: 1px solid var(--rule);
+  border-radius: 8px;
+  background: var(--paper-light);
+  padding: 13px;
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 2px 8px;
+  align-items: center;
+}
+.teacher-metric svg {
+  color: var(--green);
+}
+.teacher-metric span {
+  font-size: 11px;
+  letter-spacing: 0.15em;
+  text-transform: uppercase;
+  color: var(--ink-mute);
+  font-weight: 800;
+}
+.teacher-metric strong {
+  grid-column: 1 / -1;
+  font-family: 'Cormorant Garamond', Georgia, serif;
+  font-size: 27px;
+  line-height: 1.05;
+  color: var(--ink);
+}
+.teacher-metric em {
+  grid-column: 1 / -1;
+  color: var(--ink-mute);
+  font-size: 12px;
+}
 .teacher-card-grid {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
@@ -1481,11 +1603,23 @@ export const styles = `
 .section-lesson-card.status-opened .section-lesson-status {
   color: var(--yellow);
 }
+.section-lesson-card.status-practicing {
+  border-top-color: var(--sienna);
+}
+.section-lesson-card.status-practicing .section-lesson-status {
+  color: var(--sienna-deep);
+}
 .section-lesson-card.status-understood {
   border-top-color: var(--green);
 }
-.section-lesson-card.status-understood .section-lesson-status {
+.section-lesson-card.status-understood .section-lesson-status,
+.section-lesson-card.status-strong .section-lesson-status,
+.section-lesson-card.status-mastered .section-lesson-status {
   color: var(--green);
+}
+.section-lesson-card.status-strong,
+.section-lesson-card.status-mastered {
+  border-top-color: var(--green);
 }
 @media (max-width: 700px) {
   .section-lesson-grid { grid-template-columns: 1fr; }
@@ -1624,10 +1758,22 @@ export const styles = `
   border-color: var(--green);
   background: var(--green);
 }
+.lesson-status-btn.mastery:hover {
+  color: var(--green);
+  border-color: var(--green);
+  background: var(--green-tint);
+}
+.lesson-status-btn.mastery.active {
+  color: #ffffff;
+  border-color: var(--ink);
+  background: var(--ink);
+}
 @media (max-width: 700px) {
   .lesson-status-control {
     width: 100%;
-    justify-content: space-between;
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    justify-content: stretch;
     border-radius: 12px;
   }
   .lesson-status-label { display: none; }
@@ -3728,6 +3874,20 @@ export const styles = `
 .story-status-pill.understood {
   color: var(--green);
   border-color: rgba(47, 93, 58, 0.28);
+  background: var(--green-tint);
+}
+.gl-status-pill.practicing,
+.story-status-pill.practicing {
+  color: var(--sienna-deep);
+  border-color: rgba(177, 80, 42, 0.28);
+  background: var(--sienna-tint);
+}
+.gl-status-pill.strong,
+.story-status-pill.strong,
+.gl-status-pill.mastered,
+.story-status-pill.mastered {
+  color: var(--green);
+  border-color: rgba(47, 93, 58, 0.32);
   background: var(--green-tint);
 }
 .gl-subtitle {
@@ -6869,6 +7029,9 @@ export const styles = `
 .book-root.boox-mode .level-bar-inner,
 .book-root.boox-mode .home-panel,
 .book-root.boox-mode .lazy-loading-block,
+.book-root.boox-mode .daily-teacher-panel,
+.book-root.boox-mode .daily-teacher-card,
+.book-root.boox-mode .teacher-metric,
 .book-root.boox-mode .teacher-panel,
 .book-root.boox-mode .teacher-card,
 .book-root.boox-mode .section-card,
@@ -6914,6 +7077,8 @@ export const styles = `
 .book-root.boox-mode .contextual-quiz-card,
 .book-root.boox-mode .trigger-card,
 .book-root.boox-mode .subj-tip-card,
+.book-root.boox-mode .lesson-mastery-panel,
+.book-root.boox-mode .memoria-focus-board button,
 .book-root.boox-mode .sync-status-pill,
 .book-root.boox-mode .sync-setup-note,
 .book-root.boox-mode .participle-workshop-grid article {
@@ -7199,6 +7364,24 @@ export const styles = `
   background: #ffffff !important;
   border-color: #000000 !important;
 }
+.book-root.boox-mode .daily-teacher-panel,
+.book-root.boox-mode .daily-teacher-card,
+.book-root.boox-mode .teacher-metric,
+.book-root.boox-mode .memoria-focus-board button,
+.book-root.boox-mode .lesson-mastery-panel {
+  background: #ffffff !important;
+  border-color: #000000 !important;
+}
+.book-root.boox-mode .daily-teacher-actions button,
+.book-root.boox-mode .lesson-mastery-actions button.active {
+  background: #000000 !important;
+  border-color: #000000 !important;
+  color: #ffffff !important;
+}
+.book-root.boox-mode .daily-teacher-actions button.secondary {
+  background: #ffffff !important;
+  color: #000000 !important;
+}
 .book-root.boox-mode .home-daily-focus-side span,
 .book-root.boox-mode .home-daily-grid small {
   color: #000000 !important;
@@ -7350,6 +7533,65 @@ export const styles = `
   color: var(--sienna-deep);
   font-size: 14px;
 }
+.lesson-mastery-panel {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 12px;
+  align-items: center;
+  margin-top: 14px;
+  padding: 12px;
+  border: 1px solid var(--rule);
+  border-radius: 8px;
+  background: var(--paper);
+}
+.lesson-mastery-panel span {
+  display: block;
+  font-size: 10px;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: var(--ink-mute);
+  font-weight: 800;
+}
+.lesson-mastery-panel strong {
+  display: block;
+  margin-top: 3px;
+  font-size: 15px;
+  line-height: 1.35;
+  color: var(--ink);
+}
+.lesson-mastery-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 7px;
+  justify-content: flex-end;
+}
+.lesson-mastery-actions button {
+  border: 1px solid var(--rule);
+  border-radius: 999px;
+  background: var(--paper);
+  color: var(--ink);
+  padding: 6px 10px;
+  font-family: 'Literata', Georgia, serif;
+  font-size: 12px;
+  font-weight: 800;
+  cursor: pointer;
+  touch-action: manipulation;
+}
+.lesson-mastery-actions button.practice.active {
+  color: var(--sienna-deep);
+  border-color: var(--sienna);
+  background: var(--sienna-tint);
+}
+.lesson-mastery-actions button.strong.active {
+  color: var(--green);
+  border-color: var(--green);
+  background: var(--green-tint);
+}
+.lesson-mastery-actions button.mastered.active {
+  color: #ffffff;
+  border-color: var(--ink);
+  background: var(--ink);
+}
 
 .memoria-summary-strip {
   display: flex;
@@ -7370,6 +7612,40 @@ export const styles = `
   padding: 5px 10px;
   font-size: 12px;
   font-family: 'Literata', Georgia, serif;
+}
+.memoria-focus-board {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: 8px;
+  margin: 0 0 14px;
+}
+.memoria-focus-board button {
+  border: 1px solid var(--rule);
+  border-radius: 8px;
+  background: var(--paper);
+  color: var(--ink);
+  padding: 10px;
+  text-align: left;
+  display: grid;
+  gap: 4px;
+  min-height: 72px;
+  cursor: pointer;
+  touch-action: manipulation;
+}
+.memoria-focus-board button:hover,
+.memoria-focus-board button.active {
+  border-color: var(--green);
+  background: var(--green-tint);
+}
+.memoria-focus-board strong {
+  font-family: 'Cormorant Garamond', Georgia, serif;
+  font-size: 18px;
+  line-height: 1.05;
+}
+.memoria-focus-board span {
+  color: var(--ink-mute);
+  font-size: 12px;
+  line-height: 1.25;
 }
 .memoria-label-actions {
   display: flex;
@@ -7885,6 +8161,26 @@ export const styles = `
     margin: 18px 0 22px;
     background: var(--paper);
   }
+  .daily-teacher-panel {
+    grid-template-columns: 1fr;
+    gap: 12px;
+    padding: 15px;
+    margin: 18px 0 16px;
+    background: var(--paper);
+  }
+  .daily-teacher-main h2 {
+    font-size: 30px;
+  }
+  .daily-teacher-actions {
+    display: grid;
+    grid-template-columns: 1fr;
+  }
+  .daily-teacher-card {
+    min-height: 104px;
+  }
+  .teacher-metrics {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
   .home-daily-focus h2 {
     font-size: 29px;
   }
@@ -7901,6 +8197,7 @@ export const styles = `
   .home-stats,
   .home-daily-grid,
   .teacher-card-grid,
+  .memoria-focus-board,
   .section-lesson-grid,
   .writing-feedback-grid {
     grid-template-columns: 1fr;
@@ -8000,7 +8297,7 @@ export const styles = `
   }
   .lesson-status-control {
     display: grid;
-    grid-template-columns: 1fr 1fr;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
     gap: 8px;
     padding: 8px;
   }

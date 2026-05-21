@@ -1,8 +1,8 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { BookOpen, Menu, X, ChevronLeft, ChevronRight, ChevronDown, Bookmark, Languages, Quote, Lightbulb, NotebookPen, Sparkles, RotateCcw, Check, Clock, Zap, BookText, Library, ListTree, MessageSquare, GraduationCap, Compass, Search, Star, AlertTriangle, PenLine, BarChart3, Headphones, Download } from 'lucide-react';
 import { AppMessages } from './app-messages.jsx';
+import HomeDashboardView from './home-dashboard.jsx';
 import InstallBanner from './install-banner.jsx';
-import TeacherPanel from './teacher-panel.jsx';
 import {
   AudioSettings,
   ExamplePair,
@@ -32,6 +32,11 @@ import {
   buildUnifiedReviewQueue,
   scheduleReview,
 } from './learning.js';
+import {
+  getLessonStatusLabel,
+  isLessonReadStatus,
+  isLessonUnderstoodStatus,
+} from './lesson-status.js';
 import { exportMemoriaCsv, getMemoriaSummary, getMemoriaTags } from './memoria-utils.js';
 import {
   buildRecommendedLessonCards,
@@ -5536,7 +5541,7 @@ function buildLessonQuiz(source) {
   });
 }
 
-function LessonMiniQuiz({ source, title = 'Mini practica' }) {
+function LessonMiniQuiz({ source, title = 'Mini practica', status, onMasteryChange }) {
   const questions = useMemo(() => buildLessonQuiz(source), [source]);
   const [answers, setAnswers] = useState({});
   const [finished, setFinished] = useState(false);
@@ -5552,6 +5557,7 @@ function LessonMiniQuiz({ source, title = 'Mini practica' }) {
   const score = questions.reduce((total, q, index) => (
     normalizeForCompare(answers[index]) === normalizeForCompare(q.answer) ? total + 1 : total
   ), 0);
+  const masterySuggestion = score >= Math.max(2, questions.length - 1) ? 'mastered' : score >= Math.ceil(questions.length * 0.7) ? 'strong' : 'practicing';
 
   return (
     <section className="lesson-mini-quiz">
@@ -5612,6 +5618,40 @@ function LessonMiniQuiz({ source, title = 'Mini practica' }) {
         </button>
         {finished && <strong>{score} / {questions.length}</strong>}
       </div>
+      {finished && (
+        <div className="lesson-mastery-panel" aria-live="polite">
+          <div>
+            <span>Mastery check</span>
+            <strong>
+              {masterySuggestion === 'mastered'
+                ? 'This lesson is ready to master.'
+                : masterySuggestion === 'strong'
+                  ? 'You are strong here. Review once more soon.'
+                  : 'Keep this lesson in practice.'}
+            </strong>
+          </div>
+          <div className="lesson-mastery-actions">
+            <button
+              className={status === 'practicing' ? 'active practice' : 'practice'}
+              onClick={() => onMasteryChange?.('practicing')}
+            >
+              Needs practice
+            </button>
+            <button
+              className={status === 'strong' ? 'active strong' : 'strong'}
+              onClick={() => onMasteryChange?.('strong')}
+            >
+              Strong
+            </button>
+            <button
+              className={status === 'mastered' ? 'active mastered' : 'mastered'}
+              onClick={() => onMasteryChange?.('mastered')}
+            >
+              Mastered
+            </button>
+          </div>
+        </div>
+      )}
     </section>
   );
 }
@@ -5713,7 +5753,7 @@ function FoldablePoemsBlock({ poems, chapterId, lessonStatuses = {}, onLessonSta
                 <span className="poem-level-tag">{poem.level}</span>
                 {lessonStatuses[statusKey] && (
                   <span className={`story-status-pill ${lessonStatuses[statusKey]}`}>
-                    {lessonStatuses[statusKey] === 'understood' ? 'Entendido' : 'Leído'}
+                    {getLessonStatusLabel(lessonStatuses[statusKey])}
                   </span>
                 )}
                 <ChevronDown size={18} className={`poem-chevron ${isOpen ? 'open' : ''}`} />
@@ -5802,7 +5842,7 @@ function FoldableSongsBlock({ songs, chapterId, lessonStatuses = {}, onLessonSta
                 <span className="poem-level-tag">{song.level}</span>
                 {lessonStatuses[statusKey] && (
                   <span className={`story-status-pill ${lessonStatuses[statusKey]}`}>
-                    {lessonStatuses[statusKey] === 'understood' ? 'Entendido' : 'Leído'}
+                    {getLessonStatusLabel(lessonStatuses[statusKey])}
                   </span>
                 )}
                 <ChevronDown size={18} className={`poem-chevron ${isOpen ? 'open' : ''}`} />
@@ -5888,7 +5928,7 @@ function FoldableBiosBlock({ bios, chapterId, lessonStatuses = {}, onLessonStatu
                   ))}
                   {lessonStatuses[statusKey] && (
                     <span className={`story-status-pill ${lessonStatuses[statusKey]}`}>
-                      {lessonStatuses[statusKey] === 'understood' ? 'Entendido' : 'Leído'}
+                      {getLessonStatusLabel(lessonStatuses[statusKey])}
                     </span>
                   )}
                 </div>
@@ -5956,7 +5996,7 @@ function FoldableGrammarBlock({ lessons, chapterId, lessonStatuses = {}, onLesso
               </div>
               {lessonStatuses[statusKey] && (
                 <span className={`gl-status-pill ${lessonStatuses[statusKey]}`}>
-                  {lessonStatuses[statusKey] === 'understood' ? 'Entendido' : 'Leído'}
+                  {getLessonStatusLabel(lessonStatuses[statusKey])}
                 </span>
               )}
               <ChevronDown size={18} className={`gl-chevron ${isOpen ? 'open' : ''}`} />
@@ -5971,7 +6011,12 @@ function FoldableGrammarBlock({ lessons, chapterId, lessonStatuses = {}, onLesso
                 {lesson.sections.map((s, si) => (
                   <GrammarSection key={si} s={s} />
                 ))}
-                <LessonMiniQuiz source={lesson} title={`Practica: ${lesson.title}`} />
+                <LessonMiniQuiz
+                  source={lesson}
+                  title={`Practica: ${lesson.title}`}
+                  status={lessonStatuses[statusKey]}
+                  onMasteryChange={(status) => onLessonStatusChange?.(statusKey, status)}
+                />
               </div>
             )}
           </div>
@@ -6016,7 +6061,7 @@ function FoldableStoriesBlock({ stories, chapterId, lessonStatuses = {}, onLesso
                   <BioBadge level={s.level} />
                   {lessonStatuses[statusKey] && (
                     <span className={`story-status-pill ${lessonStatuses[statusKey]}`}>
-                      {lessonStatuses[statusKey] === 'understood' ? 'Entendido' : 'Leído'}
+                      {getLessonStatusLabel(lessonStatuses[statusKey])}
                     </span>
                   )}
                 </div>
@@ -6595,8 +6640,9 @@ function PalabrasLab({ onSaveWord, savedWords = [], progress = {}, onProgressCha
 // CHAPTER RENDERER - book-style content blocks
 // =============================================================
 function LessonStatusControl({ status, onChange }) {
-  const isRead = status === 'read' || status === 'understood';
-  const isUnderstood = status === 'understood';
+  const isRead = isLessonReadStatus(status);
+  const isUnderstood = isLessonUnderstoodStatus(status);
+  const isMastered = status === 'mastered';
 
   function markRead() {
     onChange?.(status === 'read' ? null : 'read');
@@ -6606,16 +6652,24 @@ function LessonStatusControl({ status, onChange }) {
     onChange?.(status === 'understood' ? 'read' : 'understood');
   }
 
+  function markMastered() {
+    onChange?.(status === 'mastered' ? 'understood' : 'mastered');
+  }
+
   return (
     <div className="lesson-status-control" aria-label="Lesson status">
       <span className="lesson-status-label">Estado</span>
-      <button className={`lesson-status-btn ${isRead ? 'active' : ''}`} onClick={markRead}>
+      <button className={`lesson-status-btn read ${isRead ? 'active' : ''}`} onClick={markRead}>
         <BookOpen size={14} />
         Leído
       </button>
       <button className={`lesson-status-btn understood ${isUnderstood ? 'active' : ''}`} onClick={markUnderstood}>
         <Check size={14} />
         Entendido
+      </button>
+      <button className={`lesson-status-btn mastery ${isMastered ? 'active' : ''}`} onClick={markMastered}>
+        <Sparkles size={14} />
+        Dominado
       </button>
     </div>
   );
@@ -7130,7 +7184,12 @@ function ChapterContent({ chapter, sectionId, section, activeNestedTarget, onOpe
       })}
 
       {!hasNestedLessonStatus && (
-        <LessonMiniQuiz source={chapter} title={`Practica: ${chapter.title}`} />
+        <LessonMiniQuiz
+          source={chapter}
+          title={`Practica: ${chapter.title}`}
+          status={lessonStatuses[chapter.id]}
+          onMasteryChange={(status) => onLessonStatusChange?.(chapter.id, status)}
+        />
       )}
     </article>
   );
@@ -8007,6 +8066,7 @@ function MemoriaView({ savedWords, onRemove, onClear, onUpdateWord }) {
   const [view, setView] = useState('grid'); // 'grid' | 'list'
   const [query, setQuery] = useState('');
   const [tagFilter, setTagFilter] = useState('ALL');
+  const [focusFilter, setFocusFilter] = useState('ALL');
   const [reviewIndex, setReviewIndex] = useState(0);
   const [reviewFlipped, setReviewFlipped] = useState(false);
   const [tagDraft, setTagDraft] = useState('');
@@ -8045,21 +8105,28 @@ function MemoriaView({ savedWords, onRemove, onClear, onUpdateWord }) {
     const q = query.trim().toLowerCase();
     return sorted.filter((entry) => {
       const tags = getMemoriaTags(entry);
+      const isDue = entry.review?.seen && (entry.review?.dueAt || 0) <= Date.now();
       const matchesTag = tagFilter === 'ALL' || tags.includes(tagFilter);
+      const matchesFocus =
+        focusFilter === 'ALL' ||
+        (focusFilter === 'due' && isDue) ||
+        (focusFilter === 'difficult' && entry.difficult) ||
+        (focusFilter === 'favorite' && entry.favorite) ||
+        (focusFilter === 'mastered' && entry.review?.mastered);
       const matchesQuery = !q ||
         entry.word.toLowerCase().includes(q) ||
         (entry.translation || '').toLowerCase().includes(q) ||
         tags.some((tag) => tag.toLowerCase().includes(q));
-      return matchesTag && matchesQuery;
+      return matchesTag && matchesFocus && matchesQuery;
     });
-  }, [sorted, query, tagFilter]);
+  }, [sorted, query, tagFilter, focusFilter]);
   const reviewWord = filtered[reviewIndex % Math.max(1, filtered.length)];
   const memoriaSummary = useMemo(() => getMemoriaSummary(sorted), [sorted]);
 
   useEffect(() => {
     setReviewIndex(0);
     setReviewFlipped(false);
-  }, [query, tagFilter, savedWords.length]);
+  }, [query, tagFilter, focusFilter, savedWords.length]);
 
   function addTag(word) {
     const tag = tagDraft.trim().toLowerCase().replace(/\s+/g, '-');
@@ -8121,6 +8188,27 @@ function MemoriaView({ savedWords, onRemove, onClear, onUpdateWord }) {
           <span><AlertTriangle size={13} /> {memoriaSummary.difficult} dificiles</span>
           <span><Check size={13} /> {memoriaSummary.mastered} dominadas</span>
         </div>
+      <div className="memoria-focus-board" aria-label="Memoria focus filters">
+        {[
+          { key: 'ALL', label: 'All cards', detail: `${sorted.length} saved` },
+          { key: 'due', label: 'Due now', detail: `${memoriaSummary.due} to review` },
+          { key: 'difficult', label: 'Difficult', detail: `${memoriaSummary.difficult} need examples` },
+          { key: 'favorite', label: 'Favorites', detail: `${memoriaSummary.favorite} important` },
+          { key: 'mastered', label: 'Mastered', detail: `${memoriaSummary.mastered} stable` },
+        ].map((item) => (
+          <button
+            key={item.key}
+            className={focusFilter === item.key ? 'active' : ''}
+            onClick={() => {
+              setFocusFilter(item.key);
+              if (item.key === 'due' || item.key === 'difficult') setView('review');
+            }}
+          >
+            <strong>{item.label}</strong>
+            <span>{item.detail}</span>
+          </button>
+        ))}
+      </div>
       {/* View toggle */}
       <div className="memoria-view-toggle">
         <button
@@ -8524,206 +8612,6 @@ function isLikelyBooxDevice() {
   const brands = (navigator.userAgentData?.brands || []).map((brand) => brand.brand).join(' ');
   const ua = `${navigator.userAgent || ''} ${brands}`;
   return /boox|onyx|e-?ink/i.test(ua);
-}
-
-function HomeView({
-  totalLessons,
-  visitedCount,
-  savedWordsCount,
-  levelFilter,
-  palabrasSummary,
-  lessonSummary,
-  memoriaSummary,
-  learnerProfile,
-  reviewQueue,
-  studyTime,
-  dailyPlan,
-  dailyProgress,
-  teacherInsights,
-  writingCount,
-  sectionProgress,
-  recommendations,
-  onStart,
-  onStartDaily,
-  onDailyStep,
-  onOpenMemoria,
-  onOpenPalabras,
-  onOpenVerb,
-  onOpenReading,
-  onOpenWriting,
-  onSelectChapter,
-  onTeacherAction,
-}) {
-  const progress = totalLessons ? Math.round((visitedCount / totalLessons) * 100) : 0;
-
-  return (
-    <article className="chapter-body home-dashboard">
-      <header className="home-hero">
-        <div className="home-kicker">
-          <GraduationCap size={18} />
-          Plan de estudio
-        </div>
-        <h1 className="home-title">Lexiora</h1>
-        <p className="home-subtitle">
-          Hoy: una leccion clara, 10 palabras, lectura en voz alta, Memoria, y una frase escrita.
-        </p>
-        <div className="home-actions">
-          <button className="home-primary" onClick={onStartDaily || onStart}>
-            Start Daily Lesson
-            <ChevronRight size={16} />
-          </button>
-          <button className="home-secondary" onClick={onOpenMemoria}>
-            <Bookmark size={15} />
-            Memoria
-          </button>
-        </div>
-      </header>
-
-      <section className="home-daily-focus" aria-label="Today's study plan">
-        <div className="home-daily-focus-main">
-          <span className="home-section-heading">
-            <Zap size={18} />
-            Daily Lesson
-          </span>
-          <h2>{dailyProgress.completed} / {dailyProgress.total} done today</h2>
-          <p>One small route: words, grammar, reading, one verb, Memoria, and writing.</p>
-        </div>
-        <div className="home-daily-focus-side">
-          <span>{formatStudyDuration(studyTime.todaySeconds)} today</span>
-          <span>{dailyProgress.streak} day streak</span>
-        </div>
-      </section>
-
-      <TeacherPanel insights={teacherInsights} onAction={onTeacherAction} />
-
-      <section className="home-stats" aria-label="Study progress">
-        <div className="home-stat">
-          <span className="home-stat-label">Progreso</span>
-          <strong>{progress}%</strong>
-          <span>{visitedCount} / {totalLessons} lecciones</span>
-        </div>
-        <div className="home-stat">
-          <span className="home-stat-label">Tiempo hoy</span>
-          <strong>{formatStudyDuration(studyTime.todaySeconds)}</strong>
-          <span>{formatStudyDuration(studyTime.totalSeconds)} total</span>
-        </div>
-        <div className="home-stat">
-          <span className="home-stat-label">Nivel</span>
-          <strong>{levelFilter === 'ALL' ? 'Todo' : levelFilter}</strong>
-          <span>Filtro activo</span>
-        </div>
-        <div className="home-stat">
-          <span className="home-stat-label">Memoria</span>
-          <strong>{savedWordsCount}</strong>
-          <span>{memoriaSummary.difficult} dificiles</span>
-        </div>
-        <div className="home-stat">
-          <span className="home-stat-label">Palabras due</span>
-          <strong>{palabrasSummary.due}</strong>
-          <span>{palabrasSummary.mastered} dominadas</span>
-        </div>
-        <div className="home-stat">
-          <span className="home-stat-label">Lecciones</span>
-          <strong>{lessonSummary.understood}</strong>
-          <span>{lessonSummary.read} leidas</span>
-        </div>
-        <div className="home-stat">
-          <span className="home-stat-label">Writing</span>
-          <strong>{writingCount}</strong>
-          <span>entradas</span>
-        </div>
-      </section>
-
-      <section className="home-daily">
-        <div className="home-section-heading">
-          <Zap size={18} />
-          Ruta diaria
-        </div>
-        <div className="home-daily-grid">
-          {dailyPlan.map((item) => (
-            <button
-              key={item.key}
-              className={`home-daily-step ${item.complete ? 'complete' : ''}`}
-              onClick={() => onDailyStep(item.key)}
-            >
-              <span>{item.index}</span>
-              <strong>{item.title}</strong>
-              <em>{item.detail}</em>
-              <small>{item.complete ? 'Done' : 'Open'}</small>
-            </button>
-          ))}
-        </div>
-      </section>
-
-      <section className="home-review-queue">
-        <div className="home-section-heading">
-          <BarChart3 size={18} />
-          Cola de repaso
-        </div>
-        <div className="home-review-list">
-          {reviewQueue.slice(0, 8).map((item, index) => (
-            <button
-              key={`${item.type}-${item.title}-${index}`}
-              onClick={() => item.chapter ? onSelectChapter(item.chapter) : item.type === 'writing' ? onOpenWriting() : onOpenMemoria()}
-            >
-              <span className={`review-type ${item.type}`}>{item.type}</span>
-              <strong>{item.title}</strong>
-              <em>{item.detail}</em>
-            </button>
-          ))}
-        </div>
-        <div className="home-review-summary">
-          {learnerProfile.vocabulary.due} vocabulary due · {learnerProfile.writing.needsPractice} writing rewrites · {learnerProfile.chapters.unvisited} lesson groups to open
-        </div>
-      </section>
-
-      <section className="home-progress-map">
-        <div className="home-section-heading">
-          <Compass size={18} />
-          Mapa de progreso
-        </div>
-        <div className="home-progress-list">
-          {sectionProgress.map((item) => {
-            const pct = item.total ? Math.round((item.visited / item.total) * 100) : 0;
-            return (
-              <div key={item.id} className="home-progress-row">
-                <div className="home-progress-top">
-                  <span>{item.label}</span>
-                  <strong>{item.visited} / {item.total}</strong>
-                </div>
-                <div className="home-progress-track">
-                  <span style={{ width: `${pct}%` }} />
-                </div>
-              </div>
-            );
-          })}
-        </div>
-      </section>
-
-      <section className="home-path">
-        <div className="home-section-heading">
-          <Clock size={18} />
-          Siguiente lectura
-        </div>
-        <div className="home-recommendations">
-          {recommendations.map((chapter, index) => (
-            <button
-              key={chapter.id}
-              className="home-rec"
-              onClick={() => onSelectChapter(chapter)}
-            >
-              <span className="home-rec-index">{String(index + 1).padStart(2, '0')}</span>
-              <span className="home-rec-main">
-                <span className="home-rec-title">{chapter.title}</span>
-                <span className="home-rec-meta">{chapter.sectionLabel} - {chapter.level}</span>
-              </span>
-              <ChevronRight size={16} />
-            </button>
-          ))}
-        </div>
-      </section>
-    </article>
-  );
 }
 
 export default function SpanishBook() {
@@ -9262,7 +9150,7 @@ export default function SpanishBook() {
     const wroteToday = writingEntries.some((entry) => (entry.createdAt || 0) >= start);
     const chapterDone = (chapter) => {
       if (!chapter) return false;
-      return visitedSet.has(chapter.id) || lessonStatuses[chapter.id] === 'read' || lessonStatuses[chapter.id] === 'understood';
+      return visitedSet.has(chapter.id) || isLessonReadStatus(lessonStatuses[chapter.id]);
     };
     return {
       reviewedToday,
@@ -9982,7 +9870,7 @@ export default function SpanishBook() {
 
           <div className={`book-page ${showHome ? 'home-page' : ''}`}>
             {showHome ? (
-              <HomeView
+              <HomeDashboardView
                 totalLessons={studyProgress.total}
                 visitedCount={visibleVisitedCount}
                 savedWordsCount={savedWords.length}

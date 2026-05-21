@@ -1,4 +1,8 @@
 import { buildSectionLessonCards } from './section-lessons.js';
+import {
+  isLessonReadStatus,
+  isLessonUnderstoodStatus,
+} from './lesson-status.js';
 
 export function buildVisibleFlatChapters(sections = [], levelFilter = 'ALL') {
   const list = [];
@@ -23,17 +27,18 @@ export function buildStudyLessonCards(sections = [], visibleFlatChapters = []) {
 
 export function isLessonComplete(lesson, visitedSet = new Set(), lessonStatuses = {}) {
   const status = lessonStatuses[lesson.statusKey || lesson.id];
-  return status === 'read' || status === 'understood' || visitedSet.has(lesson.id);
+  return isLessonReadStatus(status) || visitedSet.has(lesson.id);
 }
 
 export function summarizeStudyProgress(sections = [], visibleFlatChapters = [], visitedChapters = [], lessonStatuses = {}) {
   const visitedSet = new Set(visitedChapters);
   const lessons = buildStudyLessonCards(sections, visibleFlatChapters);
   const completed = lessons.filter((lesson) => isLessonComplete(lesson, visitedSet, lessonStatuses)).length;
-  const understood = lessons.filter((lesson) => lessonStatuses[lesson.statusKey || lesson.id] === 'understood').length;
+  const understood = lessons.filter((lesson) => isLessonUnderstoodStatus(lessonStatuses[lesson.statusKey || lesson.id])).length;
+  const mastered = lessons.filter((lesson) => lessonStatuses[lesson.statusKey || lesson.id] === 'mastered').length;
   const read = lessons.filter((lesson) => {
     const status = lessonStatuses[lesson.statusKey || lesson.id];
-    return status === 'read' || status === 'understood';
+    return isLessonReadStatus(status);
   }).length;
 
   return {
@@ -42,6 +47,7 @@ export function summarizeStudyProgress(sections = [], visibleFlatChapters = [], 
     completed,
     read,
     understood,
+    mastered,
     percent: lessons.length ? Math.round((completed / lessons.length) * 100) : 0,
   };
 }

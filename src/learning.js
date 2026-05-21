@@ -1,4 +1,8 @@
 import { getDictionaryLookupVariants } from './spanish-dictionary.js';
+import {
+  isLessonReadStatus,
+  isLessonUnderstoodStatus,
+} from './lesson-status.js';
 
 export const DAY_MS = 24 * 60 * 60 * 1000;
 export const LEARNER_PROFILE_KEY = 'learner-profile-v1';
@@ -224,8 +228,9 @@ export function buildLearnerProfile({ chapters = [], visitedChapters = [], lesso
       unvisited: Math.max(0, chapters.length - chapters.filter((chapter) => visitedChapters.includes(chapter.id)).length),
     },
     lessons: {
-      read: lessonValues.filter((status) => status === 'read' || status === 'understood').length,
-      understood: lessonValues.filter((status) => status === 'understood').length,
+      read: lessonValues.filter((status) => isLessonReadStatus(status)).length,
+      understood: lessonValues.filter((status) => isLessonUnderstoodStatus(status)).length,
+      mastered: lessonValues.filter((status) => status === 'mastered').length,
     },
     vocabulary: {
       seen: reviewValues.filter((state) => state?.seen).length,
@@ -366,7 +371,7 @@ export function buildUnifiedReviewQueue({ chapters = [], lessonStatuses = {}, pa
     }
   }
   for (const [key, status] of Object.entries(lessonStatuses || {})) {
-    if (status === 'read') {
+    if (status === 'read' || status === 'practicing') {
       const title = key.split('::').pop() || key;
       queue.push({ type: 'lesson', title, detail: 'Mark understood after review', dueAt: now, priority: 1 });
     }

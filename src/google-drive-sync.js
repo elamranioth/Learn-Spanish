@@ -1,5 +1,6 @@
 import { normalizeDictionaryExact as normalizeDictionaryExactSmart } from './spanish-dictionary.js';
 import { mergeStudyTime } from './study-time.js';
+import { mergeLessonStatus } from './lesson-status.js';
 
 export const GOOGLE_CLIENT_ID_KEY = 'google-drive-client-id-v1';
 const GOOGLE_DRIVE_SYNC_FILE = 'learn-spanish-sync.json';
@@ -138,8 +139,7 @@ export function mergeSavedWords(localWords = [], remoteWords = []) {
 function mergeLessonStatuses(localStatuses = {}, remoteStatuses = {}) {
   const merged = { ...remoteStatuses, ...localStatuses };
   for (const key of new Set([...Object.keys(localStatuses || {}), ...Object.keys(remoteStatuses || {})])) {
-    if (localStatuses[key] === 'understood' || remoteStatuses[key] === 'understood') merged[key] = 'understood';
-    else if (localStatuses[key] === 'read' || remoteStatuses[key] === 'read') merged[key] = 'read';
+    merged[key] = mergeLessonStatus(localStatuses[key], remoteStatuses[key]);
   }
   return merged;
 }
@@ -152,7 +152,7 @@ export function mergeSyncPayloads(localPayload, remotePayload) {
   return {
     ...newerSettings,
     app: 'Lexiora',
-    version: 4,
+    version: 5,
     exportedAt: new Date().toISOString(),
     savedWords: mergeSavedWords(localPayload.savedWords, remotePayload.savedWords),
     visitedChapters: Array.from(new Set([...(remotePayload.visitedChapters || []), ...(localPayload.visitedChapters || [])])),

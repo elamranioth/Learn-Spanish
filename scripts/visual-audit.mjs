@@ -8,6 +8,8 @@ const read = (path) => readFileSync(join(root, path), 'utf8');
 const files = {
   styles: read('src/book-styles.js'),
   app: read('src/spanish-book.jsx'),
+  homeDashboard: read('src/home-dashboard.jsx'),
+  lessonStatus: read('src/lesson-status.js'),
   syncPanel: read('src/sync-panel.jsx'),
   teacherPanel: read('src/teacher-panel.jsx'),
   installBanner: read('src/install-banner.jsx'),
@@ -28,6 +30,9 @@ const checks = [
   ['Google sync panel is split and lazy loaded', files.app.includes("React.lazy(() => import('./sync-panel.jsx'))") && files.syncPanel.includes('Google Drive stores one private study file')],
   ['large lesson packs are dynamically imported', files.app.includes("import('./tiempos-verbales.js')") && files.app.includes("import('./spanish-expressions-library.js')")],
   ['teacher recommendations are modular', files.app.includes('buildTeacherInsights') && files.teacherPanel.includes('Teacher notes')],
+  ['daily teacher mode is split and visible', files.app.includes("import HomeDashboardView from './home-dashboard.jsx'") && files.homeDashboard.includes('Daily Teacher Mode') && files.styles.includes('.daily-teacher-panel')],
+  ['lesson mastery states are shared across modules', files.lessonStatus.includes('mastered') && files.app.includes('lesson-mastery-panel') && files.styles.includes('.lesson-mastery-actions')],
+  ['Memoria 2.0 focus filters are present', files.app.includes('memoria-focus-board') && files.styles.includes('.memoria-focus-board')],
   ['install banner is modular', files.app.includes('<InstallBanner') && files.installBanner.includes('Install Lexiora')],
   ['offline rendering has performance containment', files.styles.includes('content-visibility: auto')],
 ];

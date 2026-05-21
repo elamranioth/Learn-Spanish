@@ -1,5 +1,10 @@
 import React from 'react';
 import { Sparkles } from 'lucide-react';
+import {
+  getLessonStatusLabel,
+  isLessonReadStatus,
+  isLessonUnderstoodStatus,
+} from './lesson-status.js';
 import { formatStudyDuration } from './study-time.js';
 
 export { buildSectionLessonCards, getNestedLessonKey } from './section-lessons.js';
@@ -9,9 +14,9 @@ export function SectionOverviewView({ section, lessons, visitedSet, lessonStatus
   const cards = lessons || [];
   const completedCount = cards.filter((lesson) => {
     const status = lessonStatuses?.[lesson.statusKey || lesson.id];
-    return status === 'read' || status === 'understood' || visitedSet.has(lesson.id);
+    return isLessonReadStatus(status) || visitedSet.has(lesson.id);
   }).length;
-  const understoodCount = cards.filter((lesson) => lessonStatuses?.[lesson.statusKey || lesson.id] === 'understood').length;
+  const understoodCount = cards.filter((lesson) => isLessonUnderstoodStatus(lessonStatuses?.[lesson.statusKey || lesson.id])).length;
   const intro = section.id === 'tiempos'
     ? 'Choose one tense lesson at a time. Start with the simple map, then move into compound tenses when the timeline feels clear.'
     : 'Choose one lesson from this section and read it slowly. Your progress stays attached to the exact lesson you open.';
@@ -60,7 +65,7 @@ export function SectionOverviewView({ section, lessons, visitedSet, lessonStatus
                 <span className="section-lesson-preview">{preview}</span>
                 <span className="section-lesson-footer">
                   <span className="section-lesson-status">
-                    {status === 'understood' ? 'Entendido' : status === 'read' ? 'Leído' : hasOpened ? 'Abierto' : 'Nuevo'}
+                    {getLessonStatusLabel(status, hasOpened)}
                   </span>
                   {seconds > 0 && <span className="section-lesson-time">{formatStudyDuration(seconds)}</span>}
                 </span>

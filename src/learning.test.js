@@ -17,6 +17,7 @@ import {
 } from './spanish-dictionary.js';
 import { buildRecommendedLessonCards, buildSectionProgress, buildVisibleFlatChapters, summarizeStudyProgress } from './progress.js';
 import { mergeStudyTime, recordStudySecond } from './study-time.js';
+import { mergeLessonStatus } from './lesson-status.js';
 
 function test(name, fn) {
   try {
@@ -143,6 +144,23 @@ test('progress counts nested lesson cards consistently', () => {
   assert.equal(summary.completed, 1);
   assert.equal(buildSectionProgress(sections, visible, [], summary.lessons.reduce((acc) => acc, { 'grammar::grammar::0::Pronouns': 'understood' }))[0].total, 2);
   assert.equal(buildRecommendedLessonCards(summary.lessons, [], { 'grammar::grammar::0::Pronouns': 'understood' }, 1)[0].title, 'Prepositions');
+});
+
+test('lesson mastery statuses count as completed progress', () => {
+  const sections = [{
+    id: 'lectura',
+    label: 'Lectura',
+    chapters: [
+      { id: 'a', level: 'A1', title: 'A', blocks: [] },
+      { id: 'b', level: 'A1', title: 'B', blocks: [] },
+    ],
+  }];
+  const visible = buildVisibleFlatChapters(sections, 'ALL');
+  const summary = summarizeStudyProgress(sections, visible, [], { a: 'strong', b: 'mastered' });
+  assert.equal(summary.completed, 2);
+  assert.equal(summary.understood, 2);
+  assert.equal(summary.mastered, 1);
+  assert.equal(mergeLessonStatus('read', 'mastered'), 'mastered');
 });
 
 test('study time sync merges unique device sessions without losing minutes', () => {
