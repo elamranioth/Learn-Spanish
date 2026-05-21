@@ -6996,7 +6996,7 @@ function ChapterContent({ chapter, sectionId, section, activeNestedTarget, onOpe
                     }
                     return (
                       <React.Fragment key={gi}>
-                        <table className="tense-group-table">
+                        <table className={`tense-group-table tense-group-count-${tenses.length}`}>
                           <thead>
                             <tr>
                               <th aria-hidden="true"></th>

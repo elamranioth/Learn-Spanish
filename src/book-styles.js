@@ -7054,29 +7054,30 @@ export const styles = `
 .book-root.boox-mode .lesson-table .render-form .irreg + .form-root {
   margin-left: 0;
 }
+.book-root.boox-mode .verb-table-block {
+  max-width: 680px;
+  margin-left: auto;
+  margin-right: auto;
+}
 .book-root.boox-mode .verb-table-block .tense-group-table {
   display: table !important;
   width: 100%;
   min-width: 0 !important;
   table-layout: fixed;
   border-collapse: collapse;
-  border: 1px solid #d8cbb8;
-  border-radius: 5px;
+  border: 0 !important;
+  border-radius: 0;
+  background: #ffffff !important;
   overflow: hidden;
 }
 .book-root.boox-mode .verb-table-block .tense-stack {
-  display: none !important;
+  display: flex !important;
+  flex-direction: column;
+  gap: 34px;
+  margin-top: 18px;
 }
 .book-root.boox-mode .verb-table-block .tense-reader-table {
-  display: table !important;
-  width: 100%;
-  min-width: 0 !important;
-  table-layout: fixed;
-  border-collapse: collapse;
-  border: 1px solid #d8cbb8;
-  border-radius: 5px;
-  background: #ffffff !important;
-  overflow: hidden;
+  display: none !important;
 }
 .book-root.boox-mode .tense-mobile-stack {
   display: none !important;
@@ -7087,7 +7088,7 @@ export const styles = `
 .book-root.boox-mode .tense-group-table td {
   border-left: 0 !important;
   border-bottom: 1px solid #d7cab8 !important;
-  padding: 8px 10px !important;
+  padding: 13px 16px !important;
   line-height: 1.18 !important;
   background: #ffffff !important;
 }
@@ -7095,11 +7096,13 @@ export const styles = `
 .book-root.boox-mode .tense-group-table thead th {
   border-bottom: 1.5px solid #000000 !important;
   color: #7b3b17 !important;
-  font-size: 11px !important;
-  letter-spacing: 0.14em !important;
+  font-size: 12px !important;
+  letter-spacing: 0.24em !important;
   text-align: center !important;
   white-space: nowrap;
   text-transform: uppercase;
+  padding-top: 2px !important;
+  padding-bottom: 14px !important;
 }
 .book-root.boox-mode .tense-reader-table thead tr,
 .book-root.boox-mode .tense-group-table thead tr {
@@ -7109,17 +7112,18 @@ export const styles = `
 .book-root.boox-mode .tense-group-table tbody th.tg-pronoun {
   width: 17%;
   color: #57524a !important;
-  font-size: 17px !important;
+  font-size: 18px !important;
   font-style: italic;
   font-weight: 400 !important;
   text-align: left !important;
+  white-space: nowrap;
 }
 .book-root.boox-mode .tense-reader-table tbody td.tg-form,
 .book-root.boox-mode .tense-group-table tbody td.tg-form {
   color: #000000 !important;
-  font-size: 18px !important;
+  font-size: 23px !important;
   font-weight: 800 !important;
-  text-align: center !important;
+  text-align: left !important;
   white-space: nowrap;
 }
 .book-root.boox-mode .tense-reader-table tr:last-child th,
@@ -7129,7 +7133,10 @@ export const styles = `
   border-bottom: 0 !important;
 }
 .book-root.boox-mode .tg-th-inner {
-  gap: 4px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
 }
 .book-root.boox-mode .tense-reader-table .form-part,
 .book-root.boox-mode .tense-reader-table .ending,
@@ -7141,8 +7148,42 @@ export const styles = `
 .book-root.boox-mode .tense-reader-table .render-form .irreg + .form-root {
   margin-left: 0;
 }
-.book-root.boox-mode .tense-group-table .speak-btn {
-  display: none !important;
+.book-root.boox-mode .verb-table-block .tense-group-count-3 thead th:first-child,
+.book-root.boox-mode .verb-table-block .tense-group-count-3 tbody th.tg-pronoun {
+  width: 25%;
+}
+.book-root.boox-mode .verb-table-block .tense-group-count-2 thead th:first-child,
+.book-root.boox-mode .verb-table-block .tense-group-count-2 tbody th.tg-pronoun {
+  width: 32%;
+}
+.book-root.boox-mode .verb-table-block .tense-group-table th:not(:first-child),
+.book-root.boox-mode .verb-table-block .tense-group-table td:not(:first-child) {
+  border-left: 1px solid #d8cbb8 !important;
+}
+.book-root.boox-mode .verb-table-block .tense-group-table tbody tr:last-child th,
+.book-root.boox-mode .verb-table-block .tense-group-table tbody tr:last-child td {
+  border-bottom: 0 !important;
+}
+.book-root.boox-mode .verb-table-block .tense-group-table .irreg {
+  color: #b03a32 !important;
+}
+.book-root.boox-mode .verb-table-block .tense-group-table .ending {
+  color: #000000 !important;
+}
+.book-root.boox-mode .verb-table-block .tense-group-table .render-form .form-part + .ending,
+.book-root.boox-mode .verb-table-block .tense-group-table .render-form .form-part + .irreg,
+.book-root.boox-mode .verb-table-block .tense-group-table .render-form .irreg + .form-root {
+  margin-left: 0 !important;
+}
+.book-root.boox-mode .verb-table-block .tense-group-table .speak-btn {
+  display: inline-flex !important;
+  width: 22px;
+  height: 22px;
+  margin-left: 6px;
+  opacity: 0.45;
+  color: #777777 !important;
+  border-color: #d8cbb8 !important;
+  background: #ffffff !important;
 }
 .book-root.boox-mode .mobile-bar {
   border-bottom: 2px solid #000000 !important;
@@ -8399,26 +8440,22 @@ export const styles = `
     min-width: 0 !important;
     table-layout: fixed;
     border-collapse: collapse;
-    border: 1px solid #d8cbb8;
-    border-radius: 5px;
+    border: 0 !important;
+    border-radius: 0;
     background: #ffffff;
     overflow: hidden;
   }
 
   .verb-table-block .tense-stack {
-    display: none !important;
+    display: flex !important;
+    flex-direction: column;
+    gap: 34px;
+    max-width: 680px;
+    margin: 18px auto 0;
   }
 
   .verb-table-block .tense-reader-table {
-    display: table !important;
-    width: 100%;
-    min-width: 0 !important;
-    table-layout: fixed;
-    border-collapse: collapse;
-    border: 1px solid #d8cbb8;
-    border-radius: 5px;
-    background: #ffffff;
-    overflow: hidden;
+    display: none !important;
   }
 
   .verb-table-block .tense-mobile-stack {
@@ -8431,7 +8468,7 @@ export const styles = `
   .tense-group-table td {
     border-left: 0 !important;
     border-bottom: 1px solid #d7cab8 !important;
-    padding: 8px 10px !important;
+    padding: 13px 16px !important;
     line-height: 1.18 !important;
     background: #ffffff;
   }
@@ -8440,11 +8477,13 @@ export const styles = `
   .tense-group-table thead th {
     border-bottom: 1.5px solid #111111 !important;
     color: #7b3b17 !important;
-    font-size: 11px !important;
-    letter-spacing: 0.14em !important;
+    font-size: 12px !important;
+    letter-spacing: 0.24em !important;
     text-align: center !important;
     text-transform: uppercase;
     white-space: nowrap;
+    padding-top: 2px !important;
+    padding-bottom: 14px !important;
   }
 
   .tense-reader-table thead tr,
@@ -8456,18 +8495,19 @@ export const styles = `
   .tense-group-table tbody th.tg-pronoun {
     width: 17%;
     color: #57524a;
-    font-size: 17px !important;
+    font-size: 18px !important;
     font-style: italic;
     font-weight: 400 !important;
     text-align: left !important;
+    white-space: nowrap;
   }
 
   .tense-reader-table tbody td.tg-form,
   .tense-group-table tbody td.tg-form {
     color: #000000;
-    font-size: 18px !important;
+    font-size: 23px !important;
     font-weight: 800 !important;
-    text-align: center !important;
+    text-align: left !important;
     white-space: nowrap;
   }
 
@@ -8494,11 +8534,44 @@ export const styles = `
   }
 
   .tg-th-inner {
-    gap: 4px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 7px;
   }
 
-  .tense-group-table .speak-btn {
-    display: none !important;
+  .verb-table-block .tense-group-count-3 thead th:first-child,
+  .verb-table-block .tense-group-count-3 tbody th.tg-pronoun {
+    width: 25%;
+  }
+  .verb-table-block .tense-group-count-2 thead th:first-child,
+  .verb-table-block .tense-group-count-2 tbody th.tg-pronoun {
+    width: 32%;
+  }
+  .verb-table-block .tense-group-table th:not(:first-child),
+  .verb-table-block .tense-group-table td:not(:first-child) {
+    border-left: 1px solid #d8cbb8 !important;
+  }
+  .verb-table-block .tense-group-table .irreg {
+    color: #b03a32 !important;
+  }
+  .verb-table-block .tense-group-table .ending {
+    color: #000000 !important;
+  }
+  .verb-table-block .tense-group-table .render-form .form-part + .ending,
+  .verb-table-block .tense-group-table .render-form .form-part + .irreg,
+  .verb-table-block .tense-group-table .render-form .irreg + .form-root {
+    margin-left: 0 !important;
+  }
+  .verb-table-block .tense-group-table .speak-btn {
+    display: inline-flex !important;
+    width: 22px;
+    height: 22px;
+    margin-left: 6px;
+    opacity: 0.45;
+    color: #777777 !important;
+    border-color: #d8cbb8 !important;
+    background: #ffffff !important;
   }
 }
 
