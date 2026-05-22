@@ -9577,7 +9577,25 @@ export default function SpanishBook() {
       setTimeout(() => backgroundTranslate(w.word), i * 800);
     });
   }, [savedWords.length]);
-  const activeSections = useMemo(() => hydrateSectionsWithLazyData(SECTIONS, lazyLessonData), [lazyLessonData]);
+  const activeSections = useMemo(() => {
+    const hydrated = hydrateSectionsWithLazyData(SECTIONS, lazyLessonData);
+    const firstTopTen = hydrated.find((section) => section.id === 'verbos');
+    const secondTopTen = hydrated.find((section) => section.id === 'verbos2');
+    if (!firstTopTen || !secondTopTen) return hydrated;
+
+    const mergedVerbos = {
+      ...firstTopTen,
+      sublabel: 'Top 20',
+      chapters: [
+        ...(firstTopTen.chapters || []),
+        ...(secondTopTen.chapters || []),
+      ],
+    };
+
+    return hydrated
+      .map((section) => (section.id === 'verbos' ? mergedVerbos : section))
+      .filter((section) => section.id !== 'verbos2');
+  }, [lazyLessonData]);
   const visibleFlatChapters = useMemo(() => {
     return buildVisibleFlatChapters(activeSections, levelFilter);
   }, [activeSections, levelFilter]);
