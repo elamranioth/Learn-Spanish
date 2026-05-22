@@ -84,6 +84,7 @@ const SECTION_ICONS = {
   frases: MessageSquare,    // useful phrases — speech bubble
   tips: Lightbulb,          // strategy tips
   resumen: Compass,         // takeaways — orientation
+  practicar: Sparkles,      // centralized drills
 };
 
 function SectionIcon({ id, size = 18, className = '' }) {
@@ -5150,6 +5151,26 @@ const SECTIONS = [
       },
     ],
   },
+  {
+    id: 'practicar',
+    label: 'Practicar',
+    sublabel: 'Tests y repaso',
+    chapters: [
+      {
+        id: 'practicar-centro',
+        level: 'A1-B2',
+        alwaysVisible: true,
+        title: 'Centro de Practica',
+        subtitle: 'Todo el entrenamiento en un solo lugar',
+        intro: 'Elige una leccion, cambia el formato (multiple choice o escribir), y practica con feedback inmediato. Este bloque esta inspirado en los formatos de practica de SpanishDict, pero usa tus propias lecciones y progreso.',
+        blocks: [
+          {
+            type: 'practice-hub',
+          },
+        ],
+      },
+    ],
+  },
 ];
 
 // =============================================================
@@ -5480,6 +5501,41 @@ function shuffleList(list) {
   return [...list].sort(() => Math.random() - 0.5);
 }
 
+let quizFeedbackAudioCtx = null;
+
+function playQuizFeedbackSound(kind = 'correct') {
+  if (typeof window === 'undefined') return;
+  const AudioContextClass = window.AudioContext || window.webkitAudioContext;
+  if (!AudioContextClass) return;
+  try {
+    if (!quizFeedbackAudioCtx) quizFeedbackAudioCtx = new AudioContextClass();
+    const ctx = quizFeedbackAudioCtx;
+    if (ctx.state === 'suspended') ctx.resume().catch(() => {});
+    const now = ctx.currentTime;
+    const gain = ctx.createGain();
+    gain.connect(ctx.destination);
+    gain.gain.setValueAtTime(0.0001, now);
+    gain.gain.exponentialRampToValueAtTime(0.08, now + 0.01);
+    gain.gain.exponentialRampToValueAtTime(0.0001, now + 0.22);
+
+    const oscA = ctx.createOscillator();
+    oscA.type = 'sine';
+    oscA.frequency.setValueAtTime(kind === 'correct' ? 760 : 300, now);
+    oscA.connect(gain);
+    oscA.start(now);
+    oscA.stop(now + 0.22);
+
+    if (kind === 'correct') {
+      const oscB = ctx.createOscillator();
+      oscB.type = 'triangle';
+      oscB.frequency.setValueAtTime(1040, now + 0.1);
+      oscB.connect(gain);
+      oscB.start(now + 0.1);
+      oscB.stop(now + 0.24);
+    }
+  } catch (_) {}
+}
+
 function collectQuizPairs(source) {
   const pairs = [];
   function add(es, en) {
@@ -5519,10 +5575,12 @@ function collectQuizPairs(source) {
   return unique;
 }
 
-function buildLessonQuiz(source) {
+function buildLessonQuiz(source, options = {}) {
+  const requestedCount = Number(options.count) || 4;
   const pairs = collectQuizPairs(source);
   if (pairs.length < 2) return [];
-  const picked = shuffleList(pairs).slice(0, Math.min(4, pairs.length));
+  const safeCount = Math.max(2, Math.min(requestedCount, pairs.length));
+  const picked = shuffleList(pairs).slice(0, safeCount);
   return picked.map((pair, index) => {
     const askSpanish = index % 2 === 0;
     const answer = askSpanish ? pair.es : pair.en;
@@ -5541,115 +5599,620 @@ function buildLessonQuiz(source) {
   });
 }
 
-function LessonMiniQuiz({ source, title = 'Mini practica', status, onMasteryChange }) {
-  const questions = useMemo(() => buildLessonQuiz(source), [source]);
-  const [answers, setAnswers] = useState({});
-  const [finished, setFinished] = useState(false);
+function buildLessonTypingQuiz(source, count = 8) {
+  const pairs = collectQuizPairs(source);
+  if (pairs.length < 2) return [];
+  const safeCount = Math.max(2, Math.min(count, pairs.length));
+  const picked = shuffleList(pairs).slice(0, safeCount);
+  return picked.map((pair, index) => {
+    const askSpanish = index % 2 === 0;
+    return {
+      prompt: askSpanish ? pair.en : pair.es,
+      answer: askSpanish ? pair.es : pair.en,
+      speak: pair.es,
+      mode: askSpanish ? 'Escribe en espanol' : 'Write in English',
+      tip: askSpanish
+        ? 'Escribe la traduccion en espanol. Puedes omitir mayusculas y tildes.'
+        : 'Write the English translation.',
+    };
+  });
+}
+
+function buildListeningQuiz(source, count = 8) {
+  const pairs = collectQuizPairs(source);
+  if (pairs.length < 2) return [];
+  const safeCount = Math.max(2, Math.min(count, pairs.length));
+  const picked = shuffleList(pairs).slice(0, safeCount);
+  return picked.map((pair) => {
+    const answer = pair.en;
+    const distractors = shuffleList(pairs)
+      .filter((candidate) => candidate !== pair)
+      .map((candidate) => candidate.en)
+      .filter((value) => normalizeForCompare(value) !== normalizeForCompare(answer))
+      .slice(0, 3);
+    return {
+      prompt: 'Escucha y elige la traduccion correcta',
+      answer,
+      speak: pair.es,
+      es: pair.es,
+      choices: shuffleList([answer, ...distractors]).slice(0, 4),
+    };
+  });
+}
+
+function PracticeHubBlock({ chapter, practiceChapters = [], lessonStatuses = {}, onLessonStatusChange }) {
+  const lessonSources = useMemo(() => {
+    const list = [];
+    for (const candidate of practiceChapters) {
+      if (!candidate || candidate.id === chapter.id || candidate.sectionId === 'practicar') continue;
+      const pairCount = collectQuizPairs(candidate).length;
+      if (pairCount < 2) continue;
+      list.push({
+        id: candidate.id,
+        chapter: candidate,
+        pairCount,
+        sectionLabel: candidate.sectionLabel || candidate.sectionId || 'Leccion',
+      });
+    }
+    return list.sort((a, b) => b.pairCount - a.pairCount);
+  }, [practiceChapters, chapter.id]);
+
+  const verbSources = useMemo(() => {
+    const list = [];
+    for (const candidate of practiceChapters) {
+      if (!candidate || candidate.sectionId === 'practicar') continue;
+      (candidate.blocks || []).forEach((block, blockIndex) => {
+        if (block.type !== 'verb-table' || !Array.isArray(block.tenses) || block.tenses.length === 0) return;
+        list.push({
+          id: `${candidate.id}::${blockIndex}`,
+          chapterTitle: candidate.title,
+          sectionLabel: candidate.sectionLabel || candidate.sectionId || 'Verbos',
+          tenses: block.tenses,
+        });
+      });
+    }
+    return list;
+  }, [practiceChapters]);
+
+  const contextualQuizzes = useMemo(() => {
+    const list = [];
+    for (const candidate of practiceChapters) {
+      if (!candidate || candidate.sectionId === 'practicar') continue;
+      (candidate.blocks || []).forEach((block, blockIndex) => {
+        if (block.type !== 'choice-quiz' || !Array.isArray(block.questions) || block.questions.length === 0) return;
+        list.push({
+          id: `${candidate.id}::choice::${blockIndex}`,
+          block,
+          chapterTitle: candidate.title,
+          sectionLabel: candidate.sectionLabel || candidate.sectionId || 'Leccion',
+        });
+      });
+    }
+    return list;
+  }, [practiceChapters]);
+
+  const [mode, setMode] = useState('multiple-choice');
+  const [sourceId, setSourceId] = useState('');
+  const [scope, setScope] = useState('lesson');
+  const [questionCount, setQuestionCount] = useState(20);
+  const [sessionSeed, setSessionSeed] = useState(0);
+  const [mcAnswers, setMcAnswers] = useState({});
+  const [mcFinished, setMcFinished] = useState(false);
+  const [typingIndex, setTypingIndex] = useState(0);
+  const [typingInput, setTypingInput] = useState('');
+  const [typingFeedback, setTypingFeedback] = useState(null);
+  const [typingScore, setTypingScore] = useState(0);
+  const [typingDone, setTypingDone] = useState(false);
+  const [listeningAnswers, setListeningAnswers] = useState({});
+  const [listeningFinished, setListeningFinished] = useState(false);
+  const [activeVerbId, setActiveVerbId] = useState('');
+  const [activeContextualId, setActiveContextualId] = useState('');
 
   useEffect(() => {
-    setAnswers({});
-    setFinished(false);
-  }, [source]);
+    if (!lessonSources.length) {
+      setSourceId('');
+      return;
+    }
+    if (!lessonSources.some((source) => source.id === sourceId)) {
+      setSourceId(lessonSources[0].id);
+    }
+  }, [lessonSources, sourceId]);
 
-  if (questions.length < 2) return null;
+  useEffect(() => {
+    if (!verbSources.length) {
+      setActiveVerbId('');
+      return;
+    }
+    if (!verbSources.some((source) => source.id === activeVerbId)) {
+      setActiveVerbId(verbSources[0].id);
+    }
+  }, [verbSources, activeVerbId]);
 
-  const answeredCount = Object.keys(answers).length;
-  const score = questions.reduce((total, q, index) => (
-    normalizeForCompare(answers[index]) === normalizeForCompare(q.answer) ? total + 1 : total
+  useEffect(() => {
+    if (!contextualQuizzes.length) {
+      setActiveContextualId('');
+      return;
+    }
+    if (!contextualQuizzes.some((quiz) => quiz.id === activeContextualId)) {
+      setActiveContextualId(contextualQuizzes[0].id);
+    }
+  }, [contextualQuizzes, activeContextualId]);
+
+  useEffect(() => {
+    setMcAnswers({});
+    setMcFinished(false);
+    setTypingIndex(0);
+    setTypingInput('');
+    setTypingFeedback(null);
+    setTypingScore(0);
+    setTypingDone(false);
+    setListeningAnswers({});
+    setListeningFinished(false);
+  }, [mode, sourceId, scope, questionCount, sessionSeed]);
+
+  const selectedSource = lessonSources.find((source) => source.id === sourceId) || lessonSources[0] || null;
+  const selectedVerbSource = verbSources.find((source) => source.id === activeVerbId) || verbSources[0] || null;
+  const selectedContextualQuiz = contextualQuizzes.find((quiz) => quiz.id === activeContextualId) || contextualQuizzes[0] || null;
+  const sectionSources = useMemo(() => {
+    if (!selectedSource) return [];
+    return lessonSources.filter((source) => source.sectionLabel === selectedSource.sectionLabel);
+  }, [lessonSources, selectedSource]);
+
+  const pairPool = useMemo(() => {
+    function dedupePairs(pairs) {
+      const seen = new Set();
+      const unique = [];
+      for (const pair of pairs) {
+        const key = `${normalizeForCompare(pair.es)}::${normalizeForCompare(pair.en)}`;
+        if (seen.has(key)) continue;
+        seen.add(key);
+        unique.push(pair);
+      }
+      return unique;
+    }
+    if (!selectedSource) return [];
+    if (scope === 'all') {
+      const combined = [];
+      for (const source of lessonSources) combined.push(...collectQuizPairs(source.chapter));
+      return dedupePairs(combined);
+    }
+    if (scope === 'section') {
+      const combined = [];
+      for (const source of sectionSources) combined.push(...collectQuizPairs(source.chapter));
+      return dedupePairs(combined);
+    }
+    return dedupePairs(collectQuizPairs(selectedSource.chapter));
+  }, [selectedSource, lessonSources, sectionSources, scope]);
+
+  const poolSource = useMemo(() => ({
+    blocks: [
+      {
+        pairs: pairPool,
+      },
+    ],
+  }), [pairPool]);
+
+  const multipleChoiceQuestions = useMemo(() => (
+    selectedSource ? buildLessonQuiz(poolSource, { count: questionCount }) : []
+  ), [selectedSource, poolSource, questionCount, sessionSeed]);
+
+  const typingQuestions = useMemo(() => (
+    selectedSource ? buildLessonTypingQuiz(poolSource, questionCount) : []
+  ), [selectedSource, poolSource, questionCount, sessionSeed]);
+
+  const listeningQuestions = useMemo(() => (
+    selectedSource ? buildListeningQuiz(poolSource, questionCount) : []
+  ), [selectedSource, poolSource, questionCount, sessionSeed]);
+
+  const mcScore = multipleChoiceQuestions.reduce((total, question, index) => (
+    normalizeForCompare(mcAnswers[index]) === normalizeForCompare(question.answer) ? total + 1 : total
   ), 0);
-  const masterySuggestion = score >= Math.max(2, questions.length - 1) ? 'mastered' : score >= Math.ceil(questions.length * 0.7) ? 'strong' : 'practicing';
+  const mcPercent = multipleChoiceQuestions.length
+    ? Math.round((mcScore / multipleChoiceQuestions.length) * 100)
+    : 0;
+  const listeningScore = listeningQuestions.reduce((total, question, index) => (
+    normalizeForCompare(listeningAnswers[index]) === normalizeForCompare(question.answer) ? total + 1 : total
+  ), 0);
+  const listeningPercent = listeningQuestions.length
+    ? Math.round((listeningScore / listeningQuestions.length) * 100)
+    : 0;
+
+  const typedQuestion = typingQuestions[typingIndex];
+  const typingTotal = typingQuestions.length;
+  const typingPercent = typingTotal ? Math.round((typingScore / typingTotal) * 100) : 0;
+  const sourceTitle = selectedSource?.chapter?.title || '';
+  const sourceLabel = selectedSource?.sectionLabel || '';
+  const selectedLessonStatus = selectedSource ? lessonStatuses[selectedSource.chapter.id] : null;
+  const roundFinished = mode === 'multiple-choice' ? mcFinished : mode === 'typing' ? typingDone : listeningFinished;
+  const roundPercent = mode === 'multiple-choice' ? mcPercent : mode === 'typing' ? typingPercent : listeningPercent;
+  const roundSuggestion = roundPercent >= 85 ? 'mastered' : roundPercent >= 65 ? 'strong' : 'practicing';
+  const dictLookupHref = sourceTitle
+    ? `https://www.spanishdict.com/translate/${encodeURIComponent(sourceTitle)}`
+    : 'https://www.spanishdict.com/';
+  const verbLookup = selectedVerbSource?.chapterTitle || sourceTitle;
+  const conjugationHref = verbLookup
+    ? `https://www.spanishdict.com/conjugate/${encodeURIComponent(verbLookup.toLowerCase())}`
+    : 'https://www.spanishdict.com/conjugation';
+
+  function restartSession() {
+    setSessionSeed((value) => value + 1);
+  }
+
+  function chooseMultipleChoice(index, choice, answer) {
+    const isCorrect = normalizeForCompare(choice) === normalizeForCompare(answer);
+    playQuizFeedbackSound(isCorrect ? 'correct' : 'incorrect');
+    setMcAnswers((prev) => ({ ...prev, [index]: choice }));
+  }
+
+  function submitTyping(e) {
+    if (e) e.preventDefault();
+    if (!typedQuestion || typingFeedback) return;
+    const ok = normalizeForCompare(typingInput) === normalizeForCompare(typedQuestion.answer);
+    playQuizFeedbackSound(ok ? 'correct' : 'incorrect');
+    setTypingFeedback(ok ? 'correct' : 'incorrect');
+    if (ok) setTypingScore((value) => value + 1);
+  }
+
+  function nextTypingQuestion() {
+    if (typingIndex + 1 >= typingQuestions.length) {
+      setTypingDone(true);
+      return;
+    }
+    setTypingIndex((value) => value + 1);
+    setTypingInput('');
+    setTypingFeedback(null);
+  }
+
+  function chooseListening(index, choice, answer) {
+    const isCorrect = normalizeForCompare(choice) === normalizeForCompare(answer);
+    playQuizFeedbackSound(isCorrect ? 'correct' : 'incorrect');
+    setListeningAnswers((prev) => ({ ...prev, [index]: choice }));
+  }
+
+  if (!lessonSources.length) {
+    return (
+      <section className="block practice-hub-block">
+        <div className="home-section-heading">
+          <Sparkles size={16} />
+          Practicar
+        </div>
+        <h2 className="lesson-heading">Centro de practica</h2>
+        <p className="lesson-text">No hay suficientes ejercicios en las lecciones visibles para crear un quiz.</p>
+      </section>
+    );
+  }
 
   return (
-    <section className="lesson-mini-quiz">
-      <div className="lesson-mini-head">
+    <section className="block practice-hub-block">
+      <div className="practice-hub-top">
         <div>
-          <div className="lesson-mini-kicker"><Sparkles size={13} /> Practica rapida</div>
-          <h3>{title}</h3>
+          <div className="lesson-mini-kicker"><Sparkles size={13} /> Practica centralizada</div>
+          <h2 className="lesson-heading">Practicar con tus lecciones</h2>
+          <p className="lesson-text">
+            Practica grande estilo SpanishDict: banco amplio, rondas largas, y feedback inmediato.
+          </p>
         </div>
-        <button
-          className="lesson-mini-reset"
-          onClick={() => { setAnswers({}); setFinished(false); }}
-        >
+        <button className="lesson-mini-reset" onClick={restartSession}>
           <RotateCcw size={13} />
-          Reiniciar
+          Nueva ronda
         </button>
       </div>
-      <div className="lesson-mini-list">
-        {questions.map((q, index) => {
-          const selected = answers[index];
-          const isCorrect = selected && normalizeForCompare(selected) === normalizeForCompare(q.answer);
-          return (
-            <div key={`${q.prompt}-${index}`} className="lesson-mini-card">
-              <div className="lesson-mini-meta">
-                <span>{String(index + 1).padStart(2, '0')}</span>
-                <em>{q.mode}</em>
-                <SpeakBtn text={q.speak} />
+
+      <div className="practice-hub-toolbar">
+        <label className="practice-hub-field">
+          <span>Leccion</span>
+          <select value={selectedSource?.id || ''} onChange={(e) => setSourceId(e.target.value)}>
+            {lessonSources.map((source) => (
+              <option key={source.id} value={source.id}>
+                {source.chapter.title} ({source.pairCount})
+              </option>
+            ))}
+          </select>
+        </label>
+        <label className="practice-hub-field">
+          <span>Alcance</span>
+          <select value={scope} onChange={(e) => setScope(e.target.value)}>
+            <option value="lesson">Solo esta leccion</option>
+            <option value="section">Toda la seccion</option>
+            <option value="all">Todo el libro</option>
+          </select>
+        </label>
+        <label className="practice-hub-field">
+          <span>Cantidad</span>
+          <select value={questionCount} onChange={(e) => setQuestionCount(Number(e.target.value) || 20)}>
+            <option value={10}>10 preguntas</option>
+            <option value={20}>20 preguntas</option>
+            <option value={30}>30 preguntas</option>
+          </select>
+        </label>
+        <div className="practice-hub-modes" role="tablist" aria-label="Quiz format">
+          <button
+            className={mode === 'multiple-choice' ? 'active' : ''}
+            onClick={() => setMode('multiple-choice')}
+          >
+            Multiple choice
+          </button>
+          <button
+            className={mode === 'typing' ? 'active' : ''}
+            onClick={() => setMode('typing')}
+          >
+            Escribir
+          </button>
+          <button
+            className={mode === 'listening' ? 'active' : ''}
+            onClick={() => setMode('listening')}
+          >
+            Escuchar
+          </button>
+        </div>
+      </div>
+
+      <div className="practice-hub-source-line">
+        <strong>{sourceTitle}</strong>
+        <span>{sourceLabel}</span>
+        <span className="practice-hub-pool">{pairPool.length} pares disponibles</span>
+      </div>
+
+      {mode === 'multiple-choice' && (
+        <div className="lesson-mini-quiz practice-mc">
+          <div className="lesson-mini-list">
+            {multipleChoiceQuestions.map((question, index) => {
+              const selected = mcAnswers[index];
+              const isCorrect = selected && normalizeForCompare(selected) === normalizeForCompare(question.answer);
+              return (
+                <div key={`${question.prompt}-${index}`} className="lesson-mini-card">
+                  <div className="lesson-mini-meta">
+                    <span>{String(index + 1).padStart(2, '0')}</span>
+                    <em>{question.mode}</em>
+                    <SpeakBtn text={question.speak} />
+                  </div>
+                  <p className="lesson-mini-prompt">{question.prompt}</p>
+                  <div className="lesson-mini-choices">
+                    {question.choices.map((choice) => {
+                      const active = selected === choice;
+                      const stateClass = active ? (isCorrect ? 'correct' : 'wrong') : '';
+                      return (
+                        <button
+                          key={choice}
+                          className={`${active ? 'active' : ''} ${stateClass}`.trim()}
+                          onClick={() => chooseMultipleChoice(index, choice, question.answer)}
+                        >
+                          {choice}
+                        </button>
+                      );
+                    })}
+                  </div>
+                  {selected && !isCorrect && (
+                    <div className="lesson-mini-answer">Correcto: <strong>{question.answer}</strong></div>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+          <div className="lesson-mini-footer">
+            <span>{Object.keys(mcAnswers).length} / {multipleChoiceQuestions.length} respondidas</span>
+            <button
+              className="lesson-mini-check"
+              disabled={Object.keys(mcAnswers).length < multipleChoiceQuestions.length}
+              onClick={() => setMcFinished(true)}
+            >
+              Comprobar
+            </button>
+            {mcFinished && <strong>{mcScore} / {multipleChoiceQuestions.length}</strong>}
+          </div>
+        </div>
+      )}
+
+      {mode === 'typing' && (
+        <div className="practice-typing-shell">
+          {!typingDone && typedQuestion && (
+            <>
+              <div className="quiz-progress">
+                <div className="quiz-progress-text">
+                  Pregunta {typingIndex + 1} de {typingTotal}
+                </div>
+                <div className="quiz-progress-bar">
+                  <div
+                    className="quiz-progress-fill"
+                    style={{ width: `${(typingIndex / typingTotal) * 100}%` }}
+                  />
+                </div>
               </div>
-              <p className="lesson-mini-prompt">{q.prompt}</p>
-              <div className="lesson-mini-choices">
-                {q.choices.map((choice) => {
-                  const active = selected === choice;
-                  return (
-                    <button
-                      key={choice}
-                      className={`${active ? 'active' : ''} ${finished && active ? (isCorrect ? 'correct' : 'wrong') : ''}`}
-                      onClick={() => setAnswers((prev) => ({ ...prev, [index]: choice }))}
-                    >
-                      {choice}
-                    </button>
-                  );
-                })}
+              <div className="quiz-question">
+                <div className="quiz-tense-label">{typedQuestion.mode}</div>
+                <div className="quiz-prompt">{typedQuestion.prompt}</div>
+                <div className="quiz-instruction">{typedQuestion.tip}</div>
               </div>
-              {finished && selected && !isCorrect && (
-                <div className="lesson-mini-answer">Correcto: <strong>{q.answer}</strong></div>
+              <form className="quiz-form" onSubmit={submitTyping}>
+                <input
+                  value={typingInput}
+                  onChange={(e) => setTypingInput(e.target.value)}
+                  className={`quiz-input ${typingFeedback || ''}`}
+                  placeholder="Escribe tu respuesta..."
+                  autoComplete="off"
+                />
+                {!typingFeedback ? (
+                  <button type="submit" className="quiz-check-btn" disabled={!typingInput.trim()}>
+                    Comprobar
+                  </button>
+                ) : (
+                  <div className={`quiz-feedback ${typingFeedback}`}>
+                    {typingFeedback === 'correct' ? (
+                      <>
+                        <div className="quiz-feedback-icon"><Check size={18} /></div>
+                        <div>
+                          <div className="quiz-feedback-title">Correcto</div>
+                          <div className="quiz-feedback-answer">{typedQuestion.answer}</div>
+                        </div>
+                      </>
+                    ) : (
+                      <>
+                        <div className="quiz-feedback-icon"><X size={18} /></div>
+                        <div>
+                          <div className="quiz-feedback-title">No es correcto</div>
+                          <div className="quiz-feedback-answer">Respuesta: {typedQuestion.answer}</div>
+                        </div>
+                      </>
+                    )}
+                    <SpeakBtn text={typedQuestion.speak} size="md" className="quiz-feedback-speak" />
+                  </div>
+                )}
+              </form>
+              {typingFeedback && (
+                <div className="quiz-score-line">
+                  <button className="quiz-next-btn" onClick={nextTypingQuestion}>
+                    {typingIndex + 1 >= typingTotal ? 'Ver resultado' : 'Siguiente'}
+                  </button>
+                </div>
               )}
+            </>
+          )}
+          {typingDone && (
+            <div className="quiz-results">
+              <div className="quiz-results-circle">
+                <div className="quiz-results-pct">{typingPercent}%</div>
+                <div className="quiz-results-fraction">{typingScore} / {typingTotal}</div>
+              </div>
+              <h3 className="quiz-results-title">Sesion completada</h3>
+              <p className="quiz-results-msg">
+                {typingPercent >= 85
+                  ? 'Excelente control. Puedes marcar esta leccion como dominada.'
+                  : typingPercent >= 65
+                    ? 'Buen progreso. Repite una ronda mas para fijarlo.'
+                    : 'Haz otra ronda corta para consolidar.'}
+              </p>
+              <div className="quiz-results-actions">
+                <button className="quiz-retry-btn" onClick={restartSession}>Repetir</button>
+              </div>
             </div>
-          );
-        })}
-      </div>
-      <div className="lesson-mini-footer">
-        <span>{answeredCount} / {questions.length} respondidas</span>
-        <button
-          className="lesson-mini-check"
-          disabled={answeredCount < questions.length}
-          onClick={() => setFinished(true)}
-        >
-          Comprobar
-        </button>
-        {finished && <strong>{score} / {questions.length}</strong>}
-      </div>
-      {finished && (
+          )}
+        </div>
+      )}
+
+      {mode === 'listening' && (
+        <div className="lesson-mini-quiz practice-listening">
+          <div className="lesson-mini-list">
+            {listeningQuestions.map((question, index) => {
+              const selected = listeningAnswers[index];
+              const isCorrect = selected && normalizeForCompare(selected) === normalizeForCompare(question.answer);
+              return (
+                <div key={`${question.es}-${index}`} className="lesson-mini-card">
+                  <div className="lesson-mini-meta">
+                    <span>{String(index + 1).padStart(2, '0')}</span>
+                    <em>Listening</em>
+                    <SpeakBtn text={question.speak} />
+                  </div>
+                  <p className="lesson-mini-prompt">{question.prompt}</p>
+                  <p className="practice-listening-es">{question.es}</p>
+                  <div className="lesson-mini-choices">
+                    {question.choices.map((choice) => {
+                      const active = selected === choice;
+                      const stateClass = active ? (isCorrect ? 'correct' : 'wrong') : '';
+                      return (
+                        <button
+                          key={choice}
+                          className={`${active ? 'active' : ''} ${stateClass}`.trim()}
+                          onClick={() => chooseListening(index, choice, question.answer)}
+                        >
+                          {choice}
+                        </button>
+                      );
+                    })}
+                  </div>
+                  {selected && !isCorrect && (
+                    <div className="lesson-mini-answer">Correcto: <strong>{question.answer}</strong></div>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+          <div className="lesson-mini-footer">
+            <span>{Object.keys(listeningAnswers).length} / {listeningQuestions.length} respondidas</span>
+            <button
+              className="lesson-mini-check"
+              disabled={Object.keys(listeningAnswers).length < listeningQuestions.length}
+              onClick={() => setListeningFinished(true)}
+            >
+              Comprobar
+            </button>
+            {listeningFinished && <strong>{listeningScore} / {listeningQuestions.length}</strong>}
+          </div>
+        </div>
+      )}
+
+      {selectedSource && roundFinished && (
         <div className="lesson-mastery-panel" aria-live="polite">
           <div>
             <span>Mastery check</span>
             <strong>
-              {masterySuggestion === 'mastered'
-                ? 'This lesson is ready to master.'
-                : masterySuggestion === 'strong'
-                  ? 'You are strong here. Review once more soon.'
-                  : 'Keep this lesson in practice.'}
+              {roundSuggestion === 'mastered'
+                ? 'Excelente. Esta leccion esta lista para dominado.'
+                : roundSuggestion === 'strong'
+                  ? 'Buen nivel. Una ronda extra la deja firme.'
+                  : 'Mantener en practica unos dias mas.'}
             </strong>
           </div>
           <div className="lesson-mastery-actions">
             <button
-              className={status === 'practicing' ? 'active practice' : 'practice'}
-              onClick={() => onMasteryChange?.('practicing')}
+              className={selectedLessonStatus === 'practicing' ? 'active practice' : 'practice'}
+              onClick={() => onLessonStatusChange?.(selectedSource.chapter.id, 'practicing')}
             >
               Needs practice
             </button>
             <button
-              className={status === 'strong' ? 'active strong' : 'strong'}
-              onClick={() => onMasteryChange?.('strong')}
+              className={selectedLessonStatus === 'strong' ? 'active strong' : 'strong'}
+              onClick={() => onLessonStatusChange?.(selectedSource.chapter.id, 'strong')}
             >
               Strong
             </button>
             <button
-              className={status === 'mastered' ? 'active mastered' : 'mastered'}
-              onClick={() => onMasteryChange?.('mastered')}
+              className={selectedLessonStatus === 'mastered' ? 'active mastered' : 'mastered'}
+              onClick={() => onLessonStatusChange?.(selectedSource.chapter.id, 'mastered')}
             >
               Mastered
             </button>
           </div>
+        </div>
+      )}
+
+      <div className="practice-hub-footer">
+        <div className="practice-hub-links">
+          <a href={dictLookupHref} target="_blank" rel="noreferrer">Abrir en SpanishDict</a>
+          <a href={conjugationHref} target="_blank" rel="noreferrer">Conjugacion en SpanishDict</a>
+        </div>
+        {selectedVerbSource && (
+          <div className="practice-hub-verb">
+            <label>
+              Drill de conjugacion:
+              <select value={selectedVerbSource.id} onChange={(e) => setActiveVerbId(e.target.value)}>
+                {verbSources.map((verb) => (
+                  <option key={verb.id} value={verb.id}>
+                    {verb.chapterTitle} - {verb.sectionLabel}
+                  </option>
+                ))}
+              </select>
+            </label>
+            <VerbPractice tenses={selectedVerbSource.tenses} verbName={selectedVerbSource.chapterTitle} />
+          </div>
+        )}
+      </div>
+
+      {selectedContextualQuiz && (
+        <div className="practice-contextual">
+          <div className="practice-contextual-toolbar">
+            <label className="practice-hub-field">
+              <span>Prueba contextual</span>
+              <select value={selectedContextualQuiz.id} onChange={(e) => setActiveContextualId(e.target.value)}>
+                {contextualQuizzes.map((quiz) => (
+                  <option key={quiz.id} value={quiz.id}>
+                    {quiz.block.title} - {quiz.chapterTitle}
+                  </option>
+                ))}
+              </select>
+            </label>
+            <span className="practice-contextual-note">{selectedContextualQuiz.sectionLabel}</span>
+          </div>
+          <ChoiceQuizBlock block={selectedContextualQuiz.block} />
         </div>
       )}
     </section>
@@ -6011,12 +6574,6 @@ function FoldableGrammarBlock({ lessons, chapterId, lessonStatuses = {}, onLesso
                 {lesson.sections.map((s, si) => (
                   <GrammarSection key={si} s={s} />
                 ))}
-                <LessonMiniQuiz
-                  source={lesson}
-                  title={`Practica: ${lesson.title}`}
-                  status={lessonStatuses[statusKey]}
-                  onMasteryChange={(status) => onLessonStatusChange?.(statusKey, status)}
-                />
               </div>
             )}
           </div>
@@ -6675,7 +7232,7 @@ function LessonStatusControl({ status, onChange }) {
   );
 }
 
-function ChapterContent({ chapter, sectionId, section, activeNestedTarget, onOpenSection, onSaveWord, savedWords = [], onUpdateSavedWord, palabrasProgress, onPalabrasProgressChange, lessonStatuses = {}, onLessonStatusChange }) {
+function ChapterContent({ chapter, sectionId, section, activeNestedTarget, onOpenSection, onSaveWord, savedWords = [], onUpdateSavedWord, palabrasProgress, onPalabrasProgressChange, lessonStatuses = {}, onLessonStatusChange, practiceChapters = [] }) {
   const hasNestedLessonStatus = chapter.blocks.some((block) => (
     block.type === 'foldable-grammar' ||
     block.type === 'foldable-stories' ||
@@ -6896,6 +7453,16 @@ function ChapterContent({ chapter, sectionId, section, activeNestedTarget, onOpe
                 onUpdateSavedWord={onUpdateSavedWord}
               />
             );
+          case 'practice-hub':
+            return (
+              <PracticeHubBlock
+                key={i}
+                chapter={chapter}
+                practiceChapters={practiceChapters}
+                lessonStatuses={lessonStatuses}
+                onLessonStatusChange={onLessonStatusChange}
+              />
+            );
           case 'phraselist':
             return (
               <section key={i} className="block">
@@ -6994,7 +7561,6 @@ function ChapterContent({ chapter, sectionId, section, activeNestedTarget, onOpe
                 )}
                 <div className="verb-table-header">
                   <h2 className="verb-table-title">Indicativo de <em>"{chapter.title.toLowerCase()}"</em></h2>
-                  <VerbPractice tenses={block.tenses} verbName={chapter.title} />
                 </div>
                 <table className="tense-reader-table" aria-label={`Indicativo de ${chapter.title}`}>
                   <thead>
@@ -7157,7 +7723,7 @@ function ChapterContent({ chapter, sectionId, section, activeNestedTarget, onOpe
           case 'tips-grid':
             return <TipsGridBlock key={i} tips={block.tips} />;
           case 'choice-quiz':
-            return <ChoiceQuizBlock key={i} block={block} />;
+            return null;
           case 'lesson-section':
             return (
               <section key={i} className="block lesson-section">
@@ -7182,15 +7748,6 @@ function ChapterContent({ chapter, sectionId, section, activeNestedTarget, onOpe
             return null;
         }
       })}
-
-      {!hasNestedLessonStatus && (
-        <LessonMiniQuiz
-          source={chapter}
-          title={`Practica: ${chapter.title}`}
-          status={lessonStatuses[chapter.id]}
-          onMasteryChange={(status) => onLessonStatusChange?.(chapter.id, status)}
-        />
-      )}
     </article>
   );
 }
@@ -7585,7 +8142,11 @@ function ChoiceQuizBlock({ block }) {
                   <button
                     key={choice}
                     className={selected === choice ? 'active' : ''}
-                    onClick={() => setAnswers((prev) => ({ ...prev, [index]: choice }))}
+                    onClick={() => {
+                      const isCorrect = normalizeForCompare(choice) === normalizeForCompare(q.answer);
+                      playQuizFeedbackSound(isCorrect ? 'correct' : 'incorrect');
+                      setAnswers((prev) => ({ ...prev, [index]: choice }));
+                    }}
                   >
                     {choice}
                   </button>
@@ -9143,6 +9704,9 @@ export default function SpanishBook() {
   const grammarChapter = visibleFlatChapters.find((c) => c.sectionId === 'gramatica');
   const verbChapter = visibleFlatChapters.find((c) => c.sectionId === 'verbos') || visibleFlatChapters.find((c) => c.sectionId === 'verbos2');
   const readingChapter = visibleFlatChapters.find((c) => c.sectionId === 'lectura');
+  const practiceSection = activeSections.find((section) => section.id === 'practicar');
+  const practiceChapters = visibleFlatChapters.filter((chapter) => chapter.sectionId === 'practicar');
+  const practiceLessons = buildSectionLessonCards(practiceSection, practiceChapters);
   const dailyStats = useMemo(() => {
     const start = todayStartMs();
     const reviewedToday = Object.values(palabrasProgress || {}).filter((state) => (state?.reviewedAt || 0) >= start).length;
@@ -9748,7 +10312,7 @@ export default function SpanishBook() {
                 </button>
               </div>
 
-              {activeSections.map((s) => {
+              {activeSections.filter((section) => section.id !== 'practicar').map((s) => {
                 const visibleChapters = visibleFlatChapters.filter((chapter) => chapter.sectionId === s.id);
                 const sectionLessons = buildSectionLessonCards(s, visibleChapters);
                 const isActive = s.id === activeSectionId && !showMemoria && !showHome && !showWriting;
@@ -9810,6 +10374,27 @@ export default function SpanishBook() {
                   </div>
                 </button>
               </div>
+
+              {practiceSection && (
+                <div className={`section-group practice-nav-item ${activeSectionId === 'practicar' && !showMemoria && !showHome && !showWriting ? 'active' : ''}`}>
+                  <button
+                    className="section-btn practice-section-btn"
+                    onClick={() => openSection(practiceSection)}
+                  >
+                    <div className="section-icon-wrap practice-icon-wrap">
+                      <SectionIcon id="practicar" size={18} className="section-icon" />
+                    </div>
+                    <div className="section-text">
+                      <div className="section-label">{practiceSection.label}</div>
+                      <div className="section-sublabel">{practiceSection.sublabel}</div>
+                    </div>
+                    <div className="section-meta">
+                      <div className="section-count practice-count">{practiceLessons.length}</div>
+                      <ChevronRight size={16} className="section-chevron" />
+                    </div>
+                  </button>
+                </div>
+              )}
             </nav>
 
             <div className="sidebar-footer">
@@ -9936,6 +10521,7 @@ export default function SpanishBook() {
                 onPalabrasProgressChange={handlePalabrasProgressChange}
                 lessonStatuses={lessonStatuses}
                 onLessonStatusChange={handleLessonStatusChange}
+                practiceChapters={visibleFlatChapters}
               />
             ) : (
               <div className="empty">

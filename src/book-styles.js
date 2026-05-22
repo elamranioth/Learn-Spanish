@@ -3138,6 +3138,17 @@ export const styles = `
   }
 }
 
+/* 8-10 inch tablets/e-readers often report widths around 600-700px.
+   Keep grouped tense tables there so Present/Pret/Imperfect show side-by-side. */
+@media (min-width: 560px) and (max-width: 700px) {
+  .verb-table-block .tense-group-table {
+    display: table !important;
+  }
+  .verb-table-block .tense-mobile-stack {
+    display: none !important;
+  }
+}
+
 /* Inline example pair — short Spanish + (translation) on the same line */
 .inline-pair {
   display: block;
@@ -7591,6 +7602,197 @@ export const styles = `
   color: #ffffff;
   border-color: var(--ink);
   background: var(--ink);
+}
+
+.practice-hub-block {
+  border: 1px solid var(--rule);
+  border-radius: 8px;
+  background: var(--paper-light);
+  padding: 18px;
+}
+.practice-hub-top {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+.practice-hub-toolbar {
+  margin-top: 14px;
+  display: grid;
+  grid-template-columns: repeat(3, minmax(160px, 1fr));
+  gap: 10px;
+  align-items: end;
+}
+.practice-hub-field {
+  display: grid;
+  gap: 6px;
+}
+.practice-hub-field span {
+  font-size: 11px;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: var(--ink-mute);
+  font-weight: 700;
+}
+.practice-hub-field select {
+  border: 1px solid var(--rule);
+  border-radius: 6px;
+  background: var(--paper);
+  color: var(--ink);
+  padding: 8px 10px;
+  font-family: 'Literata', Georgia, serif;
+}
+.practice-hub-modes {
+  grid-column: 1 / -1;
+  display: inline-flex;
+  border: 1px solid var(--rule);
+  border-radius: 999px;
+  padding: 2px;
+  background: var(--paper);
+  justify-self: start;
+}
+.practice-hub-modes button {
+  border: none;
+  background: transparent;
+  color: var(--ink-mute);
+  min-height: 32px;
+  padding: 0 12px;
+  border-radius: 999px;
+  cursor: pointer;
+  font-family: 'Literata', Georgia, serif;
+  font-weight: 700;
+}
+.practice-hub-modes button.active {
+  background: var(--green);
+  color: #fff;
+}
+.practice-hub-source-line {
+  margin-top: 12px;
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+.practice-hub-source-line strong {
+  font-size: 18px;
+  font-family: 'Cormorant Garamond', serif;
+  color: var(--ink);
+}
+.practice-hub-source-line span {
+  font-size: 13px;
+  color: var(--ink-mute);
+}
+.practice-hub-pool {
+  border: 1px solid var(--rule);
+  border-radius: 999px;
+  padding: 2px 8px;
+  background: var(--paper);
+  font-size: 11px !important;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+.practice-typing-shell {
+  margin-top: 14px;
+  border: 1px solid var(--rule-soft);
+  border-radius: 8px;
+  background: var(--paper);
+  padding: 14px;
+}
+.practice-listening-es {
+  margin: 0 0 10px;
+  font-family: 'Cormorant Garamond', serif;
+  font-size: 22px;
+  color: var(--green);
+}
+.practice-hub-footer {
+  margin-top: 16px;
+  display: grid;
+  gap: 12px;
+}
+.practice-hub-links {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.practice-hub-links a {
+  border: 1px solid var(--rule);
+  border-radius: 999px;
+  padding: 6px 12px;
+  text-decoration: none;
+  color: var(--green);
+  background: var(--paper);
+  font-size: 13px;
+  font-weight: 700;
+}
+.practice-hub-verb {
+  display: grid;
+  gap: 10px;
+  border-top: 1px dashed var(--rule);
+  padding-top: 12px;
+}
+.practice-hub-verb label {
+  display: grid;
+  gap: 6px;
+  color: var(--ink-soft);
+  font-size: 14px;
+}
+.practice-hub-verb select {
+  border: 1px solid var(--rule);
+  border-radius: 6px;
+  background: var(--paper);
+  color: var(--ink);
+  padding: 8px 10px;
+  font-family: 'Literata', Georgia, serif;
+}
+.practice-contextual {
+  margin-top: 20px;
+  border-top: 1px dashed var(--rule);
+  padding-top: 16px;
+}
+.practice-contextual-toolbar {
+  display: flex;
+  align-items: end;
+  justify-content: space-between;
+  gap: 10px;
+  flex-wrap: wrap;
+  margin-bottom: 8px;
+}
+.practice-contextual-note {
+  color: var(--ink-mute);
+  font-size: 13px;
+}
+@media (max-width: 740px) {
+  .practice-hub-toolbar {
+    grid-template-columns: 1fr;
+  }
+  .practice-hub-modes {
+    width: 100%;
+    justify-content: space-between;
+  }
+  .practice-hub-modes button {
+    flex: 1;
+  }
+}
+.book-root.boox-mode .practice-hub-block,
+.book-root.boox-mode .practice-typing-shell,
+.book-root.boox-mode .practice-contextual {
+  border-color: #000000 !important;
+  background: #ffffff !important;
+}
+.book-root.boox-mode .practice-hub-links a {
+  color: #000000 !important;
+  border-color: #000000 !important;
+  background: #ffffff !important;
+}
+.book-root.boox-mode .practice-hub-pool {
+  color: #000000 !important;
+  border-color: #000000 !important;
+  background: #ffffff !important;
+}
+.book-root.boox-mode .practice-hub-modes button.active {
+  background: #000000 !important;
+  color: #ffffff !important;
 }
 
 .memoria-summary-strip {

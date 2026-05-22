@@ -1,5 +1,11 @@
 export function registerServiceWorker() {
   if (typeof window === 'undefined' || !('serviceWorker' in navigator)) return;
+  if (import.meta.env.DEV) {
+    navigator.serviceWorker.getRegistrations().then((registrations) => {
+      registrations.forEach((registration) => registration.unregister());
+    }).catch(() => {});
+    return;
+  }
 
   window.addEventListener('load', () => {
     const baseUrl = import.meta.env.BASE_URL || '/';
