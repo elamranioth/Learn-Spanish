@@ -94,7 +94,6 @@ const WRITING_PRACTICE_KEY = 'writing-practice-v1';
 const TRANSLATION_MODE_KEY = 'translation-mode-v1';
 const BOOX_MODE_KEY = 'boox-mode-v1';
 const INSTALL_DISMISSED_KEY = 'lexiora-install-dismissed-v1';
-const EXPRESSIONS_EXAMPLE_TRANSLATION_CACHE_KEY = 'expressions-example-translations-v1';
 
 // Icon for each section — used in sidebar nav and chapter headers
 const SECTION_ICONS = {
@@ -8414,7 +8413,6 @@ function ChoiceQuizBlock({ block }) {
 function ExpressionsLibraryBlock({ library }) {
   const [query, setQuery] = useState('');
   const [page, setPage] = useState(0);
-  const [exampleTranslations, setExampleTranslations] = useState({});
   const perPage = 50;
 
   function normalizeExpressionFamily(text) {
@@ -8487,7 +8485,8 @@ function ExpressionsLibraryBlock({ library }) {
     return allExpressions.filter((entry) => (
       normalizeForCompare(entry.es).includes(q) ||
       normalizeForCompare(entry.en).includes(q) ||
-      normalizeForCompare(entry.example).includes(q)
+      normalizeForCompare(entry.example).includes(q) ||
+      normalizeForCompare(entry.exampleEn).includes(q)
     ));
   }, [allExpressions, query]);
 
@@ -8495,83 +8494,9 @@ function ExpressionsLibraryBlock({ library }) {
   const safePage = Math.min(page, totalPages - 1);
   const visibleEntries = filtered.slice(safePage * perPage, (safePage + 1) * perPage);
 
-  function readExampleTranslationCache() {
-    if (typeof window === 'undefined') return {};
-    try {
-      const raw = window.localStorage.getItem(EXPRESSIONS_EXAMPLE_TRANSLATION_CACHE_KEY);
-      const parsed = raw ? JSON.parse(raw) : {};
-      return parsed && typeof parsed === 'object' ? parsed : {};
-    } catch (_) {
-      return {};
-    }
-  }
-
-  function writeExampleTranslationCache(nextCache) {
-    if (typeof window === 'undefined') return;
-    try {
-      window.localStorage.setItem(EXPRESSIONS_EXAMPLE_TRANSLATION_CACHE_KEY, JSON.stringify(nextCache));
-    } catch (_) {}
-  }
-
-  function decodeHtmlEntities(text) {
-    if (typeof document === 'undefined') return text;
-    const node = document.createElement('textarea');
-    node.innerHTML = String(text || '');
-    return node.value;
-  }
-
-  async function translateExampleToEnglish(exampleText) {
-    const queryText = String(exampleText || '').trim();
-    if (!queryText) return '';
-    const url = `https://api.mymemory.translated.net/get?q=${encodeURIComponent(queryText)}&langpair=es|en`;
-    const response = await fetch(url);
-    if (!response.ok) throw new Error(`MyMemory HTTP ${response.status}`);
-    const data = await response.json();
-    const translated = decodeHtmlEntities(data?.responseData?.translatedText || '').trim();
-    return translated;
-  }
-
-  useEffect(() => {
-    setExampleTranslations(readExampleTranslationCache());
-  }, []);
-
   useEffect(() => {
     setPage(0);
   }, [query]);
-
-  useEffect(() => {
-    if (!visibleEntries.length) return undefined;
-    let cancelled = false;
-
-    async function fillVisibleExampleTranslations() {
-      const cache = readExampleTranslationCache();
-      const next = { ...cache };
-      let changed = false;
-      for (const entry of visibleEntries) {
-        const exampleText = String(entry.example || '').trim();
-        if (!exampleText) continue;
-        if (next[exampleText]) continue;
-        try {
-          const translated = await translateExampleToEnglish(exampleText);
-          if (!translated) continue;
-          if (cancelled) return;
-          next[exampleText] = translated;
-          changed = true;
-        } catch (_) {
-          // Skip failed translations; keep UI responsive.
-        }
-      }
-      if (!cancelled && changed) {
-        writeExampleTranslationCache(next);
-        setExampleTranslations(next);
-      }
-    }
-
-    fillVisibleExampleTranslations();
-    return () => {
-      cancelled = true;
-    };
-  }, [visibleEntries]);
 
   return (
     <section className="block expressions-library-block expressions-lines-block">
@@ -8643,9 +8568,11 @@ function ExpressionsLibraryBlock({ library }) {
                           <SpeakBtn text={entry.example} />
                           <InlineDictionaryText text={entry.example} />
                         </p>
-                        <p className="expression-line-example-en">
-                          {exampleTranslations[entry.example] || 'Translating example...'}
-                        </p>
+                        {entry.exampleEn && (
+                          <p className="expression-line-example-en">
+                            {entry.exampleEn}
+                          </p>
+                        )}
                       </div>
                     )}
                   </div>
