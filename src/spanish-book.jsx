@@ -44,6 +44,7 @@ import {
   buildVisibleFlatChapters,
   summarizeStudyProgress,
 } from './progress.js';
+import { GRAMMAR_TEST_LEVEL_BANK } from './grammar-test-bank.js';
 import { buildSectionLessonCards, getNestedLessonKey } from './section-lessons.js';
 import { SectionOverviewView } from './section-overview.jsx';
 import {
@@ -90,6 +91,31 @@ const SECTION_ICONS = {
 function SectionIcon({ id, size = 18, className = '' }) {
   const Ico = SECTION_ICONS[id] || BookOpen;
   return <Ico size={size} className={className} />;
+}
+
+const CEFR_LEVEL_ORDER = ['A1', 'A2', 'B1', 'B2'];
+
+function parseCefrLevels(levelLabel) {
+  const raw = String(levelLabel || '').toUpperCase().replace(/\s+/g, '');
+  if (!raw) return [];
+  const tokens = raw.match(/[AB][12]/g) || [];
+  if (!tokens.length) return [];
+  const uniqueTokens = [...new Set(tokens)];
+  if (raw.includes('-') && uniqueTokens.length >= 2) {
+    const startIndex = CEFR_LEVEL_ORDER.indexOf(uniqueTokens[0]);
+    const endIndex = CEFR_LEVEL_ORDER.indexOf(uniqueTokens[uniqueTokens.length - 1]);
+    if (startIndex >= 0 && endIndex >= startIndex) {
+      return CEFR_LEVEL_ORDER.slice(startIndex, endIndex + 1);
+    }
+  }
+  return uniqueTokens.filter((token) => CEFR_LEVEL_ORDER.includes(token));
+}
+
+function chapterMatchesCefrLevel(chapter, selectedLevel) {
+  if (selectedLevel === 'ALL') return true;
+  const levels = parseCefrLevels(chapter?.level);
+  if (!levels.length) return false;
+  return levels.includes(selectedLevel);
 }
 
 const LESSON_DATA_LOADERS = {
@@ -5640,57 +5666,27 @@ function buildListeningQuiz(source, count = 8) {
   });
 }
 
+function buildGrammarBankQuiz(level, count = 12) {
+  const bank = Array.isArray(GRAMMAR_TEST_LEVEL_BANK?.[level]) ? GRAMMAR_TEST_LEVEL_BANK[level] : [];
+  if (!bank.length) return [];
+  const safeCount = Math.max(4, Math.min(count, bank.length));
+  const picked = shuffleList(bank).slice(0, safeCount);
+  return picked.map((item) => {
+    const choices = Array.isArray(item.choices) ? [...item.choices] : [];
+    const answer = choices[item.answerIndex] || '';
+    return {
+      prompt: item.prompt || '',
+      answer,
+      speak: item.prompt || '',
+      mode: `${item.level} - ${item.section || 'Grammar'}`,
+      choices: shuffleList(choices).slice(0, 4),
+      explanation: item.explanation || '',
+    };
+  }).filter((question) => question.prompt && question.answer && question.choices.length >= 2);
+}
+
 function PracticeHubBlock({ chapter, practiceChapters = [], lessonStatuses = {}, onLessonStatusChange }) {
-  const lessonSources = useMemo(() => {
-    const list = [];
-    for (const candidate of practiceChapters) {
-      if (!candidate || candidate.id === chapter.id || candidate.sectionId === 'practicar') continue;
-      const pairCount = collectQuizPairs(candidate).length;
-      if (pairCount < 2) continue;
-      list.push({
-        id: candidate.id,
-        chapter: candidate,
-        pairCount,
-        sectionLabel: candidate.sectionLabel || candidate.sectionId || 'Leccion',
-      });
-    }
-    return list.sort((a, b) => b.pairCount - a.pairCount);
-  }, [practiceChapters, chapter.id]);
-
-  const verbSources = useMemo(() => {
-    const list = [];
-    for (const candidate of practiceChapters) {
-      if (!candidate || candidate.sectionId === 'practicar') continue;
-      (candidate.blocks || []).forEach((block, blockIndex) => {
-        if (block.type !== 'verb-table' || !Array.isArray(block.tenses) || block.tenses.length === 0) return;
-        list.push({
-          id: `${candidate.id}::${blockIndex}`,
-          chapterTitle: candidate.title,
-          sectionLabel: candidate.sectionLabel || candidate.sectionId || 'Verbos',
-          tenses: block.tenses,
-        });
-      });
-    }
-    return list;
-  }, [practiceChapters]);
-
-  const contextualQuizzes = useMemo(() => {
-    const list = [];
-    for (const candidate of practiceChapters) {
-      if (!candidate || candidate.sectionId === 'practicar') continue;
-      (candidate.blocks || []).forEach((block, blockIndex) => {
-        if (block.type !== 'choice-quiz' || !Array.isArray(block.questions) || block.questions.length === 0) return;
-        list.push({
-          id: `${candidate.id}::choice::${blockIndex}`,
-          block,
-          chapterTitle: candidate.title,
-          sectionLabel: candidate.sectionLabel || candidate.sectionId || 'Leccion',
-        });
-      });
-    }
-    return list;
-  }, [practiceChapters]);
-
+  const [selectedLevel, setSelectedLevel] = useState('ALL');
   const [mode, setMode] = useState('multiple-choice');
   const [sourceId, setSourceId] = useState('');
   const [scope, setScope] = useState('lesson');
@@ -5707,6 +5703,67 @@ function PracticeHubBlock({ chapter, practiceChapters = [], lessonStatuses = {},
   const [listeningFinished, setListeningFinished] = useState(false);
   const [activeVerbId, setActiveVerbId] = useState('');
   const [activeContextualId, setActiveContextualId] = useState('');
+
+  const filteredPracticeChapters = useMemo(() => (
+    practiceChapters.filter((candidate) => (
+      candidate
+      && candidate.id !== chapter.id
+      && candidate.sectionId !== 'practicar'
+      && chapterMatchesCefrLevel(candidate, selectedLevel)
+    ))
+  ), [practiceChapters, chapter.id, selectedLevel]);
+
+  const grammarBankAvailable = selectedLevel !== 'ALL' && Array.isArray(GRAMMAR_TEST_LEVEL_BANK[selectedLevel]) && GRAMMAR_TEST_LEVEL_BANK[selectedLevel].length > 0;
+
+  const lessonSources = useMemo(() => {
+    const list = [];
+    for (const candidate of filteredPracticeChapters) {
+      if (!candidate) continue;
+      const pairCount = collectQuizPairs(candidate).length;
+      if (pairCount < 2) continue;
+      list.push({
+        id: candidate.id,
+        chapter: candidate,
+        pairCount,
+        sectionLabel: candidate.sectionLabel || candidate.sectionId || 'Leccion',
+      });
+    }
+    return list.sort((a, b) => b.pairCount - a.pairCount);
+  }, [filteredPracticeChapters]);
+
+  const verbSources = useMemo(() => {
+    const list = [];
+    for (const candidate of filteredPracticeChapters) {
+      if (!candidate) continue;
+      (candidate.blocks || []).forEach((block, blockIndex) => {
+        if (block.type !== 'verb-table' || !Array.isArray(block.tenses) || block.tenses.length === 0) return;
+        list.push({
+          id: `${candidate.id}::${blockIndex}`,
+          chapterTitle: candidate.title,
+          sectionLabel: candidate.sectionLabel || candidate.sectionId || 'Verbos',
+          tenses: block.tenses,
+        });
+      });
+    }
+    return list;
+  }, [filteredPracticeChapters]);
+
+  const contextualQuizzes = useMemo(() => {
+    const list = [];
+    for (const candidate of filteredPracticeChapters) {
+      if (!candidate) continue;
+      (candidate.blocks || []).forEach((block, blockIndex) => {
+        if (block.type !== 'choice-quiz' || !Array.isArray(block.questions) || block.questions.length === 0) return;
+        list.push({
+          id: `${candidate.id}::choice::${blockIndex}`,
+          block,
+          chapterTitle: candidate.title,
+          sectionLabel: candidate.sectionLabel || candidate.sectionId || 'Leccion',
+        });
+      });
+    }
+    return list;
+  }, [filteredPracticeChapters]);
 
   useEffect(() => {
     if (!lessonSources.length) {
@@ -5748,7 +5805,13 @@ function PracticeHubBlock({ chapter, practiceChapters = [], lessonStatuses = {},
     setTypingDone(false);
     setListeningAnswers({});
     setListeningFinished(false);
-  }, [mode, sourceId, scope, questionCount, sessionSeed]);
+  }, [mode, sourceId, scope, questionCount, selectedLevel, sessionSeed]);
+
+  useEffect(() => {
+    if (!lessonSources.length && mode !== 'multiple-choice') {
+      setMode('multiple-choice');
+    }
+  }, [lessonSources.length, mode]);
 
   const selectedSource = lessonSources.find((source) => source.id === sourceId) || lessonSources[0] || null;
   const selectedVerbSource = verbSources.find((source) => source.id === activeVerbId) || verbSources[0] || null;
@@ -5792,9 +5855,17 @@ function PracticeHubBlock({ chapter, practiceChapters = [], lessonStatuses = {},
     ],
   }), [pairPool]);
 
-  const multipleChoiceQuestions = useMemo(() => (
-    selectedSource ? buildLessonQuiz(poolSource, { count: questionCount }) : []
-  ), [selectedSource, poolSource, questionCount, sessionSeed]);
+  const multipleChoiceQuestions = useMemo(() => {
+    const combined = [];
+    if (selectedSource) {
+      combined.push(...buildLessonQuiz(poolSource, { count: questionCount * 2 }));
+    }
+    if (grammarBankAvailable) {
+      combined.push(...buildGrammarBankQuiz(selectedLevel, questionCount * 2));
+    }
+    if (!combined.length) return [];
+    return shuffleList(combined).slice(0, Math.min(questionCount, combined.length));
+  }, [selectedSource, poolSource, questionCount, selectedLevel, grammarBankAvailable, sessionSeed]);
 
   const typingQuestions = useMemo(() => (
     selectedSource ? buildLessonTypingQuiz(poolSource, questionCount) : []
@@ -5820,8 +5891,9 @@ function PracticeHubBlock({ chapter, practiceChapters = [], lessonStatuses = {},
   const typedQuestion = typingQuestions[typingIndex];
   const typingTotal = typingQuestions.length;
   const typingPercent = typingTotal ? Math.round((typingScore / typingTotal) * 100) : 0;
-  const sourceTitle = selectedSource?.chapter?.title || '';
-  const sourceLabel = selectedSource?.sectionLabel || '';
+  const sourceTitle = selectedSource?.chapter?.title || (grammarBankAvailable ? `Nivel ${selectedLevel}` : '');
+  const sourceLabel = selectedSource?.sectionLabel || (grammarBankAvailable ? 'Banco de gramatica' : '');
+  const grammarQuestionPoolCount = grammarBankAvailable ? GRAMMAR_TEST_LEVEL_BANK[selectedLevel].length : 0;
   const selectedLessonStatus = selectedSource ? lessonStatuses[selectedSource.chapter.id] : null;
   const roundFinished = mode === 'multiple-choice' ? mcFinished : mode === 'typing' ? typingDone : listeningFinished;
   const roundPercent = mode === 'multiple-choice' ? mcPercent : mode === 'typing' ? typingPercent : listeningPercent;
@@ -5869,7 +5941,10 @@ function PracticeHubBlock({ chapter, practiceChapters = [], lessonStatuses = {},
     setListeningAnswers((prev) => ({ ...prev, [index]: choice }));
   }
 
-  if (!lessonSources.length) {
+  const hasAnyPracticeSource = lessonSources.length > 0 || grammarBankAvailable;
+  const canPairBasedPractice = lessonSources.length > 0;
+
+  if (!hasAnyPracticeSource) {
     return (
       <section className="block practice-hub-block">
         <div className="home-section-heading">
@@ -5877,7 +5952,7 @@ function PracticeHubBlock({ chapter, practiceChapters = [], lessonStatuses = {},
           Practicar
         </div>
         <h2 className="lesson-heading">Centro de practica</h2>
-        <p className="lesson-text">No hay suficientes ejercicios en las lecciones visibles para crear un quiz.</p>
+        <p className="lesson-text">No hay ejercicios disponibles para este nivel todavia. Prueba otro nivel.</p>
       </section>
     );
   }
@@ -5900,8 +5975,17 @@ function PracticeHubBlock({ chapter, practiceChapters = [], lessonStatuses = {},
 
       <div className="practice-hub-toolbar">
         <label className="practice-hub-field">
+          <span>Nivel</span>
+          <select value={selectedLevel} onChange={(e) => setSelectedLevel(e.target.value)}>
+            <option value="ALL">Todos</option>
+            {LEVELS.map((level) => (
+              <option key={level} value={level}>{level}</option>
+            ))}
+          </select>
+        </label>
+        <label className="practice-hub-field">
           <span>Leccion</span>
-          <select value={selectedSource?.id || ''} onChange={(e) => setSourceId(e.target.value)}>
+          <select value={selectedSource?.id || ''} onChange={(e) => setSourceId(e.target.value)} disabled={!canPairBasedPractice}>
             {lessonSources.map((source) => (
               <option key={source.id} value={source.id}>
                 {source.chapter.title} ({source.pairCount})
@@ -5911,7 +5995,7 @@ function PracticeHubBlock({ chapter, practiceChapters = [], lessonStatuses = {},
         </label>
         <label className="practice-hub-field">
           <span>Alcance</span>
-          <select value={scope} onChange={(e) => setScope(e.target.value)}>
+          <select value={scope} onChange={(e) => setScope(e.target.value)} disabled={!canPairBasedPractice}>
             <option value="lesson">Solo esta leccion</option>
             <option value="section">Toda la seccion</option>
             <option value="all">Todo el libro</option>
@@ -5934,12 +6018,14 @@ function PracticeHubBlock({ chapter, practiceChapters = [], lessonStatuses = {},
           </button>
           <button
             className={mode === 'typing' ? 'active' : ''}
+            disabled={!canPairBasedPractice}
             onClick={() => setMode('typing')}
           >
             Escribir
           </button>
           <button
             className={mode === 'listening' ? 'active' : ''}
+            disabled={!canPairBasedPractice}
             onClick={() => setMode('listening')}
           >
             Escuchar
@@ -5950,11 +6036,19 @@ function PracticeHubBlock({ chapter, practiceChapters = [], lessonStatuses = {},
       <div className="practice-hub-source-line">
         <strong>{sourceTitle}</strong>
         <span>{sourceLabel}</span>
-        <span className="practice-hub-pool">{pairPool.length} pares disponibles</span>
+        <span className="practice-hub-pool">
+          {canPairBasedPractice ? `${pairPool.length} pares disponibles` : 'Solo gramatica de nivel'}
+        </span>
+        {grammarBankAvailable && (
+          <span className="practice-hub-pool">{grammarQuestionPoolCount} preguntas importadas</span>
+        )}
       </div>
 
       {mode === 'multiple-choice' && (
         <div className="lesson-mini-quiz practice-mc">
+          {!multipleChoiceQuestions.length && (
+            <p className="lesson-text">No hay preguntas multiple choice para este filtro. Cambia nivel o alcance.</p>
+          )}
           <div className="lesson-mini-list">
             {multipleChoiceQuestions.map((question, index) => {
               const selected = mcAnswers[index];
@@ -5985,6 +6079,9 @@ function PracticeHubBlock({ chapter, practiceChapters = [], lessonStatuses = {},
                   {selected && !isCorrect && (
                     <div className="lesson-mini-answer">Correcto: <strong>{question.answer}</strong></div>
                   )}
+                  {selected && question.explanation && (
+                    <div className="lesson-mini-answer">{question.explanation}</div>
+                  )}
                 </div>
               );
             })}
@@ -5993,7 +6090,7 @@ function PracticeHubBlock({ chapter, practiceChapters = [], lessonStatuses = {},
             <span>{Object.keys(mcAnswers).length} / {multipleChoiceQuestions.length} respondidas</span>
             <button
               className="lesson-mini-check"
-              disabled={Object.keys(mcAnswers).length < multipleChoiceQuestions.length}
+              disabled={multipleChoiceQuestions.length === 0 || Object.keys(mcAnswers).length < multipleChoiceQuestions.length}
               onClick={() => setMcFinished(true)}
             >
               Comprobar
@@ -6067,6 +6164,9 @@ function PracticeHubBlock({ chapter, practiceChapters = [], lessonStatuses = {},
               )}
             </>
           )}
+          {!typingDone && !typedQuestion && (
+            <p className="lesson-text">No hay ejercicios de escritura para este nivel. Prueba multiple choice o cambia nivel.</p>
+          )}
           {typingDone && (
             <div className="quiz-results">
               <div className="quiz-results-circle">
@@ -6091,6 +6191,9 @@ function PracticeHubBlock({ chapter, practiceChapters = [], lessonStatuses = {},
 
       {mode === 'listening' && (
         <div className="lesson-mini-quiz practice-listening">
+          {!listeningQuestions.length && (
+            <p className="lesson-text">No hay ejercicios de escucha para este filtro. Cambia nivel o alcance.</p>
+          )}
           <div className="lesson-mini-list">
             {listeningQuestions.map((question, index) => {
               const selected = listeningAnswers[index];
@@ -6130,7 +6233,7 @@ function PracticeHubBlock({ chapter, practiceChapters = [], lessonStatuses = {},
             <span>{Object.keys(listeningAnswers).length} / {listeningQuestions.length} respondidas</span>
             <button
               className="lesson-mini-check"
-              disabled={Object.keys(listeningAnswers).length < listeningQuestions.length}
+              disabled={listeningQuestions.length === 0 || Object.keys(listeningAnswers).length < listeningQuestions.length}
               onClick={() => setListeningFinished(true)}
             >
               Comprobar
@@ -9599,6 +9702,9 @@ export default function SpanishBook() {
   const visibleFlatChapters = useMemo(() => {
     return buildVisibleFlatChapters(activeSections, levelFilter);
   }, [activeSections, levelFilter]);
+  const allFlatChapters = useMemo(() => {
+    return buildVisibleFlatChapters(activeSections, 'ALL');
+  }, [activeSections]);
 
   // If the active chapter is filtered out, jump to the first visible one.
   useEffect(() => {
@@ -10539,7 +10645,7 @@ export default function SpanishBook() {
                 onPalabrasProgressChange={handlePalabrasProgressChange}
                 lessonStatuses={lessonStatuses}
                 onLessonStatusChange={handleLessonStatusChange}
-                practiceChapters={visibleFlatChapters}
+                practiceChapters={allFlatChapters}
               />
             ) : (
               <div className="empty">

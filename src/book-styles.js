@@ -7620,7 +7620,7 @@ export const styles = `
 .practice-hub-toolbar {
   margin-top: 14px;
   display: grid;
-  grid-template-columns: repeat(3, minmax(160px, 1fr));
+  grid-template-columns: repeat(4, minmax(150px, 1fr));
   gap: 10px;
   align-items: end;
 }
@@ -7666,6 +7666,10 @@ export const styles = `
 .practice-hub-modes button.active {
   background: var(--green);
   color: #fff;
+}
+.practice-hub-modes button:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
 }
 .practice-hub-source-line {
   margin-top: 12px;
