@@ -9689,9 +9689,19 @@ export default function SpanishBook() {
   }, [savedWords.length]);
   const activeSections = useMemo(() => {
     const hydrated = hydrateSectionsWithLazyData(SECTIONS, lazyLessonData);
-    const firstTopTen = hydrated.find((section) => section.id === 'verbos');
-    const secondTopTen = hydrated.find((section) => section.id === 'verbos2');
-    if (!firstTopTen || !secondTopTen) return hydrated;
+    const curated = hydrated.map((section) => {
+      if (section.id !== 'lectura') return section;
+      return {
+        ...section,
+        chapters: (section.chapters || []).filter((chapter) => chapter.id !== 'stories'),
+      };
+    });
+
+    const firstTopTen = curated.find((section) => section.id === 'verbos');
+    const secondTopTen = curated.find((section) => section.id === 'verbos2');
+    if (!firstTopTen || !secondTopTen) {
+      return curated.filter((section) => section.id !== 'verbos2');
+    }
 
     const mergedVerbos = {
       ...firstTopTen,
@@ -9702,7 +9712,7 @@ export default function SpanishBook() {
       ],
     };
 
-    return hydrated
+    return curated
       .map((section) => (section.id === 'verbos' ? mergedVerbos : section))
       .filter((section) => section.id !== 'verbos2');
   }, [lazyLessonData]);
