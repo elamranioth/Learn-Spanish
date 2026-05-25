@@ -2637,10 +2637,11 @@ export const styles = `
   line-height: 1.55;
   color: var(--ink);
   font-style: normal;
+  text-transform: none;
 }
-.expression-line-example span {
+.expression-line-example-label {
   font-family: 'Literata', Georgia, serif;
-  text-transform: uppercase;
+  text-transform: none;
   letter-spacing: 0.12em;
   font-size: 12px;
   color: var(--ink);

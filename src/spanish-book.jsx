@@ -8562,7 +8562,7 @@ function ExpressionsLibraryBlock({ library }) {
                     </p>
                     {entry.example && (
                       <p className="expression-line-example">
-                        <span>Ejemplo:</span>{' '}
+                        <span className="expression-line-example-label">Ejemplo:</span>{' '}
                         <SpeakBtn text={entry.example} />
                         <InlineDictionaryText text={entry.example} />
                       </p>
