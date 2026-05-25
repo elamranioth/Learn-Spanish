@@ -5693,7 +5693,7 @@ function buildGrammarBankQuiz(level, count = 12) {
 }
 
 function PracticeHubBlock({ chapter, practiceChapters = [], lessonStatuses = {}, onLessonStatusChange }) {
-  const [selectedLevel, setSelectedLevel] = useState('ALL');
+  const [selectedLevel, setSelectedLevel] = useState('');
   const [mode, setMode] = useState('multiple-choice');
   const [sourceId, setSourceId] = useState('');
   const [scope, setScope] = useState('lesson');
@@ -5710,17 +5710,37 @@ function PracticeHubBlock({ chapter, practiceChapters = [], lessonStatuses = {},
   const [listeningFinished, setListeningFinished] = useState(false);
   const [activeVerbId, setActiveVerbId] = useState('');
   const [activeContextualId, setActiveContextualId] = useState('');
+  const levelChosen = LEVELS.includes(selectedLevel);
+
+  const levelCards = useMemo(() => (
+    LEVELS.map((level) => {
+      const levelChapters = practiceChapters.filter((candidate) => (
+        candidate
+        && candidate.id !== chapter.id
+        && candidate.sectionId !== 'practicar'
+        && chapterMatchesCefrLevel(candidate, level)
+      ));
+      const lessonCount = levelChapters.filter((candidate) => collectQuizPairs(candidate).length >= 2).length;
+      const grammarCount = Array.isArray(GRAMMAR_TEST_LEVEL_BANK[level]) ? GRAMMAR_TEST_LEVEL_BANK[level].length : 0;
+      return {
+        level,
+        lessonCount,
+        grammarCount,
+        ready: lessonCount > 0 || grammarCount > 0,
+      };
+    })
+  ), [practiceChapters, chapter.id]);
 
   const filteredPracticeChapters = useMemo(() => (
-    practiceChapters.filter((candidate) => (
+    (levelChosen ? practiceChapters.filter((candidate) => (
       candidate
       && candidate.id !== chapter.id
       && candidate.sectionId !== 'practicar'
       && chapterMatchesCefrLevel(candidate, selectedLevel)
-    ))
-  ), [practiceChapters, chapter.id, selectedLevel]);
+    )) : [])
+  ), [practiceChapters, chapter.id, selectedLevel, levelChosen]);
 
-  const grammarBankAvailable = selectedLevel !== 'ALL' && Array.isArray(GRAMMAR_TEST_LEVEL_BANK[selectedLevel]) && GRAMMAR_TEST_LEVEL_BANK[selectedLevel].length > 0;
+  const grammarBankAvailable = levelChosen && Array.isArray(GRAMMAR_TEST_LEVEL_BANK[selectedLevel]) && GRAMMAR_TEST_LEVEL_BANK[selectedLevel].length > 0;
 
   const lessonSources = useMemo(() => {
     const list = [];
@@ -5917,6 +5937,14 @@ function PracticeHubBlock({ chapter, practiceChapters = [], lessonStatuses = {},
     setSessionSeed((value) => value + 1);
   }
 
+  function startLevel(level) {
+    if (!LEVELS.includes(level)) return;
+    setSelectedLevel(level);
+    setMode('multiple-choice');
+    setScope('all');
+    restartSession();
+  }
+
   function chooseMultipleChoice(index, choice, answer) {
     const isCorrect = normalizeForCompare(choice) === normalizeForCompare(answer);
     playQuizFeedbackSound(isCorrect ? 'correct' : 'incorrect');
@@ -5951,6 +5979,33 @@ function PracticeHubBlock({ chapter, practiceChapters = [], lessonStatuses = {},
   const hasAnyPracticeSource = lessonSources.length > 0 || grammarBankAvailable;
   const canPairBasedPractice = lessonSources.length > 0;
 
+  if (!levelChosen) {
+    return (
+      <section className="block practice-hub-block">
+        <div className="practice-hub-top">
+          <div>
+            <div className="lesson-mini-kicker"><Sparkles size={13} /> Practica por nivel</div>
+            <h2 className="lesson-heading">Centro de practica</h2>
+            <p className="lesson-text">Elige tu nivel para iniciar el test inmediatamente.</p>
+          </div>
+        </div>
+        <div className="practice-level-grid">
+          {levelCards.map((card) => (
+            <button
+              key={card.level}
+              className={`practice-level-card ${card.ready ? '' : 'empty'}`.trim()}
+              onClick={() => startLevel(card.level)}
+            >
+              <span className="practice-level-tag">{card.level}</span>
+              <strong>{card.lessonCount} lecciones</strong>
+              <span>{card.grammarCount} preguntas gramatica</span>
+            </button>
+          ))}
+        </div>
+      </section>
+    );
+  }
+
   if (!hasAnyPracticeSource) {
     return (
       <section className="block practice-hub-block">
@@ -5959,7 +6014,20 @@ function PracticeHubBlock({ chapter, practiceChapters = [], lessonStatuses = {},
           Practicar
         </div>
         <h2 className="lesson-heading">Centro de practica</h2>
-        <p className="lesson-text">No hay ejercicios disponibles para este nivel todavia. Prueba otro nivel.</p>
+        <p className="lesson-text">No hay ejercicios disponibles para este nivel todavia. Elige otro nivel.</p>
+        <div className="practice-level-grid compact">
+          {levelCards.map((card) => (
+            <button
+              key={card.level}
+              className={`practice-level-card ${card.ready ? '' : 'empty'} ${selectedLevel === card.level ? 'active' : ''}`.trim()}
+              onClick={() => startLevel(card.level)}
+            >
+              <span className="practice-level-tag">{card.level}</span>
+              <strong>{card.lessonCount} lecciones</strong>
+              <span>{card.grammarCount} preguntas gramatica</span>
+            </button>
+          ))}
+        </div>
       </section>
     );
   }
@@ -5980,16 +6048,21 @@ function PracticeHubBlock({ chapter, practiceChapters = [], lessonStatuses = {},
         </button>
       </div>
 
+      <div className="practice-level-grid compact">
+        {levelCards.map((card) => (
+          <button
+            key={card.level}
+            className={`practice-level-card ${card.ready ? '' : 'empty'} ${selectedLevel === card.level ? 'active' : ''}`.trim()}
+            onClick={() => startLevel(card.level)}
+          >
+            <span className="practice-level-tag">{card.level}</span>
+            <strong>{card.lessonCount} lecciones</strong>
+            <span>{card.grammarCount} preguntas gramatica</span>
+          </button>
+        ))}
+      </div>
+
       <div className="practice-hub-toolbar">
-        <label className="practice-hub-field">
-          <span>Nivel</span>
-          <select value={selectedLevel} onChange={(e) => setSelectedLevel(e.target.value)}>
-            <option value="ALL">Todos</option>
-            {LEVELS.map((level) => (
-              <option key={level} value={level}>{level}</option>
-            ))}
-          </select>
-        </label>
         <label className="practice-hub-field">
           <span>Leccion</span>
           <select value={selectedSource?.id || ''} onChange={(e) => setSourceId(e.target.value)} disabled={!canPairBasedPractice}>
