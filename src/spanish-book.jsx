@@ -24,6 +24,28 @@ import {
   writeGoogleSyncPayload,
 } from './google-drive-sync.js';
 import {
+  getFirebasePersistenceStatus,
+  hasFirebaseConfig,
+  listUserLessonProgress,
+  loadFirebaseAppState,
+  mergeFirebasePayloads,
+  observeFirebaseAuthState,
+  parseFirebaseConfigJson,
+  recordQuizAttempt,
+  resolveFirebaseConfig,
+  saveFirebaseAppState,
+  saveFirebaseConfigToStorage,
+  signInFirebaseAnonymously,
+  signInFirebaseWithGoogle,
+  signOutFirebase,
+  upsertLesson,
+  upsertQuestion,
+  upsertQuiz,
+  upsertUserLessonProgress,
+  upsertUserRecordFromAuth,
+  watchFirebaseAppState,
+} from './firebase-sync.js';
+import {
   LEARNER_PROFILE_KEY,
   analyzeWritingDraft,
   buildEnhancedSearchResults,
@@ -5058,7 +5080,7 @@ const SECTIONS = [
         level: 'B1',
         title: 'Expresiones',
         subtitle: '648 Spanish expressions',
-        intro: 'Four groups ranked from most-used to least-used. Search, browse by group, and open each card to read the example sentence.',
+        intro: 'All 648 expressions are shown in one ranked sequence from most-used to less-used, with 50 expressions per page. Similar forms stay side by side so you can compare them fast.',
         blocks: [
           {
             type: 'expressions-library',
@@ -5692,7 +5714,7 @@ function buildGrammarBankQuiz(level, count = 12) {
   }).filter((question) => question.prompt && question.answer && question.choices.length >= 2);
 }
 
-function PracticeHubBlock({ chapter, practiceChapters = [], lessonStatuses = {}, onLessonStatusChange }) {
+function PracticeHubBlock({ chapter, practiceChapters = [], lessonStatuses = {}, onLessonStatusChange, onPracticeAttempt }) {
   const [selectedLevel, setSelectedLevel] = useState('');
   const [mode, setMode] = useState('multiple-choice');
   const [sourceId, setSourceId] = useState('');
@@ -5710,6 +5732,7 @@ function PracticeHubBlock({ chapter, practiceChapters = [], lessonStatuses = {},
   const [listeningFinished, setListeningFinished] = useState(false);
   const [activeVerbId, setActiveVerbId] = useState('');
   const [activeContextualId, setActiveContextualId] = useState('');
+  const emittedAttemptsRef = React.useRef(new Set());
   const levelChosen = LEVELS.includes(selectedLevel);
 
   const levelCards = useMemo(() => (
@@ -5934,7 +5957,31 @@ function PracticeHubBlock({ chapter, practiceChapters = [], lessonStatuses = {},
     : 'https://www.spanishdict.com/conjugation';
 
   function restartSession() {
+    emittedAttemptsRef.current.clear();
     setSessionSeed((value) => value + 1);
+  }
+
+  function emitPracticeAttempt(modeName, score, total, questions = []) {
+    if (!onPracticeAttempt || !total || total < 1) return;
+    const sourceKey = selectedSource?.id || `${modeName}-level-${selectedLevel}`;
+    const dedupeKey = `${sessionSeed}:${modeName}:${sourceKey}:${score}:${total}`;
+    if (emittedAttemptsRef.current.has(dedupeKey)) return;
+    emittedAttemptsRef.current.add(dedupeKey);
+    onPracticeAttempt({
+      mode: modeName,
+      level: selectedLevel,
+      score,
+      total,
+      percent: Math.round((score / total) * 100),
+      sourceId: sourceKey,
+      title: sourceTitle || `${modeName} ${selectedLevel}`,
+      lessonId: selectedSource?.chapter?.id || null,
+      questions: questions.map((question) => ({
+        prompt: question.prompt || '',
+        answer: question.answer || '',
+        choices: Array.isArray(question.choices) ? question.choices : [],
+      })),
+    });
   }
 
   function startLevel(level) {
@@ -5963,6 +6010,8 @@ function PracticeHubBlock({ chapter, practiceChapters = [], lessonStatuses = {},
   function nextTypingQuestion() {
     if (typingIndex + 1 >= typingQuestions.length) {
       setTypingDone(true);
+      const gained = typingFeedback === 'correct' ? 1 : 0;
+      emitPracticeAttempt('typing', Math.min(typingScore + gained, typingQuestions.length), typingQuestions.length, typingQuestions);
       return;
     }
     setTypingIndex((value) => value + 1);
@@ -6171,7 +6220,10 @@ function PracticeHubBlock({ chapter, practiceChapters = [], lessonStatuses = {},
             <button
               className="lesson-mini-check"
               disabled={multipleChoiceQuestions.length === 0 || Object.keys(mcAnswers).length < multipleChoiceQuestions.length}
-              onClick={() => setMcFinished(true)}
+              onClick={() => {
+                setMcFinished(true);
+                emitPracticeAttempt('multiple-choice', mcScore, multipleChoiceQuestions.length, multipleChoiceQuestions);
+              }}
             >
               Comprobar
             </button>
@@ -6314,7 +6366,10 @@ function PracticeHubBlock({ chapter, practiceChapters = [], lessonStatuses = {},
             <button
               className="lesson-mini-check"
               disabled={listeningQuestions.length === 0 || Object.keys(listeningAnswers).length < listeningQuestions.length}
-              onClick={() => setListeningFinished(true)}
+              onClick={() => {
+                setListeningFinished(true);
+                emitPracticeAttempt('listening', listeningScore, listeningQuestions.length, listeningQuestions);
+              }}
             >
               Comprobar
             </button>
@@ -7415,7 +7470,7 @@ function LessonStatusControl({ status, onChange }) {
   );
 }
 
-function ChapterContent({ chapter, sectionId, section, activeNestedTarget, onOpenSection, onSaveWord, savedWords = [], onUpdateSavedWord, palabrasProgress, onPalabrasProgressChange, lessonStatuses = {}, onLessonStatusChange, practiceChapters = [] }) {
+function ChapterContent({ chapter, sectionId, section, activeNestedTarget, onOpenSection, onSaveWord, savedWords = [], onUpdateSavedWord, palabrasProgress, onPalabrasProgressChange, lessonStatuses = {}, onLessonStatusChange, practiceChapters = [], onPracticeAttempt }) {
   const hasNestedLessonStatus = chapter.blocks.some((block) => (
     block.type === 'foldable-grammar' ||
     block.type === 'foldable-stories' ||
@@ -7644,6 +7699,7 @@ function ChapterContent({ chapter, sectionId, section, activeNestedTarget, onOpe
                 practiceChapters={practiceChapters}
                 lessonStatuses={lessonStatuses}
                 onLessonStatusChange={onLessonStatusChange}
+                onPracticeAttempt={onPracticeAttempt}
               />
             );
           case 'phraselist':
@@ -8355,21 +8411,83 @@ function ChoiceQuizBlock({ block }) {
 }
 
 function ExpressionsLibraryBlock({ library }) {
-  const [activeGroup, setActiveGroup] = useState(0);
   const [query, setQuery] = useState('');
   const [page, setPage] = useState(0);
-  const perPage = library.perPage || 36;
-  const group = library.groups[activeGroup] || library.groups[0];
+  const perPage = 50;
+
+  function normalizeExpressionFamily(text) {
+    return String(text || '')
+      .toLowerCase()
+      .normalize('NFD')
+      .replace(/[\u0300-\u036f]/g, '')
+      .replace(/[^a-z0-9]+/g, '');
+  }
+
+  function diacriticCount(text) {
+    const marks = String(text || '')
+      .normalize('NFD')
+      .match(/[\u0300-\u036f]/g);
+    return marks ? marks.length : 0;
+  }
+
+  const allExpressions = useMemo(() => {
+    const groups = Array.isArray(library?.groups) ? library.groups : [];
+    const flattened = [];
+    groups.forEach((group, groupIndex) => {
+      (group.entries || []).forEach((entry, entryIndex) => {
+        flattened.push({
+          ...entry,
+          groupId: group.id,
+          groupTitle: group.title,
+          groupTone: group.tone,
+          groupIndex,
+          entryIndex,
+          orderKey: groupIndex * 10_000 + (Number(entry.rank) || 0) * 10 + entryIndex,
+        });
+      });
+    });
+
+    flattened.sort((a, b) => (
+      a.groupIndex - b.groupIndex ||
+      (Number(a.rank) || 0) - (Number(b.rank) || 0) ||
+      a.entryIndex - b.entryIndex
+    ));
+
+    const families = new Map();
+    flattened.forEach((entry, index) => {
+      const familyKey = normalizeExpressionFamily(entry.es);
+      if (!families.has(familyKey)) {
+        families.set(familyKey, { familyKey, firstIndex: index, entries: [] });
+      }
+      families.get(familyKey).entries.push(entry);
+    });
+
+    const orderedFamilies = [...families.values()].sort((a, b) => a.firstIndex - b.firstIndex);
+    const arranged = [];
+    orderedFamilies.forEach((family) => {
+      family.entries.sort((a, b) => (
+        (Number(a.rank) || 0) - (Number(b.rank) || 0) ||
+        diacriticCount(a.es) - diacriticCount(b.es) ||
+        String(a.es).localeCompare(String(b.es), 'es', { sensitivity: 'base' })
+      ));
+      arranged.push(...family.entries);
+    });
+
+    return arranged.map((entry, index) => ({
+      ...entry,
+      globalRank: index + 1,
+    }));
+  }, [library]);
 
   const filtered = useMemo(() => {
     const q = normalizeForCompare(query.trim());
-    if (!q) return group.entries;
-    return group.entries.filter((entry) => (
+    if (!q) return allExpressions;
+    return allExpressions.filter((entry) => (
       normalizeForCompare(entry.es).includes(q) ||
       normalizeForCompare(entry.en).includes(q) ||
       normalizeForCompare(entry.example).includes(q)
     ));
-  }, [group, query]);
+  }, [allExpressions, query]);
 
   const totalPages = Math.max(1, Math.ceil(filtered.length / perPage));
   const safePage = Math.min(page, totalPages - 1);
@@ -8377,39 +8495,35 @@ function ExpressionsLibraryBlock({ library }) {
 
   useEffect(() => {
     setPage(0);
-  }, [activeGroup, query]);
-
-  function switchGroup(index) {
-    setActiveGroup(index);
-  }
+  }, [query]);
 
   return (
-    <section className="block expressions-library-block">
+    <section className="block expressions-library-block expressions-lines-block">
       <div className="expressions-hero">
         <div className="expressions-eye">{library.eyebrow}</div>
         <h2>{library.title}</h2>
-        <p>{library.subtitle}</p>
+        <p>
+          All 648 expressions are now in one sequence from most-used to less-used.
+          Similar forms (including accent variants) stay together.
+        </p>
         <div className="expressions-stats">
-          {library.groups.map((g) => (
-            <div key={g.id}>
-              <strong>{g.count}</strong>
-              <span>{g.title}</span>
-            </div>
-          ))}
+          <div>
+            <strong>{allExpressions.length}</strong>
+            <span>Total expressions</span>
+          </div>
+          <div>
+            <strong>{perPage}</strong>
+            <span>Per page</span>
+          </div>
+          <div>
+            <strong>{safePage + 1}</strong>
+            <span>Current page</span>
+          </div>
+          <div>
+            <strong>{totalPages}</strong>
+            <span>Total pages</span>
+          </div>
         </div>
-      </div>
-
-      <div className="expressions-tabs">
-        {library.groups.map((g, index) => (
-          <button
-            key={g.id}
-            className={`${g.tone} ${activeGroup === index ? 'active' : ''}`}
-            onClick={() => switchGroup(index)}
-          >
-            <span>{index + 1}</span>
-            {g.shortTitle} ({g.count})
-          </button>
-        ))}
       </div>
 
       <div className="expressions-toolbar">
@@ -8418,47 +8532,43 @@ function ExpressionsLibraryBlock({ library }) {
           <input
             value={query}
             onChange={(e) => setQuery(e.target.value)}
-            placeholder="Search expressions, meanings..."
+            placeholder="Search expression, meaning, or example..."
           />
         </label>
         <div className="expressions-count">
-          {filtered.length} {filtered.length === 1 ? 'expression' : 'expressions'}
+          {filtered.length} {filtered.length === 1 ? 'expression' : 'expressions'} found
         </div>
         <div className="expressions-pager">
-          <button disabled={safePage === 0} onClick={() => setPage((p) => Math.max(0, p - 1))}>Prev</button>
+          <button disabled={safePage === 0} onClick={() => setPage((p) => Math.max(0, p - 1))}>Prev 50 expressions</button>
           <span>{safePage + 1} / {totalPages}</span>
-          <button disabled={safePage >= totalPages - 1} onClick={() => setPage((p) => Math.min(totalPages - 1, p + 1))}>Next</button>
+          <button disabled={safePage >= totalPages - 1} onClick={() => setPage((p) => Math.min(totalPages - 1, p + 1))}>Next 50 expressions</button>
         </div>
       </div>
 
       {visibleEntries.length > 0 ? (
-        <div className="expressions-grid">
+        <div className="expressions-lines">
           {visibleEntries.map((entry) => {
-            const key = `${group.id}-${entry.rank}`;
+            const key = `${entry.groupId}-${entry.rank}-${entry.es}`;
             return (
-              <article
-                key={key}
-                className={`expression-card ${group.tone}`}
-              >
-                <header>
-                  <span className="expression-rank">#{entry.rank}</span>
-                  <div>
-                    <h3>
+              <article key={key} className="expression-line-item">
+                <div className="expression-line-main">
+                  <span className="expression-rank">#{entry.globalRank}</span>
+                  <div className="expression-line-text">
+                    <p className="expression-line-head">
                       <SpeakBtn text={entry.es} />
-                      <InlineDictionaryText text={entry.es} />
-                    </h3>
-                    <p>{entry.en}</p>
-                  </div>
-                </header>
-                {entry.example && (
-                  <div className="expression-example">
-                    <div className="expression-example-label">Ejemplo</div>
-                    <p>
-                      <SpeakBtn text={entry.example} />
-                      <InlineDictionaryText text={entry.example} />
+                      <strong><InlineDictionaryText text={entry.es} /></strong>
+                      <span className="expression-line-eq">=</span>
+                      <em>{entry.en}</em>
                     </p>
+                    {entry.example && (
+                      <p className="expression-line-example">
+                        <span>Ejemplo:</span>{' '}
+                        <SpeakBtn text={entry.example} />
+                        <InlineDictionaryText text={entry.example} />
+                      </p>
+                    )}
                   </div>
-                )}
+                </div>
               </article>
             );
           })}
@@ -8469,6 +8579,12 @@ function ExpressionsLibraryBlock({ library }) {
           No expressions found. Try a different search.
         </div>
       )}
+
+      <div className="expressions-pager expressions-pager-bottom">
+        <button disabled={safePage === 0} onClick={() => setPage((p) => Math.max(0, p - 1))}>Prev 50 expressions</button>
+        <span>{safePage + 1} / {totalPages}</span>
+        <button disabled={safePage >= totalPages - 1} onClick={() => setPage((p) => Math.min(totalPages - 1, p + 1))}>Next 50 expressions</button>
+      </div>
 
       <div className="expressions-foot">{library.sourceNote}</div>
     </section>
@@ -9377,6 +9493,16 @@ export default function SpanishBook() {
   const [writingEntries, setWritingEntries] = useState([]);
   const [waitingWorker, setWaitingWorker] = useState(null);
   const [syncOpen, setSyncOpen] = useState(false);
+  const [firebaseConfigText, setFirebaseConfigText] = useState(() => {
+    const config = resolveFirebaseConfig();
+    return config ? JSON.stringify(config) : '';
+  });
+  const [firebaseReady, setFirebaseReady] = useState(() => hasFirebaseConfig());
+  const [firebaseUser, setFirebaseUser] = useState(null);
+  const [firebaseBusy, setFirebaseBusy] = useState(false);
+  const [firebaseLastSyncedAt, setFirebaseLastSyncedAt] = useState('');
+  const [firebaseMessage, setFirebaseMessage] = useState('');
+  const [firebasePersistenceNote, setFirebasePersistenceNote] = useState('');
   const [googleClientId, setGoogleClientId] = useState(import.meta.env.VITE_GOOGLE_CLIENT_ID || '');
   const [googleAccessToken, setGoogleAccessToken] = useState('');
   const [googleLastSyncedAt, setGoogleLastSyncedAt] = useState('');
@@ -9396,6 +9522,11 @@ export default function SpanishBook() {
   const syncHydratingRef = React.useRef(false);
   const lastAutoSyncAtRef = React.useRef(0);
   const lazyLessonLoadingRef = React.useRef(new Set());
+  const firebaseAuthUnsubRef = React.useRef(null);
+  const firebaseRealtimeUnsubRef = React.useRef(null);
+  const firebaseApplyingRemoteRef = React.useRef(false);
+  const lastFirebaseAutoSyncAtRef = React.useRef(0);
+  const recordedPracticeAttemptsRef = React.useRef(new Set());
   const bookRootRef = React.useRef(null);
   const mobileBarRef = React.useRef(null);
 
@@ -9601,6 +9732,9 @@ export default function SpanishBook() {
       persistLessonStatuses(next);
       return next;
     });
+    if (firebaseUser?.uid) {
+      upsertUserLessonProgress(firebaseUser.uid, chapterId, { status }).catch(() => {});
+    }
   }
 
   function handleAudioSettingsChange(next) {
@@ -9795,6 +9929,11 @@ export default function SpanishBook() {
   const allFlatChapters = useMemo(() => {
     return buildVisibleFlatChapters(activeSections, 'ALL');
   }, [activeSections]);
+  const chapterIndexById = useMemo(() => {
+    const byId = {};
+    for (const chapter of allFlatChapters) byId[chapter.id] = chapter;
+    return byId;
+  }, [allFlatChapters]);
 
   // If the active chapter is filtered out, jump to the first visible one.
   useEffect(() => {
@@ -10172,7 +10311,7 @@ export default function SpanishBook() {
   function buildSyncPayload() {
     return {
       app: 'Lexiora',
-      version: 5,
+      version: 6,
       exportedAt: new Date().toISOString(),
       savedWords,
       visitedChapters,
@@ -10228,6 +10367,241 @@ export default function SpanishBook() {
       syncHydratingRef.current = false;
     }
   }
+
+  async function saveFirebaseConfigText() {
+    const parsed = parseFirebaseConfigJson(firebaseConfigText);
+    if (!parsed) {
+      setFirebaseMessage('Firebase config JSON is invalid. Paste the full web config object.');
+      return;
+    }
+    const saved = saveFirebaseConfigToStorage(parsed);
+    if (!saved) {
+      setFirebaseMessage('Could not save Firebase config on this device.');
+      return;
+    }
+    setFirebaseReady(true);
+    setFirebaseMessage('Firebase config saved. You can sign in now.');
+  }
+
+  async function syncWithFirebase(options = {}) {
+    if (!firebaseUser?.uid) {
+      setFirebaseMessage('Sign in to Firebase first.');
+      return;
+    }
+    setFirebaseBusy(true);
+    if (!options.silent) setFirebaseMessage('Syncing with Firebase...');
+    try {
+      const localPayload = buildSyncPayload();
+      const remotePayload = await loadFirebaseAppState(firebaseUser.uid);
+      const mergedPayload = mergeFirebasePayloads(localPayload, remotePayload);
+      firebaseApplyingRemoteRef.current = true;
+      await applySyncPayload(mergedPayload);
+      await saveFirebaseAppState(firebaseUser.uid, mergedPayload);
+      setFirebaseLastSyncedAt(new Date().toLocaleString());
+      syncDirtyRef.current = false;
+      const persistence = getFirebasePersistenceStatus();
+      setFirebasePersistenceNote(persistence.enabled ? 'enabled' : persistence.note);
+      if (!options.silent) {
+        setFirebaseMessage(`Firebase synced: ${mergedPayload.savedWords.length} words, ${Object.keys(mergedPayload.lessonStatuses || {}).length} lesson marks.`);
+      }
+    } catch (error) {
+      if (!options.silent) setFirebaseMessage(error?.message || 'Firebase sync did not finish.');
+    } finally {
+      firebaseApplyingRemoteRef.current = false;
+      setFirebaseBusy(false);
+    }
+  }
+
+  async function signInFirebaseAnonymous() {
+    if (!firebaseReady) {
+      setFirebaseMessage('Add Firebase config first.');
+      return;
+    }
+    setFirebaseBusy(true);
+    setFirebaseMessage('Signing in anonymously...');
+    try {
+      await signInFirebaseAnonymously();
+      setFirebaseMessage('Anonymous sign-in complete.');
+    } catch (error) {
+      setFirebaseMessage(error?.message || 'Anonymous sign-in failed.');
+    } finally {
+      setFirebaseBusy(false);
+    }
+  }
+
+  async function signInFirebaseGoogle() {
+    if (!firebaseReady) {
+      setFirebaseMessage('Add Firebase config first.');
+      return;
+    }
+    setFirebaseBusy(true);
+    setFirebaseMessage('Opening Google sign-in...');
+    try {
+      await signInFirebaseWithGoogle();
+      setFirebaseMessage('Google sign-in complete.');
+    } catch (error) {
+      setFirebaseMessage(error?.message || 'Google sign-in failed.');
+    } finally {
+      setFirebaseBusy(false);
+    }
+  }
+
+  async function signOutFirebaseSession() {
+    setFirebaseBusy(true);
+    try {
+      await signOutFirebase();
+      setFirebaseMessage('Signed out from Firebase.');
+    } catch (error) {
+      setFirebaseMessage(error?.message || 'Sign out failed.');
+    } finally {
+      setFirebaseBusy(false);
+    }
+  }
+
+  function buildQuizIdFromAttempt(attempt) {
+    const sourceId = String(attempt?.sourceId || 'practice');
+    const mode = String(attempt?.mode || 'quiz');
+    const level = String(attempt?.level || 'A1');
+    return `${mode}-${level}-${sourceId}`.replace(/[^a-zA-Z0-9_-]+/g, '-').toLowerCase();
+  }
+
+  async function handlePracticeAttempt(attempt) {
+    if (!firebaseUser?.uid || !attempt) return;
+    const dedupeKey = `${attempt.mode}:${attempt.level}:${attempt.sourceId}:${attempt.total}:${attempt.score}`;
+    if (recordedPracticeAttemptsRef.current.has(dedupeKey)) return;
+    recordedPracticeAttemptsRef.current.add(dedupeKey);
+    try {
+      const quizId = buildQuizIdFromAttempt(attempt);
+      if (attempt.lessonId && chapterIndexById[attempt.lessonId]) {
+        const lesson = chapterIndexById[attempt.lessonId];
+        await upsertLesson(lesson.id, {
+          title: lesson.title,
+          lessonNumber: Number(lesson.rank || 0),
+          content: lesson.intro || lesson.subtitle || lesson.title,
+          description: lesson.subtitle || lesson.sectionLabel || '',
+        }, firebaseUser.uid);
+      }
+      await upsertQuiz(quizId, {
+        title: attempt.title || 'Practice quiz',
+        description: `Mode: ${attempt.mode} | Level: ${attempt.level}`,
+        lessonId: attempt.lessonId || null,
+      }, firebaseUser.uid);
+      const questionList = Array.isArray(attempt.questions) ? attempt.questions.slice(0, 24) : [];
+      await Promise.all(questionList.map((question, index) => upsertQuestion(
+        quizId,
+        `q-${index + 1}`,
+        {
+          text: question.prompt || '',
+          type: attempt.mode || 'multiple-choice',
+          correctAnswer: question.answer || '',
+          options: Array.isArray(question.choices) ? question.choices : [],
+        },
+        firebaseUser.uid,
+      )));
+      await recordQuizAttempt(firebaseUser.uid, {
+        score: attempt.score,
+        total: attempt.total,
+        percent: attempt.percent,
+        mode: attempt.mode,
+        level: attempt.level,
+        quizId,
+        quizTitle: attempt.title || 'Practice quiz',
+      });
+    } catch (_) {
+      // Keep quiz flow uninterrupted even if cloud write fails.
+    }
+  }
+
+  useEffect(() => {
+    setFirebaseReady(hasFirebaseConfig());
+  }, [firebaseConfigText]);
+
+  useEffect(() => {
+    if (!firebaseReady) return undefined;
+    let cancelled = false;
+    let authUnsub = null;
+
+    (async () => {
+      try {
+        authUnsub = await observeFirebaseAuthState(async (user) => {
+          if (cancelled) return;
+          setFirebaseUser(user || null);
+          const persistence = getFirebasePersistenceStatus();
+          setFirebasePersistenceNote(persistence.enabled ? 'enabled' : persistence.note);
+
+          if (firebaseRealtimeUnsubRef.current) {
+            firebaseRealtimeUnsubRef.current();
+            firebaseRealtimeUnsubRef.current = null;
+          }
+
+          if (!user?.uid) return;
+          await upsertUserRecordFromAuth(user);
+
+          // Optional hydration from per-lesson progress collection.
+          const remoteProgressRows = await listUserLessonProgress(user.uid).catch(() => []);
+          if (remoteProgressRows.length) {
+            setLessonStatuses((prev) => {
+              const next = { ...prev };
+              for (const row of remoteProgressRows) {
+                if (!row?.lessonId) continue;
+                if (next[row.lessonId]) continue;
+                if (row.localStatus) next[row.lessonId] = row.localStatus;
+              }
+              return next;
+            });
+          }
+
+          const localPayload = buildSyncPayload();
+          const remotePayload = await loadFirebaseAppState(user.uid);
+          const merged = mergeFirebasePayloads(localPayload, remotePayload);
+          firebaseApplyingRemoteRef.current = true;
+          await applySyncPayload(merged);
+          await saveFirebaseAppState(user.uid, merged);
+          firebaseApplyingRemoteRef.current = false;
+          syncDirtyRef.current = false;
+          setFirebaseLastSyncedAt(new Date().toLocaleString());
+          setFirebaseMessage('Firebase realtime sync connected.');
+
+          firebaseRealtimeUnsubRef.current = await watchFirebaseAppState(
+            user.uid,
+            async (remoteNext, metadata) => {
+              if (!remoteNext || firebaseApplyingRemoteRef.current) return;
+              const mergedNext = mergeFirebasePayloads(buildSyncPayload(), remoteNext);
+              firebaseApplyingRemoteRef.current = true;
+              await applySyncPayload(mergedNext);
+              firebaseApplyingRemoteRef.current = false;
+              syncDirtyRef.current = false;
+              if (!metadata?.hasPendingWrites) {
+                setFirebaseLastSyncedAt(new Date().toLocaleString());
+              }
+            },
+            (error) => setFirebaseMessage(error?.message || 'Firebase listener stopped.'),
+          );
+        }, (error) => {
+          setFirebaseMessage(error?.message || 'Firebase auth listener error.');
+        });
+
+        if (!cancelled) {
+          firebaseAuthUnsubRef.current = authUnsub;
+          await signInFirebaseAnonymously();
+        }
+      } catch (error) {
+        if (!cancelled) {
+          setFirebaseMessage(error?.message || 'Firebase setup did not finish.');
+        }
+      }
+    })();
+
+    return () => {
+      cancelled = true;
+      authUnsub?.();
+      if (firebaseRealtimeUnsubRef.current) {
+        firebaseRealtimeUnsubRef.current();
+        firebaseRealtimeUnsubRef.current = null;
+      }
+      firebaseAuthUnsubRef.current = null;
+    };
+  }, [firebaseReady]);
 
   async function saveGoogleClientId() {
     const clean = googleClientId.trim();
@@ -10293,6 +10667,31 @@ export default function SpanishBook() {
       setGoogleBusy(false);
     }
   }
+
+  useEffect(() => {
+    if (!firebaseUser?.uid || firebaseBusy || isStudyTimerRunning || !syncDirtyRef.current) return undefined;
+    const now = Date.now();
+    if (now - lastFirebaseAutoSyncAtRef.current < 20_000) return undefined;
+    const timer = window.setTimeout(() => {
+      if (!syncDirtyRef.current || firebaseBusy || isStudyTimerRunning || !firebaseUser?.uid) return;
+      lastFirebaseAutoSyncAtRef.current = Date.now();
+      syncWithFirebase({ silent: true });
+    }, 3000);
+    return () => window.clearTimeout(timer);
+  }, [
+    firebaseUser?.uid,
+    firebaseBusy,
+    isStudyTimerRunning,
+    savedWords,
+    palabrasProgress,
+    lessonStatuses,
+    writingEntries,
+    audioSettings,
+    fontScale,
+    translationMode,
+    booxMode,
+    studyTime.updatedAt,
+  ]);
 
   useEffect(() => {
     if (!googleAccessToken || googleBusy || isStudyTimerRunning || !syncDirtyRef.current) return undefined;
@@ -10470,6 +10869,20 @@ export default function SpanishBook() {
           <SyncPanel
             open={syncOpen}
             onClose={() => setSyncOpen(false)}
+            firebaseReady={firebaseReady}
+            firebaseConnected={Boolean(firebaseUser?.uid)}
+            firebaseAuthLabel={firebaseUser ? (firebaseUser.isAnonymous ? `anonymous (${firebaseUser.uid.slice(0, 8)}...)` : `google (${firebaseUser.uid.slice(0, 8)}...)`) : 'signed out'}
+            firebaseBusy={firebaseBusy}
+            firebasePersistenceNote={firebasePersistenceNote}
+            firebaseConfigText={firebaseConfigText}
+            setFirebaseConfigText={setFirebaseConfigText}
+            saveFirebaseConfigText={saveFirebaseConfigText}
+            signInFirebaseAnonymous={signInFirebaseAnonymous}
+            signInFirebaseGoogle={signInFirebaseGoogle}
+            signOutFirebase={signOutFirebaseSession}
+            syncWithFirebase={syncWithFirebase}
+            firebaseLastSyncedAt={firebaseLastSyncedAt}
+            firebaseMessage={firebaseMessage}
             googleAccessToken={googleAccessToken}
             googleLastSyncedAt={googleLastSyncedAt}
             googleBusy={googleBusy}
@@ -10736,6 +11149,7 @@ export default function SpanishBook() {
                 lessonStatuses={lessonStatuses}
                 onLessonStatusChange={handleLessonStatusChange}
                 practiceChapters={allFlatChapters}
+                onPracticeAttempt={handlePracticeAttempt}
               />
             ) : (
               <div className="empty">

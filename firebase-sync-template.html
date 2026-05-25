@@ -1,0 +1,392 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Firebase Realtime Sync Template</title>
+    <style>
+      body {
+        font-family: Arial, sans-serif;
+        max-width: 900px;
+        margin: 24px auto;
+        padding: 0 16px;
+        line-height: 1.5;
+      }
+      .row {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 10px;
+        align-items: center;
+        margin-bottom: 12px;
+      }
+      .status {
+        padding: 8px 12px;
+        border: 1px solid #ccc;
+        border-radius: 8px;
+        background: #fafafa;
+      }
+      button {
+        padding: 9px 12px;
+        border: 1px solid #888;
+        border-radius: 8px;
+        background: #fff;
+        cursor: pointer;
+      }
+      textarea {
+        width: 100%;
+        min-height: 180px;
+        font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+        font-size: 14px;
+        padding: 12px;
+        border: 1px solid #bbb;
+        border-radius: 8px;
+      }
+      .small {
+        color: #555;
+        font-size: 13px;
+      }
+      .ok {
+        color: #116329;
+      }
+      .warn {
+        color: #7a4b00;
+      }
+      .err {
+        color: #8b0000;
+      }
+    </style>
+  </head>
+  <body>
+    <h1>Realtime Sync (Firebase)</h1>
+    <p class="small">
+      This is a single-file template. Replace config values and connect your app data model.
+    </p>
+
+    <div class="row">
+      <button id="btnAnon">Sign in anonymously</button>
+      <button id="btnGoogle">Sign in with Google</button>
+      <button id="btnSignOut">Sign out</button>
+      <div id="authStatus" class="status">Auth: loading...</div>
+    </div>
+
+    <div class="row">
+      <button id="btnLoad">Load from cloud</button>
+      <button id="btnSave">Save now</button>
+      <div id="syncStatus" class="status">Sync: idle</div>
+    </div>
+
+    <label for="appData"><strong>App Data JSON</strong></label>
+    <textarea id="appData">
+{
+  "memoria": [],
+  "progress": {},
+  "settings": {
+    "fontSize": 100,
+    "audioRate": 1
+  },
+  "studyTimeSeconds": 0
+}
+    </textarea>
+    <p class="small">
+      Tip: edit JSON here and click Save now. Open the same app on another device and sign in to the same account.
+    </p>
+
+    <script type="module">
+      // =========================================================
+      // FIREBASE BLOCK 1: SDK imports (CDN, modular v10+ style)
+      // =========================================================
+      import { initializeApp } from "https://www.gstatic.com/firebasejs/12.13.0/firebase-app.js";
+      import {
+        getAuth,
+        onAuthStateChanged,
+        signInAnonymously,
+        signInWithPopup,
+        GoogleAuthProvider,
+        linkWithPopup,
+        signOut
+      } from "https://www.gstatic.com/firebasejs/12.13.0/firebase-auth.js";
+      import {
+        getFirestore,
+        doc,
+        getDoc,
+        setDoc,
+        onSnapshot,
+        serverTimestamp,
+        enableIndexedDbPersistence
+      } from "https://www.gstatic.com/firebasejs/12.13.0/firebase-firestore.js";
+
+      // =========================================================
+      // FIREBASE BLOCK 2: Init app + services
+      // Replace with your own config from Firebase Console.
+      // =========================================================
+      const firebaseConfig = {
+        apiKey: "REPLACE_ME_API_KEY",
+        authDomain: "REPLACE_ME_PROJECT_ID.firebaseapp.com",
+        projectId: "REPLACE_ME_PROJECT_ID",
+        storageBucket: "REPLACE_ME_PROJECT_ID.appspot.com",
+        messagingSenderId: "REPLACE_ME_SENDER_ID",
+        appId: "REPLACE_ME_APP_ID"
+      };
+
+      const app = initializeApp(firebaseConfig);
+      const auth = getAuth(app);
+      const db = getFirestore(app);
+      const googleProvider = new GoogleAuthProvider();
+
+      // =========================================================
+      // FIREBASE BLOCK 3: Firestore offline persistence
+      // Queues writes while offline; syncs when network returns.
+      // =========================================================
+      async function enableOfflinePersistence() {
+        try {
+          await enableIndexedDbPersistence(db);
+          setSyncStatus("Offline cache enabled", "ok");
+        } catch (error) {
+          // failed-precondition = multiple tabs open
+          // unimplemented = browser unsupported
+          setSyncStatus(`Offline cache note: ${error.code || error.message}`, "warn");
+        }
+      }
+      enableOfflinePersistence();
+
+      // =========================================================
+      // APP STORAGE KEYS + DOC PATH
+      // Firestore path: /users/{uid}/data/{docId}
+      // =========================================================
+      const LOCAL_CACHE_KEY = "lexiora_offline_cache_v1";
+      const DATA_DOC_ID = "appState";
+      let unsubscribeRealtime = null;
+      let currentUid = null;
+      let isApplyingRemoteUpdate = false;
+
+      const authStatusEl = document.getElementById("authStatus");
+      const syncStatusEl = document.getElementById("syncStatus");
+      const appDataEl = document.getElementById("appData");
+
+      function setAuthStatus(text, tone = "") {
+        authStatusEl.className = `status ${tone}`.trim();
+        authStatusEl.textContent = `Auth: ${text}`;
+      }
+
+      function setSyncStatus(text, tone = "") {
+        syncStatusEl.className = `status ${tone}`.trim();
+        syncStatusEl.textContent = `Sync: ${text}`;
+      }
+
+      // =========================================================
+      // FIREBASE BLOCK 4: Local cache helpers (offline fallback)
+      // =========================================================
+      function saveToLocalCache(payload) {
+        localStorage.setItem(LOCAL_CACHE_KEY, JSON.stringify(payload));
+      }
+
+      function loadFromLocalCache() {
+        const raw = localStorage.getItem(LOCAL_CACHE_KEY);
+        if (!raw) return null;
+        try {
+          return JSON.parse(raw);
+        } catch {
+          return null;
+        }
+      }
+
+      function getUserDocRef(uid) {
+        return doc(db, "users", uid, "data", DATA_DOC_ID);
+      }
+
+      function getEditorPayload() {
+        try {
+          return JSON.parse(appDataEl.value);
+        } catch (error) {
+          throw new Error("Invalid JSON in App Data.");
+        }
+      }
+
+      function applyPayloadToEditor(payload) {
+        isApplyingRemoteUpdate = true;
+        appDataEl.value = JSON.stringify(payload, null, 2);
+        isApplyingRemoteUpdate = false;
+      }
+
+      // =========================================================
+      // FIREBASE BLOCK 5: Save logic
+      // On every save: write Firestore + update localStorage.
+      // =========================================================
+      async function saveAppDataNow() {
+        if (!currentUid) {
+          setSyncStatus("No user yet. Sign in first.", "warn");
+          return;
+        }
+
+        let payload;
+        try {
+          payload = getEditorPayload();
+        } catch (error) {
+          setSyncStatus(error.message, "err");
+          return;
+        }
+
+        // Always update local cache first for offline resilience.
+        saveToLocalCache(payload);
+
+        try {
+          await setDoc(
+            getUserDocRef(currentUid),
+            {
+              payload,
+              updatedAt: serverTimestamp()
+            },
+            { merge: true }
+          );
+          setSyncStatus("Saved to Firestore + local cache", "ok");
+        } catch (error) {
+          // If offline, Firestore queues the write if persistence is active.
+          setSyncStatus(`Save queued/offline: ${error.message}`, "warn");
+        }
+      }
+
+      // =========================================================
+      // FIREBASE BLOCK 6: First load logic
+      // Read Firestore first, fallback to localStorage if needed.
+      // =========================================================
+      async function loadInitialData(uid) {
+        const localPayload = loadFromLocalCache();
+
+        try {
+          const snap = await getDoc(getUserDocRef(uid));
+          if (snap.exists()) {
+            const cloudPayload = snap.data()?.payload ?? {};
+            applyPayloadToEditor(cloudPayload);
+            saveToLocalCache(cloudPayload);
+            setSyncStatus("Loaded from Firestore", "ok");
+            return;
+          }
+          if (localPayload) {
+            applyPayloadToEditor(localPayload);
+            setSyncStatus("No cloud doc yet. Loaded local cache.", "warn");
+          } else {
+            setSyncStatus("No cloud doc yet. Using editor defaults.", "warn");
+          }
+        } catch (error) {
+          if (localPayload) {
+            applyPayloadToEditor(localPayload);
+            setSyncStatus("Offline: loaded local cache", "warn");
+          } else {
+            setSyncStatus(`Load failed: ${error.message}`, "err");
+          }
+        }
+      }
+
+      // =========================================================
+      // FIREBASE BLOCK 7: Realtime sync listener (cross-device)
+      // =========================================================
+      function startRealtimeListener(uid) {
+        if (unsubscribeRealtime) unsubscribeRealtime();
+        const userDocRef = getUserDocRef(uid);
+
+        unsubscribeRealtime = onSnapshot(
+          userDocRef,
+          (snap) => {
+            if (!snap.exists()) return;
+            const remotePayload = snap.data()?.payload ?? {};
+            if (!isApplyingRemoteUpdate) {
+              applyPayloadToEditor(remotePayload);
+              saveToLocalCache(remotePayload);
+            }
+            const pending = snap.metadata.hasPendingWrites ? " (pending local write)" : "";
+            setSyncStatus(`Realtime synced${pending}`, "ok");
+          },
+          (error) => {
+            setSyncStatus(`Realtime error: ${error.message}`, "err");
+          }
+        );
+      }
+
+      // =========================================================
+      // FIREBASE BLOCK 8: Auth flow
+      // - Start with anonymous auth
+      // - Optional Google sign-in to "claim" data across devices
+      // =========================================================
+      async function ensureAnonymousAuth() {
+        if (auth.currentUser) return;
+        await signInAnonymously(auth);
+      }
+
+      async function signInWithGoogleAndKeepData() {
+        const user = auth.currentUser;
+        try {
+          if (user && user.isAnonymous) {
+            // Keeps same UID and existing /users/{uid}/... data.
+            await linkWithPopup(user, googleProvider);
+            setSyncStatus("Anonymous account upgraded to Google", "ok");
+          } else {
+            await signInWithPopup(auth, googleProvider);
+            setSyncStatus("Signed in with Google", "ok");
+          }
+        } catch (error) {
+          setSyncStatus(`Google sign-in failed: ${error.message}`, "err");
+        }
+      }
+
+      // =========================================================
+      // FIREBASE BLOCK 9: Auth state observer + boot
+      // =========================================================
+      onAuthStateChanged(auth, async (user) => {
+        if (!user) {
+          currentUid = null;
+          setAuthStatus("signed out", "warn");
+          if (unsubscribeRealtime) {
+            unsubscribeRealtime();
+            unsubscribeRealtime = null;
+          }
+          return;
+        }
+
+        currentUid = user.uid;
+        setAuthStatus(
+          user.isAnonymous ? `anonymous (${user.uid.slice(0, 8)}...)` : `google (${user.uid.slice(0, 8)}...)`,
+          "ok"
+        );
+
+        await loadInitialData(user.uid);
+        startRealtimeListener(user.uid);
+      });
+
+      // Auto-anonymous sign-in on page load.
+      ensureAnonymousAuth().catch((error) => {
+        setAuthStatus(`error: ${error.message}`, "err");
+      });
+
+      // =========================================================
+      // UI hooks
+      // =========================================================
+      document.getElementById("btnAnon").addEventListener("click", async () => {
+        try {
+          await signInAnonymously(auth);
+        } catch (error) {
+          setAuthStatus(`error: ${error.message}`, "err");
+        }
+      });
+
+      document.getElementById("btnGoogle").addEventListener("click", async () => {
+        await signInWithGoogleAndKeepData();
+      });
+
+      document.getElementById("btnSignOut").addEventListener("click", async () => {
+        await signOut(auth);
+      });
+
+      document.getElementById("btnLoad").addEventListener("click", async () => {
+        if (!currentUid) {
+          setSyncStatus("No user yet", "warn");
+          return;
+        }
+        await loadInitialData(currentUid);
+      });
+
+      document.getElementById("btnSave").addEventListener("click", async () => {
+        await saveAppDataNow();
+      });
+    </script>
+  </body>
+</html>

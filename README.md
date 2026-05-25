@@ -31,6 +31,28 @@ npm test
 
 The `Lectura` section includes `Canciones`, a songbook generated from `Canciones.docx` with repeated chorus ideas condensed into organized Spanish/English study sections.
 
+## Firebase Realtime Sync (Cross-device)
+
+Lexiora supports Firebase realtime sync for Memoria, progress, settings, and study time.
+
+1. Create a Firebase project at [console.firebase.google.com](https://console.firebase.google.com/).
+2. Enable **Authentication** providers:
+   - Anonymous
+   - Google
+3. Enable **Cloud Firestore**.
+4. Deploy Firestore rules from `firestore.rules`.
+5. Paste your Firebase Web config into `public/firebase-config.js` or use Sync -> Firebase setup in-app.
+
+Primary sync document path:
+- `/users/{uid}/data/appState`
+
+User model paths:
+- `/users/{uid}`
+- `/users/{uid}/lessonProgress/{lessonId}`
+- `/users/{uid}/quizAttempts/{attemptId}`
+- `/users/{uid}/lessons/{lessonId}`
+- `/users/{uid}/quizzes/{quizId}/questions/{questionId}`
+
 ## Deploy
 
 Pushes to `main` run `.github/workflows/deploy-pages.yml`, build the app, and publish `dist` to the `gh-pages` branch.
