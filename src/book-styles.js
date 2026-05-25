@@ -2640,15 +2640,36 @@ export const styles = `
   text-transform: none;
 }
 .expression-line-example-label {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 2px 8px;
+  border-radius: 999px;
+  border: 1px solid rgba(83, 68, 160, 0.35);
+  background: rgba(83, 68, 160, 0.12);
   font-family: 'Literata', Georgia, serif;
   text-transform: none;
-  letter-spacing: 0.12em;
+  letter-spacing: 0.08em;
   font-size: 12px;
-  color: var(--ink);
+  color: #4c3f95;
   font-weight: 700;
 }
 .expression-line-example .speak-btn {
   margin: 0 6px 0 4px;
+}
+.expression-line-example-wrap {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.expression-line-example-en {
+  margin: 0;
+  font-family: 'Literata', Georgia, serif;
+  font-size: 16px;
+  line-height: 1.5;
+  color: var(--ink-soft);
+  font-style: italic;
+  padding-left: 2px;
 }
 .expressions-pager-bottom {
   margin-top: 12px;
