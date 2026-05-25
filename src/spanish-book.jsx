@@ -122,6 +122,7 @@ const LESSON_DATA_LOADERS = {
   tiemposVerbales: () => import('./tiempos-verbales.js').then((module) => module.TIEMPOS_VERBALES_LESSON),
   compoundIndicative: () => import('./compound-tenses-indicative.js').then((module) => module.COMPOUND_TENSES_INDICATIVE_LESSON),
   compoundSubjunctive: () => import('./compound-tenses-subjunctive.js').then((module) => module.COMPOUND_TENSES_SUBJUNCTIVE_LESSON),
+  zoranJourney: () => import('./zoran-journey.js').then((module) => module.ZORAN_JOURNEY_LESSON),
   canciones: () => import('./canciones.js').then((module) => module.CANCIONES_SONGS),
   expressions: () => import('./spanish-expressions-library.js').then((module) => module.SPANISH_EXPRESSIONS_LIBRARY),
 };
@@ -4496,6 +4497,12 @@ const SECTIONS = [
           },
         ],
       },
+      lazyChapter('zoranJourney', {
+        id: 'el-viaje-de-zoran',
+        level: 'A1-A2',
+        title: 'El Viaje de Zoran',
+        subtitle: 'lectura guiada',
+      }),
       {
         id: 'biografias',
         level: 'A1',
