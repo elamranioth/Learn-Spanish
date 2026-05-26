@@ -2681,7 +2681,8 @@ export const styles = `
 }
 .expression-line-head .search-hit,
 .expression-line-example .search-hit,
-.expression-line-example-en .search-hit {
+.expression-line-example-en .search-hit,
+.global-search-results .search-hit {
   box-shadow: 0 0 0 1px rgba(154, 106, 0, 0.14);
 }
 .expressions-pager-bottom {

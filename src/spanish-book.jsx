@@ -10872,9 +10872,11 @@ export default function SpanishBook() {
                   setSidebarOpen(false);
                 }}
               >
-                <span>{result.title}</span>
-                <em>{result.meta}</em>
-                {result.context && <small>{result.context}</small>}
+                <span><SearchHighlightedText text={result.title} query={globalSearch} /></span>
+                <em><SearchHighlightedText text={result.meta} query={globalSearch} /></em>
+                {result.context && (
+                  <small><SearchHighlightedText text={result.context} query={globalSearch} /></small>
+                )}
               </button>
             )) : (
               <div className="global-search-empty">No matches</div>

@@ -15,6 +15,7 @@ export function registerServiceWorker() {
       updateViaCache: 'none',
     }).then((registration) => {
       function notifyUpdate(worker) {
+        worker?.postMessage?.({ type: 'SKIP_WAITING' });
         window.dispatchEvent(new CustomEvent('learn-spanish-update-ready', { detail: { worker } }));
       }
 
