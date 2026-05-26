@@ -2671,6 +2671,19 @@ export const styles = `
   font-style: italic;
   padding-left: 2px;
 }
+.search-hit {
+  background: #fff176;
+  color: inherit;
+  border-radius: 3px;
+  box-decoration-break: clone;
+  -webkit-box-decoration-break: clone;
+  padding: 0 0.08em;
+}
+.expression-line-head .search-hit,
+.expression-line-example .search-hit,
+.expression-line-example-en .search-hit {
+  box-shadow: 0 0 0 1px rgba(154, 106, 0, 0.14);
+}
 .expressions-pager-bottom {
   margin-top: 12px;
   justify-content: center;
