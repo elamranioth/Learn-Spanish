@@ -8720,6 +8720,7 @@ function ExpressionsLibraryBlock({ library }) {
 function DictionaryPopup({ savedWords, onSave, onRemove }) {
   const [popup, setPopup] = useState(null);
   const [vocabularyGroups, setVocabularyGroups] = useState([]);
+  const [popupLayout, setPopupLayout] = useState(null);
   const popupRef = React.useRef(null);
   const savedWordsRef = React.useRef(savedWords);
   const vocabularyGroupsRef = React.useRef(vocabularyGroups);
@@ -8909,11 +8910,66 @@ function DictionaryPopup({ savedWords, onSave, onRemove }) {
     );
   }
 
-  const POPUP_W = 290;
-  const safeX = Math.max(POPUP_W / 2 + 8, Math.min(popup.x, window.innerWidth - POPUP_W / 2 - 8));
-  const belowViewport = popup.y + 220 > window.innerHeight;
-  const topStyle = belowViewport ? 'auto' : popup.y;
-  const bottomStyle = belowViewport ? Math.max(12, window.innerHeight - popup.y + 12) : 'auto';
+  useEffect(() => {
+    if (!popup || !popupRef.current) {
+      setPopupLayout(null);
+      return undefined;
+    }
+
+    function placePopup() {
+      if (!popupRef.current) return;
+      const margin = 10;
+      const viewport = window.visualViewport;
+      const viewportWidth = Math.round(viewport?.width || window.innerWidth || 0);
+      const viewportHeight = Math.round(viewport?.height || window.innerHeight || 0);
+      if (!viewportWidth || !viewportHeight) return;
+
+      const rect = popupRef.current.getBoundingClientRect();
+      const popupWidth = Math.ceil(rect.width || Math.min(320, viewportWidth - margin * 2));
+      const popupHeight = Math.ceil(rect.height || 220);
+      const anchorX = popup.x || viewportWidth / 2;
+      const anchorY = popup.y || margin + 20;
+
+      let left = anchorX - popupWidth / 2;
+      left = Math.max(margin, Math.min(left, viewportWidth - popupWidth - margin));
+
+      const spaceBelow = viewportHeight - anchorY - margin;
+      const spaceAbove = anchorY - margin;
+
+      let top;
+      if (spaceBelow >= popupHeight || spaceBelow >= spaceAbove) {
+        top = anchorY + 8;
+      } else {
+        top = anchorY - popupHeight - 10;
+      }
+      top = Math.max(margin, Math.min(top, viewportHeight - popupHeight - margin));
+
+      setPopupLayout((prev) => {
+        const nextLeft = Math.round(left);
+        const nextTop = Math.round(top);
+        if (prev && prev.left === nextLeft && prev.top === nextTop) return prev;
+        return { left: nextLeft, top: nextTop };
+      });
+    }
+
+    const raf1 = window.requestAnimationFrame(placePopup);
+    const raf2 = window.requestAnimationFrame(placePopup);
+    const viewport = window.visualViewport;
+    window.addEventListener('resize', placePopup);
+    window.addEventListener('orientationchange', placePopup);
+    viewport?.addEventListener?.('resize', placePopup);
+    viewport?.addEventListener?.('scroll', placePopup);
+
+    return () => {
+      window.cancelAnimationFrame(raf1);
+      window.cancelAnimationFrame(raf2);
+      window.removeEventListener('resize', placePopup);
+      window.removeEventListener('orientationchange', placePopup);
+      viewport?.removeEventListener?.('resize', placePopup);
+      viewport?.removeEventListener?.('scroll', placePopup);
+    };
+  }, [popup]);
+
   const popupVariants = new Set(getDictionaryLookupVariantsSmart(popup.word));
   const popupExact = normalizeDictionaryExactSmart(popup.word);
   const savedMatch = savedWords.find(w => normalizeDictionaryExactSmart(w.word) === popupExact) ||
@@ -8941,7 +8997,11 @@ function DictionaryPopup({ savedWords, onSave, onRemove }) {
     <div
       ref={popupRef}
       className="dict-popup"
-      style={{ left: safeX, top: topStyle === 'auto' ? 'auto' : topStyle, bottom: bottomStyle === 'auto' ? 'auto' : bottomStyle }}
+      style={{
+        left: popupLayout?.left ?? popup.x ?? 12,
+        top: popupLayout?.top ?? popup.y ?? 12,
+        bottom: 'auto',
+      }}
     >
       {/* Header */}
       <div className="dict-header">

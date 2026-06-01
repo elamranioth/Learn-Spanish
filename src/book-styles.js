@@ -5990,7 +5990,6 @@ export const styles = `
   width: fit-content;
   min-width: 210px;
   max-width: min(320px, calc(100vw - 24px));
-  transform: translateX(-50%);
   z-index: 9999;
   background: var(--paper-light);
   border: 1px solid var(--ink);
@@ -6001,8 +6000,8 @@ export const styles = `
   animation: dict-appear 150ms ease-out;
 }
 @keyframes dict-appear {
-  from { opacity: 0; transform: translateX(-50%) translateY(4px); }
-  to   { opacity: 1; transform: translateX(-50%) translateY(0); }
+  from { opacity: 0; transform: translateY(4px); }
+  to   { opacity: 1; transform: translateY(0); }
 }
 
 .dict-header {
