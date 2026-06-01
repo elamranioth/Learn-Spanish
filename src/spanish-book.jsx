@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useLayoutEffect, useMemo } from 'react';
 import { BookOpen, Menu, X, ChevronLeft, ChevronRight, ChevronDown, Bookmark, Languages, Quote, Lightbulb, NotebookPen, Sparkles, RotateCcw, Check, Clock, Zap, BookText, Library, ListTree, MessageSquare, GraduationCap, Compass, Search, Star, AlertTriangle, PenLine, BarChart3, Headphones, Download } from 'lucide-react';
 import { AppMessages } from './app-messages.jsx';
 import HomeDashboardView from './home-dashboard.jsx';
@@ -8885,32 +8885,7 @@ function DictionaryPopup({ savedWords, onSave, onRemove }) {
     };
   }, []);
 
-  if (!popup && !floatingBtn) return null;
-
-  // Render the floating Translate button when there's a selection but no popup
-  if (!popup && floatingBtn) {
-    return (
-      <button
-        className="dict-floating-btn"
-        style={{
-          left: floatingBtn.x,
-          top: floatingBtn.y,
-        }}
-        onClick={(e) => {
-          e.stopPropagation();
-          if (window.__bookOpenPopup) {
-            window.__bookOpenPopup(floatingBtn.word, floatingBtn.x, floatingBtn.y + 50, floatingBtn.context);
-          }
-        }}
-        onPointerDown={(e) => e.stopPropagation()}
-      >
-        <Languages size={14} />
-        <span>Traducir</span>
-      </button>
-    );
-  }
-
-  useEffect(() => {
+  useLayoutEffect(() => {
     if (!popup || !popupRef.current) {
       setPopupLayout(null);
       return undefined;
@@ -8970,6 +8945,31 @@ function DictionaryPopup({ savedWords, onSave, onRemove }) {
     };
   }, [popup]);
 
+  if (!popup && !floatingBtn) return null;
+
+  // Render the floating Translate button when there's a selection but no popup
+  if (!popup && floatingBtn) {
+    return (
+      <button
+        className="dict-floating-btn"
+        style={{
+          left: floatingBtn.x,
+          top: floatingBtn.y,
+        }}
+        onClick={(e) => {
+          e.stopPropagation();
+          if (window.__bookOpenPopup) {
+            window.__bookOpenPopup(floatingBtn.word, floatingBtn.x, floatingBtn.y + 50, floatingBtn.context);
+          }
+        }}
+        onPointerDown={(e) => e.stopPropagation()}
+      >
+        <Languages size={14} />
+        <span>Traducir</span>
+      </button>
+    );
+  }
+
   const popupVariants = new Set(getDictionaryLookupVariantsSmart(popup.word));
   const popupExact = normalizeDictionaryExactSmart(popup.word);
   const savedMatch = savedWords.find(w => normalizeDictionaryExactSmart(w.word) === popupExact) ||
@@ -9001,6 +9001,7 @@ function DictionaryPopup({ savedWords, onSave, onRemove }) {
         left: popupLayout?.left ?? popup.x ?? 12,
         top: popupLayout?.top ?? popup.y ?? 12,
         bottom: 'auto',
+        visibility: popupLayout ? 'visible' : 'hidden',
       }}
     >
       {/* Header */}
