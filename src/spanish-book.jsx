@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useLayoutEffect, useMemo } from 'react';
-import { BookOpen, Menu, X, ChevronLeft, ChevronRight, ChevronDown, Bookmark, Languages, Quote, Lightbulb, NotebookPen, Sparkles, RotateCcw, Check, Clock, Zap, BookText, Library, ListTree, MessageSquare, GraduationCap, Compass, Search, Star, AlertTriangle, PenLine, BarChart3, Headphones, Download } from 'lucide-react';
+import { BookOpen, Menu, X, ChevronLeft, ChevronRight, ChevronDown, Bookmark, Languages, Quote, Lightbulb, NotebookPen, Sparkles, RotateCcw, Check, Clock, Zap, BookText, Library, ListTree, MessageSquare, GraduationCap, Compass, Search, Star, AlertTriangle, BarChart3, Headphones, Download } from 'lucide-react';
 import { AppMessages } from './app-messages.jsx';
 import HomeDashboardView from './home-dashboard.jsx';
 import InstallBanner from './install-banner.jsx';
@@ -47,7 +47,6 @@ import {
 } from './firebase-sync.js';
 import {
   LEARNER_PROFILE_KEY,
-  analyzeWritingDraft,
   buildEnhancedSearchResults,
   buildLearnerProfile,
   buildTeacherInsights,
@@ -106,7 +105,6 @@ const SECTION_ICONS = {
   palabras: GraduationCap,  // 5000-word memorization lab
   frases: MessageSquare,    // useful phrases — speech bubble
   tips: Lightbulb,          // strategy tips
-  resumen: Compass,         // takeaways — orientation
   practicar: Sparkles,      // centralized drills
 };
 
@@ -5142,8 +5140,8 @@ const SECTIONS = [
   },
   {
     id: 'tips',
-    label: 'Tips',
-    sublabel: 'Estrategias',
+    label: 'Tips y Resumen',
+    sublabel: 'Estrategias esenciales',
     chapters: [
       {
         id: 't1',
@@ -5188,13 +5186,6 @@ const SECTIONS = [
           },
         ],
       },
-    ],
-  },
-  {
-    id: 'resumen',
-    label: 'Resumen',
-    sublabel: 'Lo que te llevas',
-    chapters: [
       {
         id: 'r1',
         level: 'B1',
@@ -9542,110 +9533,6 @@ function MemoriaView({ savedWords, onRemove, onClear, onUpdateWord }) {
   );
 }
 
-function WritingPractice({ savedWords, chapters, entries = [], onEntriesChange }) {
-  const [promptIndex, setPromptIndex] = useState(0);
-  const [draft, setDraft] = useState('');
-
-  async function persist(next) {
-    onEntriesChange?.(next);
-    try { await window.storage.set(WRITING_PRACTICE_KEY, JSON.stringify(next)); } catch (_) {}
-  }
-
-  const prompts = useMemo(() => {
-    const wordPrompts = savedWords.slice(0, 8).map((entry) => ({
-      label: `Usa "${entry.word}"`,
-      text: `Write 2 Spanish sentences using "${entry.word}".`,
-      target: entry.word,
-    }));
-    const chapterPrompts = chapters.slice(0, 6).map((chapter) => ({
-      label: chapter.title,
-      text: `Write a short Spanish paragraph about "${chapter.title}".`,
-      target: '',
-    }));
-    return [
-      { label: 'Diario', text: 'Write 5 Spanish sentences about your day.', target: '' },
-      { label: 'Pregunta', text: 'Write a question and answer it in Spanish.', target: '' },
-      ...wordPrompts,
-      ...chapterPrompts,
-    ];
-  }, [savedWords, chapters]);
-
-  const prompt = prompts[promptIndex] || prompts[0];
-  const feedback = useMemo(() => analyzeWritingDraft(draft, prompt), [draft, prompt]);
-
-  function saveDraft() {
-    if (!draft.trim()) return;
-    const next = [{
-      id: `${Date.now()}`,
-      prompt: prompt.text,
-      text: draft.trim(),
-      feedback,
-      createdAt: Date.now(),
-    }, ...entries].slice(0, 40);
-    persist(next);
-    setDraft('');
-  }
-
-  return (
-    <article className="chapter-body writing-view">
-      <header className="chapter-header">
-        <div className="chapter-icon-row">
-          <div className="chapter-icon-wrap"><PenLine size={22} /></div>
-          <div className="chapter-level-tag">Practica activa</div>
-        </div>
-        <h1 className="chapter-title">Writing Practice</h1>
-        <p className="chapter-subtitle">Write, check the shape of the sentence, and keep a small diary.</p>
-        <div className="chapter-rule" />
-      </header>
-
-      <section className="writing-board">
-        <div className="writing-prompt-row">
-          <label>
-            <span>Prompt</span>
-            <select value={promptIndex} onChange={(e) => setPromptIndex(Number(e.target.value))}>
-              {prompts.map((item, index) => <option key={`${item.label}-${index}`} value={index}>{item.label}</option>)}
-            </select>
-          </label>
-          <p>{prompt.text}</p>
-        </div>
-        <textarea
-          value={draft}
-          onChange={(e) => setDraft(e.target.value)}
-          placeholder="Escribe aqui en espanol..."
-          rows={9}
-        />
-        <div className="writing-feedback-grid">
-          <span><strong>{feedback.words}</strong> words</span>
-          <span><strong>{feedback.sentences}</strong> sentences</span>
-          <span><strong>{feedback.accents}</strong> accents</span>
-          <span><strong>{feedback.connectors}</strong> connectors</span>
-          <span><strong>{feedback.score}</strong> score</span>
-        </div>
-        <div className="writing-tips">
-          {feedback.tips.length ? feedback.tips.map((tip) => <span key={tip}>{tip}</span>) : <span>Good shape. Read it out loud once.</span>}
-        </div>
-        <div className="writing-actions">
-          <SpeakBtn text={draft} size="md" />
-          <button onClick={saveDraft} disabled={!draft.trim()}>Save practice</button>
-        </div>
-      </section>
-
-      <section className="writing-history">
-        <div className="home-section-heading"><NotebookPen size={18} /> History</div>
-        {entries.length ? entries.map((entry) => (
-          <article key={entry.id} className="writing-entry">
-            <div className="writing-entry-meta">{new Date(entry.createdAt).toLocaleDateString()} - {entry.feedback.words} words</div>
-            <p>{entry.prompt}</p>
-            <blockquote>{entry.text}</blockquote>
-          </article>
-        )) : (
-          <p className="memoria-empty-text">No saved writing yet.</p>
-        )}
-      </section>
-    </article>
-  );
-}
-
 function todayStartMs() {
   const today = new Date();
   today.setHours(0, 0, 0, 0);
@@ -9684,7 +9571,6 @@ export default function SpanishBook() {
   const [toolsOpen, setToolsOpen] = useState(false);
   const [showMemoria, setShowMemoria] = useState(false);
   const [showHome, setShowHome] = useState(true);
-  const [showWriting, setShowWriting] = useState(false);
   const [globalSearch, setGlobalSearch] = useState('');
   const [audioSettings, setAudioSettingsState] = useState({ rate: 0.85, voiceURI: '' });
   const [translationMode, setTranslationMode] = useState('both');
@@ -9760,7 +9646,10 @@ export default function SpanishBook() {
           const parsed = JSON.parse(last.value);
           // Only offer resume if it's NOT the default opening chapter
           if (parsed?.chapterId && parsed.chapterId !== 'tiempos') {
-            setResumeOffer(parsed);
+            setResumeOffer({
+              ...parsed,
+              sectionId: parsed.sectionId === 'resumen' ? 'tips' : parsed.sectionId,
+            });
           }
         }
       } catch (_) {}
@@ -10079,11 +9968,6 @@ export default function SpanishBook() {
     persistWords([]);
   }
 
-  function handleWritingEntriesChange(entries) {
-    markSyncDirty();
-    setWritingEntries(entries);
-  }
-
   // On mount, retry translation for any saved word that's missing one
   useEffect(() => {
     if (savedWords.length === 0) return;
@@ -10215,8 +10099,8 @@ export default function SpanishBook() {
     [visibleStudyLessons, visitedChapters, lessonStatuses]
   );
   const searchResults = useMemo(
-    () => buildEnhancedSearchResults(globalSearch, visibleFlatChapters, savedWords, writingEntries),
-    [globalSearch, visibleFlatChapters, savedWords, writingEntries]
+    () => buildEnhancedSearchResults(globalSearch, visibleFlatChapters, savedWords, []),
+    [globalSearch, visibleFlatChapters, savedWords]
   );
   const lessonSummary = useMemo(() => {
     return {
@@ -10231,15 +10115,15 @@ export default function SpanishBook() {
     lessonStatuses,
     palabrasProgress,
     savedWords,
-    writingEntries,
-  }), [visibleFlatChapters, visitedChapters, lessonStatuses, palabrasProgress, savedWords, writingEntries]);
+    writingEntries: [],
+  }), [visibleFlatChapters, visitedChapters, lessonStatuses, palabrasProgress, savedWords]);
   const reviewQueue = useMemo(() => buildUnifiedReviewQueue({
     chapters: visibleFlatChapters,
     lessonStatuses,
     palabrasProgress,
     savedWords,
-    writingEntries,
-  }), [visibleFlatChapters, lessonStatuses, palabrasProgress, savedWords, writingEntries]);
+    writingEntries: [],
+  }), [visibleFlatChapters, lessonStatuses, palabrasProgress, savedWords]);
   const startChapter = recommendedChapters[0] || visibleFlatChapters[0];
   const palabrasSummary = useMemo(() => {
     const values = Object.values(palabrasProgress || {});
@@ -10264,7 +10148,6 @@ export default function SpanishBook() {
     const start = todayStartMs();
     const reviewedToday = Object.values(palabrasProgress || {}).filter((state) => (state?.reviewedAt || 0) >= start).length;
     const savedToday = savedWords.filter((entry) => (entry.savedAt || 0) >= start).length;
-    const wroteToday = writingEntries.some((entry) => (entry.createdAt || 0) >= start);
     const chapterDone = (chapter) => {
       if (!chapter) return false;
       return visitedSet.has(chapter.id) || isLessonReadStatus(lessonStatuses[chapter.id]);
@@ -10272,13 +10155,12 @@ export default function SpanishBook() {
     return {
       reviewedToday,
       savedToday,
-      wroteToday,
       grammarDone: chapterDone(grammarChapter),
       readingDone: chapterDone(readingChapter),
       verbDone: chapterDone(verbChapter),
       streak: getStudyStreak(studyTime),
     };
-  }, [palabrasProgress, savedWords, writingEntries, visitedSet, lessonStatuses, grammarChapter, readingChapter, verbChapter, studyTime]);
+  }, [palabrasProgress, savedWords, visitedSet, lessonStatuses, grammarChapter, readingChapter, verbChapter, studyTime]);
   const dailyPlan = useMemo(() => ([
     {
       key: 'palabras',
@@ -10315,13 +10197,6 @@ export default function SpanishBook() {
       detail: dailyStats.savedToday ? `${dailyStats.savedToday} saved today` : `${savedWords.length} saved total`,
       complete: dailyStats.savedToday > 0 || savedWords.length >= 10,
     },
-    {
-      key: 'writing',
-      index: '06',
-      title: 'Writing',
-      detail: dailyStats.wroteToday ? 'done today' : 'write 5 sentences',
-      complete: dailyStats.wroteToday,
-    },
   ]), [dailyStats, grammarChapter, readingChapter, verbChapter, savedWords.length]);
   const dailyProgress = useMemo(() => ({
     completed: dailyPlan.filter((item) => item.complete).length,
@@ -10336,7 +10211,7 @@ export default function SpanishBook() {
     savedWords,
     recommendations: recommendedChapters,
   }), [learnerProfile, reviewQueue, dailyStats, studyTime, savedWords, recommendedChapters]);
-  const isStudyTimerRunning = Boolean(activeChapter && !showHome && !showMemoria && !showWriting && !sectionLandingId);
+  const isStudyTimerRunning = Boolean(activeChapter && !showHome && !showMemoria && !sectionLandingId);
   const activeStudyId = activeNestedTarget?.cardId || activeChapter?.id;
   const studyTimerLabel = isStudyTimerRunning
     ? `${activeChapter.sectionLabel || 'Lesson'} - ${activeNestedTarget?.title || activeChapter.title}`
@@ -10377,7 +10252,7 @@ export default function SpanishBook() {
   useEffect(() => {
     markSyncDirty();
     try { window.storage.set(STUDY_TIME_KEY, JSON.stringify(studyTime)); } catch (_) {}
-  }, [showHome, showMemoria, showWriting, sectionLandingId, activeChapterId, activeNestedTarget]);
+  }, [showHome, showMemoria, sectionLandingId, activeChapterId, activeNestedTarget]);
 
   useEffect(() => {
     const persistStudyTime = () => {
@@ -10403,7 +10278,6 @@ export default function SpanishBook() {
     setSectionLandingId(null);
     setActiveNestedTarget(c.nestedTarget || null);
     setShowMemoria(false);
-    setShowWriting(false);
     setShowHome(false);
     setSidebarOpen(false);
     setResumeOffer(null);
@@ -10438,7 +10312,6 @@ export default function SpanishBook() {
     setActiveNestedTarget(null);
     setShowHome(false);
     setShowMemoria(false);
-    setShowWriting(false);
     setSidebarOpen(false);
     if (typeof window !== 'undefined') {
       window.scrollTo({ top: 0, behavior: 'smooth' });
@@ -10451,17 +10324,7 @@ export default function SpanishBook() {
     setSectionLandingId(null);
     setActiveNestedTarget(null);
     setShowHome(false);
-    setShowWriting(false);
     setShowMemoria(true);
-    setSidebarOpen(false);
-  }
-
-  function openWritingView() {
-    setSectionLandingId(null);
-    setActiveNestedTarget(null);
-    setShowHome(false);
-    setShowMemoria(false);
-    setShowWriting(true);
     setSidebarOpen(false);
   }
 
@@ -10471,14 +10334,12 @@ export default function SpanishBook() {
     if (key === 'reading' && readingChapter) return selectChapter(readingChapter);
     if (key === 'verb' && verbChapter) return selectChapter(verbChapter);
     if (key === 'memoria') return openMemoriaView();
-    if (key === 'writing') return openWritingView();
     if (startChapter) return selectChapter(startChapter);
     return undefined;
   }
 
   function handleTeacherAction(action) {
     if (action === 'memoria') return openMemoriaView();
-    if (action === 'writing') return openWritingView();
     if (action === 'reading' && readingChapter) return selectChapter(readingChapter);
     if (action === 'verb' && verbChapter) return selectChapter(verbChapter);
     return startDailyLesson();
@@ -10939,14 +10800,7 @@ export default function SpanishBook() {
                     setSectionLandingId(null);
                     setActiveNestedTarget(null);
                     setShowHome(false);
-                    setShowWriting(false);
                     setShowMemoria(true);
-                  } else if (result.type === 'writing') {
-                    setSectionLandingId(null);
-                    setActiveNestedTarget(null);
-                    setShowHome(false);
-                    setShowMemoria(false);
-                    setShowWriting(true);
                   } else {
                     selectChapter(result.chapter);
                   }
@@ -11126,7 +10980,7 @@ export default function SpanishBook() {
               <div className={`section-group home-nav-item ${showHome ? 'active' : ''}`}>
                 <button
                   className="section-btn home-section-btn"
-                  onClick={() => { setSectionLandingId(null); setActiveNestedTarget(null); setShowHome(true); setShowMemoria(false); setShowWriting(false); setSidebarOpen(false); }}
+                  onClick={() => { setSectionLandingId(null); setActiveNestedTarget(null); setShowHome(true); setShowMemoria(false); setSidebarOpen(false); }}
                 >
                   <div className="section-icon-wrap home-icon-wrap">
                     <Compass size={18} className="section-icon" />
@@ -11144,7 +10998,7 @@ export default function SpanishBook() {
               {activeSections.filter((section) => section.id !== 'practicar').map((s) => {
                 const visibleChapters = visibleFlatChapters.filter((chapter) => chapter.sectionId === s.id);
                 const sectionLessons = buildSectionLessonCards(s, visibleChapters);
-                const isActive = s.id === activeSectionId && !showMemoria && !showHome && !showWriting;
+                const isActive = s.id === activeSectionId && !showMemoria && !showHome;
                 return (
                   <div key={s.id} className={`section-group ${isActive ? 'active' : ''}`}>
                     <button
@@ -11171,7 +11025,7 @@ export default function SpanishBook() {
               <div className={`section-group memoria-nav-item ${showMemoria ? 'active' : ''}`}>
                 <button
                   className="section-btn memoria-section-btn"
-                  onClick={() => { setSectionLandingId(null); setActiveNestedTarget(null); setShowHome(false); setShowWriting(false); setShowMemoria(true); setSidebarOpen(false); }}
+                  onClick={() => { setSectionLandingId(null); setActiveNestedTarget(null); setShowHome(false); setShowMemoria(true); setSidebarOpen(false); }}
                 >
                   <div className="section-icon-wrap memoria-icon-wrap">
                     <Bookmark size={18} className="section-icon" />
@@ -11186,26 +11040,8 @@ export default function SpanishBook() {
                 </button>
               </div>
 
-              <div className={`section-group writing-nav-item ${showWriting ? 'active' : ''}`}>
-                <button
-                  className="section-btn writing-section-btn"
-                  onClick={() => { setSectionLandingId(null); setActiveNestedTarget(null); setShowHome(false); setShowMemoria(false); setShowWriting(true); setSidebarOpen(false); }}
-                >
-                  <div className="section-icon-wrap writing-icon-wrap">
-                    <PenLine size={18} className="section-icon" />
-                  </div>
-                  <div className="section-text">
-                    <div className="section-label">Writing</div>
-                    <div className="section-sublabel">Practica escrita</div>
-                  </div>
-                  <div className="section-meta">
-                    <div className="section-count writing-count">{writingEntries.length}</div>
-                  </div>
-                </button>
-              </div>
-
               {practiceSection && (
-                <div className={`section-group practice-nav-item ${activeSectionId === 'practicar' && !showMemoria && !showHome && !showWriting ? 'active' : ''}`}>
+                <div className={`section-group practice-nav-item ${activeSectionId === 'practicar' && !showMemoria && !showHome ? 'active' : ''}`}>
                   <button
                     className="section-btn practice-section-btn"
                     onClick={() => openSection(practiceSection)}
@@ -11298,7 +11134,6 @@ export default function SpanishBook() {
                 dailyPlan={dailyPlan}
                 dailyProgress={dailyProgress}
                 teacherInsights={teacherInsights}
-                writingCount={writingEntries.length}
                 sectionProgress={sectionProgress}
                 recommendations={recommendedChapters}
                 onStart={() => startChapter && selectChapter(startChapter)}
@@ -11308,7 +11143,6 @@ export default function SpanishBook() {
                 onOpenPalabras={() => palabrasChapter && selectChapter(palabrasChapter)}
                 onOpenVerb={() => verbChapter && selectChapter(verbChapter)}
                 onOpenReading={() => readingChapter && selectChapter(readingChapter)}
-                onOpenWriting={openWritingView}
                 onSelectChapter={selectChapter}
                 onTeacherAction={handleTeacherAction}
               />
@@ -11318,13 +11152,6 @@ export default function SpanishBook() {
                 onRemove={handleRemoveWord}
                 onClear={handleClearWords}
                 onUpdateWord={handleUpdateWord}
-              />
-            ) : showWriting ? (
-              <WritingPractice
-                savedWords={savedWords}
-                chapters={visibleFlatChapters}
-                entries={writingEntries}
-                onEntriesChange={handleWritingEntriesChange}
               />
             ) : sectionLandingId ? (
               <SectionOverviewView
@@ -11361,7 +11188,7 @@ export default function SpanishBook() {
             )}
 
             {/* Chapter navigation (prev / next) */}
-            {!showHome && !showMemoria && !showWriting && !sectionLandingId && (
+            {!showHome && !showMemoria && !sectionLandingId && (
             <nav className="chapter-nav">
               {prevChapter ? (
                 <button className="nav-btn prev" onClick={() => selectChapter(prevChapter)}>

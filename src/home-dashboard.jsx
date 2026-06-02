@@ -7,7 +7,6 @@ import {
   Clock,
   Compass,
   GraduationCap,
-  PenLine,
   Target,
   Zap,
 } from 'lucide-react';
@@ -39,7 +38,6 @@ export default function HomeView({
   dailyPlan,
   dailyProgress,
   teacherInsights,
-  writingCount,
   sectionProgress,
   recommendations,
   onStart,
@@ -49,7 +47,6 @@ export default function HomeView({
   onOpenPalabras,
   onOpenVerb,
   onOpenReading,
-  onOpenWriting,
   onSelectChapter,
   onTeacherAction,
 }) {
@@ -118,7 +115,6 @@ export default function HomeView({
         <TeacherMetric icon={Clock} label="Today" value={formatStudyDuration(studyTime.todaySeconds)} detail={`${formatStudyDuration(studyTime.totalSeconds)} total`} />
         <TeacherMetric icon={BookCheck} label="Mastery" value={masteryCount} detail={`${lessonSummary.understood} understood`} />
         <TeacherMetric icon={Bookmark} label="Memoria" value={savedWordsCount} detail={`${memoriaSummary.due} due`} />
-        <TeacherMetric icon={PenLine} label="Writing" value={writingCount} detail={`${learnerProfile.writing?.needsPractice || 0} to rewrite`} />
       </section>
 
       <TeacherPanel insights={teacherInsights} onAction={onTeacherAction} />
@@ -176,7 +172,7 @@ export default function HomeView({
           {reviewQueue.slice(0, 8).map((item, index) => (
             <button
               key={`${item.type}-${item.title}-${index}`}
-              onClick={() => item.chapter ? onSelectChapter(item.chapter) : item.type === 'writing' ? onOpenWriting() : onOpenMemoria()}
+              onClick={() => item.chapter ? onSelectChapter(item.chapter) : onOpenMemoria()}
             >
               <span className={`review-type ${item.type}`}>{item.type}</span>
               <strong>{item.title}</strong>
@@ -185,7 +181,7 @@ export default function HomeView({
           ))}
         </div>
         <div className="home-review-summary">
-          {learnerProfile.vocabulary.due} vocabulary due - {learnerProfile.writing.needsPractice} writing rewrites - {learnerProfile.chapters.unvisited} lesson groups to open
+          {learnerProfile.vocabulary.due} vocabulary due - {learnerProfile.chapters.unvisited} lesson groups to open
         </div>
       </section>
 
