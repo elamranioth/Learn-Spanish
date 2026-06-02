@@ -147,6 +147,7 @@ const LESSON_DATA_LOADERS = {
   zoranJourney: () => import('./zoran-journey.js').then((module) => module.ZORAN_JOURNEY_LESSON),
   canciones: () => import('./canciones.js').then((module) => module.CANCIONES_SONGS),
   expressions: () => import('./spanish-expressions-library.js').then((module) => module.SPANISH_EXPRESSIONS_LIBRARY),
+  dailyPhrases: () => import('./spanish-daily-phrases.js').then((module) => module.SPANISH_DAILY_PHRASES_LIBRARY),
 };
 
 function lazyChapter(lazyKey, fallback) {
@@ -5090,6 +5091,20 @@ const SECTIONS = [
         ],
       },
       {
+        id: 'frases-diarias',
+        level: 'A1-A2',
+        title: 'Spanish Daily Sentences & Phrases',
+        subtitle: 'Spanish-English daily phrases',
+        intro: 'Daily Spanish phrase pairs imported from your document. The Spanish-English wording stays exactly in the document order, with 50 phrases on each page.',
+        blocks: [
+          {
+            type: 'expressions-library',
+            lazyLibraryKey: 'dailyPhrases',
+            library: [],
+          },
+        ],
+      },
+      {
         id: 'f2',
         level: 'B1',
         title: 'Expresar Opiniones',
@@ -8523,7 +8538,9 @@ function ChoiceQuizBlock({ block }) {
 function ExpressionsLibraryBlock({ library }) {
   const [query, setQuery] = useState('');
   const [page, setPage] = useState(0);
-  const perPage = 50;
+  const perPage = Math.max(1, Number(library?.perPage) || 50);
+  const itemLabel = library?.itemLabel || 'expression';
+  const itemLabelPlural = library?.itemLabelPlural || `${itemLabel}s`;
 
   function normalizeExpressionFamily(text) {
     return String(text || '')
@@ -8557,14 +8574,21 @@ function ExpressionsLibraryBlock({ library }) {
       });
     });
 
-    flattened.sort((a, b) => (
+    const orderedEntries = flattened.sort((a, b) => (
       a.groupIndex - b.groupIndex ||
       (Number(a.rank) || 0) - (Number(b.rank) || 0) ||
       a.entryIndex - b.entryIndex
     ));
 
+    if (library?.preserveOrder) {
+      return orderedEntries.map((entry, index) => ({
+        ...entry,
+        globalRank: index + 1,
+      }));
+    }
+
     const families = new Map();
-    flattened.forEach((entry, index) => {
+    orderedEntries.forEach((entry, index) => {
       const familyKey = normalizeExpressionFamily(entry.es);
       if (!families.has(familyKey)) {
         families.set(familyKey, { familyKey, firstIndex: index, entries: [] });
@@ -8613,14 +8637,11 @@ function ExpressionsLibraryBlock({ library }) {
       <div className="expressions-hero">
         <div className="expressions-eye">{library.eyebrow}</div>
         <h2>{library.title}</h2>
-        <p>
-          All 648 expressions are now in one sequence from most-used to less-used.
-          Similar forms (including accent variants) stay together.
-        </p>
+        <p>{library.description || 'All expressions are shown in one clean sequence with similar forms kept together.'}</p>
         <div className="expressions-stats">
           <div>
             <strong>{allExpressions.length}</strong>
-            <span>Total expressions</span>
+            <span>Total {itemLabelPlural}</span>
           </div>
           <div>
             <strong>{perPage}</strong>
@@ -8643,16 +8664,16 @@ function ExpressionsLibraryBlock({ library }) {
           <input
             value={query}
             onChange={(e) => setQuery(e.target.value)}
-            placeholder="Search expression, meaning, or example..."
+            placeholder={`Search ${itemLabel}, meaning, or example...`}
           />
         </label>
         <div className="expressions-count">
-          {filtered.length} {filtered.length === 1 ? 'expression' : 'expressions'} found
+          {filtered.length} {filtered.length === 1 ? itemLabel : itemLabelPlural} found
         </div>
         <div className="expressions-pager">
-          <button disabled={safePage === 0} onClick={() => setPage((p) => Math.max(0, p - 1))}>Prev 50 expressions</button>
+          <button disabled={safePage === 0} onClick={() => setPage((p) => Math.max(0, p - 1))}>Prev {perPage} {itemLabelPlural}</button>
           <span>{safePage + 1} / {totalPages}</span>
-          <button disabled={safePage >= totalPages - 1} onClick={() => setPage((p) => Math.min(totalPages - 1, p + 1))}>Next 50 expressions</button>
+          <button disabled={safePage >= totalPages - 1} onClick={() => setPage((p) => Math.min(totalPages - 1, p + 1))}>Next {perPage} {itemLabelPlural}</button>
         </div>
       </div>
 
@@ -8694,14 +8715,14 @@ function ExpressionsLibraryBlock({ library }) {
       ) : (
         <div className="expressions-empty">
           <Search size={24} />
-          No expressions found. Try a different search.
+          No {itemLabelPlural} found. Try a different search.
         </div>
       )}
 
       <div className="expressions-pager expressions-pager-bottom">
-        <button disabled={safePage === 0} onClick={() => setPage((p) => Math.max(0, p - 1))}>Prev 50 expressions</button>
+        <button disabled={safePage === 0} onClick={() => setPage((p) => Math.max(0, p - 1))}>Prev {perPage} {itemLabelPlural}</button>
         <span>{safePage + 1} / {totalPages}</span>
-        <button disabled={safePage >= totalPages - 1} onClick={() => setPage((p) => Math.min(totalPages - 1, p + 1))}>Next 50 expressions</button>
+        <button disabled={safePage >= totalPages - 1} onClick={() => setPage((p) => Math.min(totalPages - 1, p + 1))}>Next {perPage} {itemLabelPlural}</button>
       </div>
 
       <div className="expressions-foot">{library.sourceNote}</div>

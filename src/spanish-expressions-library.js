@@ -5,7 +5,9 @@ export const SPANISH_EXPRESSIONS_LIBRARY = {
   "eyebrow": "Spanish Expression Library ? RAE / ASALE ? Complete Edition",
   "subtitle": "Four groups ranked from most-used to least-used. Tap any card to see the full example sentence.",
   "sourceNote": "648 expressions ? Sources: RAE/ASALE ? CORPES XXI ? DPDE ? Ranked by learning-priority frequency",
-  "perPage": 36,
+  "perPage": 50,
+  "itemLabel": "expression",
+  "itemLabelPlural": "expressions",
   "groups": [
     {
       "id": "connectors-discourse",
