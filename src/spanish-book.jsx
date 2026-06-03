@@ -8526,9 +8526,39 @@ function ChoiceQuizBlock({ block }) {
   );
 }
 
+const EXPRESSIONS_PAGE_KEY_PREFIX = 'lexiora-frases-page-v1';
+
+function getExpressionsPageKey(library) {
+  const raw = String(library?.title || library?.eyebrow || 'default')
+    .toLowerCase()
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-+|-+$/g, '') || 'default';
+  return `${EXPRESSIONS_PAGE_KEY_PREFIX}:${raw}`;
+}
+
+function readStoredExpressionsPage(key) {
+  if (typeof window === 'undefined') return 0;
+  try {
+    const parsed = Number(window.localStorage?.getItem(key));
+    return Number.isFinite(parsed) && parsed >= 0 ? Math.floor(parsed) : 0;
+  } catch (_) {
+    return 0;
+  }
+}
+
+function writeStoredExpressionsPage(key, page) {
+  if (typeof window === 'undefined') return;
+  try {
+    window.localStorage?.setItem(key, String(Math.max(0, Math.floor(Number(page) || 0))));
+  } catch (_) {}
+}
+
 function ExpressionsLibraryBlock({ library }) {
+  const pageStorageKey = useMemo(() => getExpressionsPageKey(library), [library?.title, library?.eyebrow]);
   const [query, setQuery] = useState('');
-  const [page, setPage] = useState(0);
+  const [page, setPage] = useState(() => readStoredExpressionsPage(pageStorageKey));
   const perPage = Math.max(1, Number(library?.perPage) || 50);
   const itemLabel = library?.itemLabel || 'expression';
   const itemLabelPlural = library?.itemLabelPlural || `${itemLabel}s`;
@@ -8620,8 +8650,16 @@ function ExpressionsLibraryBlock({ library }) {
   const visibleEntries = filtered.slice(safePage * perPage, (safePage + 1) * perPage);
 
   useEffect(() => {
-    setPage(0);
-  }, [query]);
+    if (query.trim()) {
+      setPage(0);
+    } else {
+      setPage(readStoredExpressionsPage(pageStorageKey));
+    }
+  }, [query, pageStorageKey]);
+
+  useEffect(() => {
+    if (!query.trim()) writeStoredExpressionsPage(pageStorageKey, safePage);
+  }, [pageStorageKey, query, safePage]);
 
   return (
     <section className="block expressions-library-block expressions-lines-block">
