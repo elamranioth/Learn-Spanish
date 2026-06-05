@@ -2488,55 +2488,52 @@ export const styles = `
 }
 .expressions-pager {
   display: grid;
-  grid-template-columns: minmax(180px, 1fr) auto minmax(180px, 1fr);
-  gap: 18px;
+  grid-template-columns: minmax(230px, 1fr) auto minmax(230px, 1fr);
+  gap: 30px;
   align-items: center;
-  min-width: min(100%, 560px);
-  width: min(100%, 720px);
-  padding: 8px 10px;
-  border: 1px solid rgba(210, 213, 216, 0.9);
-  border-radius: 10px;
-  background:
-    linear-gradient(112deg, transparent 0 18%, rgba(180, 185, 190, 0.28) 18% 19%, transparent 19% 43%, rgba(210, 214, 218, 0.35) 43% 44%, transparent 44%),
-    linear-gradient(28deg, rgba(255,255,255,0.95), rgba(238, 240, 242, 0.78) 46%, rgba(255,255,255,0.96));
-  box-shadow:
-    inset 0 1px 0 rgba(255,255,255,0.95),
-    inset 0 -1px 0 rgba(180,185,190,0.28),
-    0 10px 22px rgba(37, 49, 37, 0.08);
+  min-width: min(100%, 620px);
+  width: min(100%, 780px);
+  padding: 10px 12px;
+  border: 0;
+  border-radius: 12px;
+  background: transparent;
+  box-shadow: none;
 }
 .expressions-page-btn {
   width: 100%;
-  min-height: 30px;
-  border: 2px solid transparent;
-  border-radius: 10px;
+  min-height: 54px;
+  border: 3px solid transparent;
+  border-radius: 13px;
   background-origin: border-box;
-  background-clip: padding-box, padding-box, padding-box, border-box;
-  color: #f1f3f5;
-  padding: 4px 12px;
+  background-clip: padding-box, padding-box, padding-box, padding-box, border-box;
+  color: #f5f8fa;
+  padding: 7px 22px;
   font-family: 'Inter', Arial, sans-serif;
   cursor: pointer;
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  gap: 7px;
+  gap: 14px;
   text-align: left;
   touch-action: manipulation;
-  letter-spacing: 0.06em;
+  letter-spacing: 0.03em;
   text-transform: uppercase;
   transition: transform 120ms ease, filter 120ms ease, box-shadow 120ms ease;
 }
 .expressions-page-btn.prev {
   background:
-    linear-gradient(135deg, rgba(255,255,255,0.18), rgba(255,255,255,0.02) 42%, rgba(0,0,0,0.28)),
-    repeating-linear-gradient(45deg, rgba(255,255,255,0.08) 0 1px, rgba(255,255,255,0) 1px 4px),
-    linear-gradient(180deg, #1e63d9, #0b318f) padding-box,
-    linear-gradient(145deg, #ffffff, #98a0aa 26%, #f4f7fb 46%, #6f7780 72%, #fdfdfd) border-box;
+    linear-gradient(180deg, rgba(255,255,255,0.24), rgba(255,255,255,0.03) 24%, rgba(0,0,0,0.2) 100%),
+    repeating-linear-gradient(45deg, rgba(255,255,255,0.09) 0 1px, rgba(255,255,255,0.01) 1px 4px),
+    radial-gradient(circle at 50% 6%, rgba(255,255,255,0.35), transparent 28%),
+    linear-gradient(180deg, #2f80b4 0%, #174c79 46%, #0a2846 100%) padding-box,
+    linear-gradient(145deg, #f5f9fb, #6e7b84 18%, #d8e0e5 38%, #34444e 65%, #f7fbfc) border-box;
   box-shadow:
-    inset 0 1px 2px rgba(255,255,255,0.42),
-    inset 0 -2px 4px rgba(0,0,0,0.3),
-    0 2px 0 #7c848e,
-    0 8px 16px rgba(28, 99, 217, 0.34),
-    0 14px 22px rgba(65, 145, 255, 0.22);
+    inset 0 2px 0 rgba(255,255,255,0.42),
+    inset 0 0 0 2px rgba(6, 20, 31, 0.55),
+    inset 0 -5px 7px rgba(0,0,0,0.38),
+    0 3px 0 #263844,
+    0 9px 18px rgba(30, 118, 190, 0.35),
+    0 18px 26px rgba(95, 200, 255, 0.18);
 }
 .expressions-page-btn.prev {
   justify-self: start;
@@ -2546,16 +2543,18 @@ export const styles = `
 }
 .expressions-page-btn.next {
   background:
-    linear-gradient(135deg, rgba(255,255,255,0.18), rgba(255,255,255,0.02) 42%, rgba(0,0,0,0.28)),
-    repeating-linear-gradient(45deg, rgba(255,255,255,0.08) 0 1px, rgba(255,255,255,0) 1px 4px),
-    linear-gradient(180deg, #138f55, #086334) padding-box,
-    linear-gradient(145deg, #ffffff, #98a0aa 26%, #f4f7fb 46%, #6f7780 72%, #fdfdfd) border-box;
+    linear-gradient(180deg, rgba(255,255,255,0.24), rgba(255,255,255,0.03) 24%, rgba(0,0,0,0.2) 100%),
+    repeating-linear-gradient(45deg, rgba(255,255,255,0.09) 0 1px, rgba(255,255,255,0.01) 1px 4px),
+    radial-gradient(circle at 50% 6%, rgba(255,255,255,0.35), transparent 28%),
+    linear-gradient(180deg, #167c4d 0%, #0b5636 46%, #062b1e 100%) padding-box,
+    linear-gradient(145deg, #f5f9fb, #6e7b84 18%, #d8e0e5 38%, #34444e 65%, #f7fbfc) border-box;
   box-shadow:
-    inset 0 1px 2px rgba(255,255,255,0.42),
-    inset 0 -2px 4px rgba(0,0,0,0.3),
-    0 2px 0 #7c848e,
-    0 8px 16px rgba(12, 143, 82, 0.34),
-    0 14px 22px rgba(44, 220, 126, 0.2);
+    inset 0 2px 0 rgba(255,255,255,0.42),
+    inset 0 0 0 2px rgba(4, 24, 15, 0.55),
+    inset 0 -5px 7px rgba(0,0,0,0.38),
+    0 3px 0 #263844,
+    0 9px 18px rgba(16, 137, 80, 0.35),
+    0 18px 26px rgba(68, 238, 142, 0.18);
 }
 .expressions-page-btn:hover:not(:disabled) {
   transform: translateY(-1px);
@@ -2575,30 +2574,28 @@ export const styles = `
   white-space: nowrap;
 }
 .expressions-page-chip {
-  display: flex;
-  flex-direction: column;
-  line-height: 1.1;
+  display: none;
 }
 .expressions-page-btn svg {
-  width: 13px;
-  height: 13px;
+  width: 27px;
+  height: 27px;
   color: #eef2f5;
-  filter: drop-shadow(0 1px 0 rgba(0,0,0,0.55));
+  stroke-width: 3.2;
+  filter:
+    drop-shadow(0 2px 0 rgba(0,0,0,0.65))
+    drop-shadow(0 -1px 0 rgba(255,255,255,0.28));
 }
 .expressions-page-btn strong {
-  font-size: 12px;
+  font-size: 30px;
   font-weight: 900;
   color: #f4f7f8;
   text-shadow:
-    0 1px 0 rgba(0,0,0,0.55),
-    0 -1px 0 rgba(255,255,255,0.38);
+    0 2px 0 rgba(0,0,0,0.66),
+    0 -1px 0 rgba(255,255,255,0.5),
+    1px 0 0 rgba(0,0,0,0.35);
 }
 .expressions-page-btn em {
-  margin-top: 0;
-  font-size: 9px;
-  font-style: normal;
-  color: currentColor;
-  opacity: 0.82;
+  display: none;
 }
 .expressions-page-chip {
   min-width: 96px;
@@ -2636,6 +2633,7 @@ export const styles = `
   overflow: hidden;
   border-radius: 99px;
   background: var(--rule-soft);
+  display: none;
 }
 .expressions-page-progress span {
   display: block;
@@ -5542,7 +5540,9 @@ export const styles = `
     justify-self: stretch;
     width: 100%;
     min-width: 0;
-    grid-template-columns: minmax(140px, 0.46fr) minmax(0, 1fr) minmax(140px, 0.46fr);
+    grid-template-columns: minmax(132px, 0.48fr) minmax(14px, 1fr) minmax(132px, 0.48fr);
+    gap: 8px;
+    padding: 8px 0;
   }
   .expressions-page-chip {
     display: none;
@@ -5559,16 +5559,17 @@ export const styles = `
     justify-self: end;
   }
   .expressions-page-btn {
-    width: min(44vw, 210px);
-    min-height: 26px;
-    padding: 3px 7px;
-    gap: 4px;
+    width: min(44vw, 220px);
+    min-height: 44px;
+    padding: 6px 12px;
+    gap: 8px;
   }
   .expressions-page-btn strong {
-    font-size: 11px;
+    font-size: clamp(18px, 5.4vw, 25px);
   }
-  .expressions-page-btn em {
-    font-size: 9px;
+  .expressions-page-btn svg {
+    width: clamp(19px, 5vw, 24px);
+    height: clamp(19px, 5vw, 24px);
   }
   .expression-line-main {
     flex-direction: column;
