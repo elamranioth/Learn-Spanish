@@ -8648,6 +8648,59 @@ function ExpressionsLibraryBlock({ library }) {
   const totalPages = Math.max(1, Math.ceil(filtered.length / perPage));
   const safePage = Math.min(page, totalPages - 1);
   const visibleEntries = filtered.slice(safePage * perPage, (safePage + 1) * perPage);
+  const firstVisible = filtered.length ? safePage * perPage + 1 : 0;
+  const lastVisible = Math.min(filtered.length, (safePage + 1) * perPage);
+  const pageProgress = `${Math.max(4, Math.round(((safePage + 1) / totalPages) * 100))}%`;
+
+  function goPreviousPage() {
+    setPage((p) => Math.max(0, p - 1));
+  }
+
+  function goNextPage() {
+    setPage((p) => Math.min(totalPages - 1, p + 1));
+  }
+
+  function renderPager(extraClass = '') {
+    return (
+      <div className={`expressions-pager ${extraClass}`.trim()} aria-label={`${library.title} pages`}>
+        <button
+          className="expressions-page-btn prev"
+          disabled={safePage === 0}
+          onClick={goPreviousPage}
+          aria-label="Previous page"
+        >
+          <ChevronLeft size={18} />
+          <span>
+            <strong>Anterior</strong>
+            <em>Back {perPage}</em>
+          </span>
+        </button>
+
+        <div className="expressions-page-chip" aria-live="polite">
+          <span>Page</span>
+          <strong>{safePage + 1} / {totalPages}</strong>
+          <em>{firstVisible}-{lastVisible} of {filtered.length}</em>
+        </div>
+
+        <button
+          className="expressions-page-btn next"
+          disabled={safePage >= totalPages - 1}
+          onClick={goNextPage}
+          aria-label="Next page"
+        >
+          <span>
+            <strong>Siguiente</strong>
+            <em>Next {perPage}</em>
+          </span>
+          <ChevronRight size={18} />
+        </button>
+
+        <div className="expressions-page-progress" aria-hidden="true">
+          <span style={{ width: pageProgress }} />
+        </div>
+      </div>
+    );
+  }
 
   useEffect(() => {
     if (query.trim()) {
@@ -8699,11 +8752,7 @@ function ExpressionsLibraryBlock({ library }) {
         <div className="expressions-count">
           {filtered.length} {filtered.length === 1 ? itemLabel : itemLabelPlural} found
         </div>
-        <div className="expressions-pager">
-          <button disabled={safePage === 0} onClick={() => setPage((p) => Math.max(0, p - 1))}>Prev {perPage} {itemLabelPlural}</button>
-          <span>{safePage + 1} / {totalPages}</span>
-          <button disabled={safePage >= totalPages - 1} onClick={() => setPage((p) => Math.min(totalPages - 1, p + 1))}>Next {perPage} {itemLabelPlural}</button>
-        </div>
+        {renderPager()}
       </div>
 
       {visibleEntries.length > 0 ? (
@@ -8748,11 +8797,7 @@ function ExpressionsLibraryBlock({ library }) {
         </div>
       )}
 
-      <div className="expressions-pager expressions-pager-bottom">
-        <button disabled={safePage === 0} onClick={() => setPage((p) => Math.max(0, p - 1))}>Prev {perPage} {itemLabelPlural}</button>
-        <span>{safePage + 1} / {totalPages}</span>
-        <button disabled={safePage >= totalPages - 1} onClick={() => setPage((p) => Math.min(totalPages - 1, p + 1))}>Next {perPage} {itemLabelPlural}</button>
-      </div>
+      {renderPager('expressions-pager-bottom')}
 
       <div className="expressions-foot">{library.sourceNote}</div>
     </section>
