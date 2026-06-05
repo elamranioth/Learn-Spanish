@@ -8676,7 +8676,7 @@ function ExpressionsLibraryBlock({ library }) {
           <ChevronLeft size={18} />
           <span>
             <strong>Anterior</strong>
-            <em>Page {previousPageLabel} / {totalPages}</em>
+            <em>{previousPageLabel} / {totalPages}</em>
           </span>
         </button>
 
@@ -8694,7 +8694,7 @@ function ExpressionsLibraryBlock({ library }) {
         >
           <span>
             <strong>Siguiente</strong>
-            <em>Page {nextPageLabel} / {totalPages}</em>
+            <em>{nextPageLabel} / {totalPages}</em>
           </span>
           <ChevronRight size={18} />
         </button>

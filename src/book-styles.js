@@ -2488,30 +2488,30 @@ export const styles = `
 }
 .expressions-pager {
   display: grid;
-  grid-template-columns: minmax(88px, 0.72fr) auto minmax(88px, 0.72fr);
-  gap: 6px;
+  grid-template-columns: minmax(72px, 0.55fr) auto minmax(72px, 0.55fr);
+  gap: 4px;
   align-items: center;
-  min-width: min(100%, 320px);
-  width: min(100%, 420px);
-  padding: 4px;
+  min-width: min(100%, 240px);
+  width: min(100%, 320px);
+  padding: 3px;
   border: 1px solid var(--rule);
   border-radius: 8px;
   background: #fff;
   box-shadow: 0 8px 24px rgba(37, 49, 37, 0.08);
 }
 .expressions-page-btn {
-  min-height: 34px;
+  min-height: 22px;
   border: 1px solid var(--rule);
-  border-radius: 8px;
+  border-radius: 6px;
   background: var(--paper-light);
   color: var(--ink);
-  padding: 5px 8px;
+  padding: 2px 5px;
   font-family: 'Literata', Georgia, serif;
   cursor: pointer;
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  gap: 5px;
+  gap: 3px;
   text-align: left;
   touch-action: manipulation;
   transition: transform 120ms ease, border-color 120ms ease, background 120ms ease, color 120ms ease;
@@ -2534,19 +2534,30 @@ export const styles = `
   cursor: default;
   transform: none;
 }
-.expressions-page-btn span,
+.expressions-page-btn span {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  gap: 4px;
+  line-height: 1;
+  white-space: nowrap;
+}
 .expressions-page-chip {
   display: flex;
   flex-direction: column;
   line-height: 1.1;
 }
+.expressions-page-btn svg {
+  width: 12px;
+  height: 12px;
+}
 .expressions-page-btn strong {
-  font-size: 13px;
+  font-size: 11px;
   font-weight: 800;
 }
 .expressions-page-btn em {
-  margin-top: 1px;
-  font-size: 9px;
+  margin-top: 0;
+  font-size: 8px;
   font-style: normal;
   color: currentColor;
   opacity: 0.72;
@@ -5490,7 +5501,8 @@ export const styles = `
   }
   .expressions-pager {
     grid-column: 1 / -1;
-    width: 100%;
+    justify-self: center;
+    width: min(100%, 230px);
     min-width: 0;
     grid-template-columns: 1fr 1fr;
   }
@@ -5502,15 +5514,15 @@ export const styles = `
   }
   .expressions-page-btn {
     width: 100%;
-    min-height: 36px;
-    padding: 5px 7px;
-    gap: 5px;
+    min-height: 22px;
+    padding: 2px 4px;
+    gap: 3px;
   }
   .expressions-page-btn strong {
-    font-size: 12px;
+    font-size: 10px;
   }
   .expressions-page-btn em {
-    font-size: 9px;
+    font-size: 8px;
   }
   .expression-line-main {
     flex-direction: column;
