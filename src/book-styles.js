@@ -2488,30 +2488,31 @@ export const styles = `
 }
 .expressions-pager {
   display: grid;
-  grid-template-columns: minmax(72px, 0.55fr) auto minmax(72px, 0.55fr);
-  gap: 4px;
+  grid-template-columns: minmax(118px, 1fr) auto minmax(118px, 1fr);
+  gap: 8px;
   align-items: center;
-  min-width: min(100%, 240px);
-  width: min(100%, 320px);
-  padding: 3px;
+  min-width: min(100%, 430px);
+  width: min(100%, 560px);
+  padding: 4px;
   border: 1px solid var(--rule);
   border-radius: 8px;
   background: #fff;
   box-shadow: 0 8px 24px rgba(37, 49, 37, 0.08);
 }
 .expressions-page-btn {
-  min-height: 22px;
+  width: 100%;
+  min-height: 26px;
   border: 1px solid var(--rule);
   border-radius: 6px;
   background: var(--paper-light);
   color: var(--ink);
-  padding: 2px 5px;
+  padding: 3px 9px;
   font-family: 'Literata', Georgia, serif;
   cursor: pointer;
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  gap: 3px;
+  gap: 5px;
   text-align: left;
   touch-action: manipulation;
   transition: transform 120ms ease, border-color 120ms ease, background 120ms ease, color 120ms ease;
@@ -2520,6 +2521,12 @@ export const styles = `
   background: var(--ink);
   border-color: var(--ink);
   color: #fff;
+}
+.expressions-page-btn.prev {
+  justify-self: start;
+}
+.expressions-page-btn.next {
+  justify-self: end;
 }
 .expressions-page-btn:hover:not(:disabled) {
   transform: translateY(-1px);
@@ -2552,12 +2559,12 @@ export const styles = `
   height: 12px;
 }
 .expressions-page-btn strong {
-  font-size: 11px;
+  font-size: 12px;
   font-weight: 800;
 }
 .expressions-page-btn em {
   margin-top: 0;
-  font-size: 8px;
+  font-size: 9px;
   font-style: normal;
   color: currentColor;
   opacity: 0.72;
@@ -5501,10 +5508,10 @@ export const styles = `
   }
   .expressions-pager {
     grid-column: 1 / -1;
-    justify-self: center;
-    width: min(100%, 230px);
+    justify-self: stretch;
+    width: 100%;
     min-width: 0;
-    grid-template-columns: 1fr 1fr;
+    grid-template-columns: minmax(128px, 0.42fr) minmax(0, 1fr) minmax(128px, 0.42fr);
   }
   .expressions-page-chip {
     display: none;
@@ -5512,17 +5519,25 @@ export const styles = `
   .expressions-page-progress {
     grid-column: 1 / -1;
   }
+  .expressions-page-btn.prev {
+    grid-column: 1;
+    justify-self: start;
+  }
+  .expressions-page-btn.next {
+    grid-column: 3;
+    justify-self: end;
+  }
   .expressions-page-btn {
-    width: 100%;
-    min-height: 22px;
-    padding: 2px 4px;
-    gap: 3px;
+    width: min(42vw, 170px);
+    min-height: 26px;
+    padding: 3px 7px;
+    gap: 4px;
   }
   .expressions-page-btn strong {
-    font-size: 10px;
+    font-size: 11px;
   }
   .expressions-page-btn em {
-    font-size: 8px;
+    font-size: 9px;
   }
   .expression-line-main {
     flex-direction: column;
