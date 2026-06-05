@@ -124,42 +124,6 @@ export const styles = `
   font-size: 26px;
   color: var(--green);
 }
-.study-timer {
-  flex: 0 0 auto;
-  min-width: 96px;
-  height: 36px;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  gap: 6px;
-  padding: 0 10px;
-  border: 1px solid var(--rule);
-  border-radius: 999px;
-  background: var(--paper);
-  color: var(--ink-mute);
-  font-family: 'Cormorant Garamond', serif;
-  font-weight: 700;
-  letter-spacing: 0.04em;
-}
-.study-timer.running {
-  border-color: var(--green);
-  color: var(--green);
-  background: var(--green-tint);
-}
-.study-timer-main {
-  font-size: 16px;
-  line-height: 1;
-}
-.study-timer-sub {
-  padding-left: 6px;
-  border-left: 1px solid var(--rule);
-  font-size: 11px;
-  color: var(--ink-mute);
-}
-.study-timer.running .study-timer-sub {
-  color: var(--green);
-  border-left-color: rgba(48, 103, 65, 0.24);
-}
 .mobile-btn {
   background: transparent;
   border: 1px solid var(--rule);
@@ -1559,8 +1523,7 @@ export const styles = `
 }
 .section-lesson-index,
 .section-lesson-level,
-.section-lesson-status,
-.section-lesson-time {
+.section-lesson-status {
   font-family: 'Cormorant Garamond', Georgia, serif;
   font-size: 12px;
   letter-spacing: 0.16em;
@@ -1606,9 +1569,6 @@ export const styles = `
 }
 .section-lesson-status {
   color: var(--ink-mute);
-}
-.section-lesson-time {
-  color: var(--green);
 }
 .section-lesson-card.status-read .section-lesson-status,
 .section-lesson-card.status-opened .section-lesson-status {
@@ -5534,18 +5494,23 @@ export const styles = `
     min-width: 0;
     grid-template-columns: 1fr 1fr;
   }
-  .expressions-page-chip,
+  .expressions-page-chip {
+    display: none;
+  }
   .expressions-page-progress {
     grid-column: 1 / -1;
   }
-  .expressions-page-chip {
-    border-left: 0;
-    border-right: 0;
-    border-top: 1px solid var(--rule-soft);
-    border-bottom: 1px solid var(--rule-soft);
-  }
   .expressions-page-btn {
     width: 100%;
+    min-height: 52px;
+    padding: 8px 10px;
+    gap: 6px;
+  }
+  .expressions-page-btn strong {
+    font-size: 14px;
+  }
+  .expressions-page-btn em {
+    font-size: 10px;
   }
   .expression-line-main {
     flex-direction: column;
@@ -7250,12 +7215,7 @@ export const styles = `
 
 @media (max-width: 700px) {
   .mobile-bar {
-    flex-wrap: wrap;
-  }
-  .study-timer {
-    order: 1;
-    margin-left: auto;
-    min-width: 88px;
+    flex-wrap: nowrap;
   }
   .mobile-tools-toggle {
     order: 1;
@@ -8514,7 +8474,7 @@ export const styles = `
   }
   .mobile-bar {
     display: grid;
-    grid-template-columns: 44px auto auto auto auto;
+    grid-template-columns: 44px minmax(120px, 1fr) auto auto;
     align-items: center;
     padding: 10px 18px;
     position: fixed;
@@ -8616,7 +8576,7 @@ export const styles = `
     -webkit-overflow-scrolling: touch;
   }
   .book-root {
-    --mobile-bar-space: 158px;
+    --mobile-bar-space: 66px;
     font-size: calc(18px * var(--font-scale));
     line-height: 1.62;
     min-height: 100svh;
@@ -8624,14 +8584,14 @@ export const styles = `
     overflow-x: visible;
   }
   .book-root:has(.top-tools.open) {
-    --mobile-bar-space: 308px;
+    --mobile-bar-space: 150px;
   }
   .book-root.focus-mode {
     --mobile-bar-space: 0px;
   }
   .mobile-bar {
     display: grid;
-    grid-template-columns: 42px minmax(0, 1fr) auto auto;
+    grid-template-columns: 42px minmax(0, 1fr) 42px auto;
     align-items: center;
     gap: 8px;
     padding: max(8px, env(safe-area-inset-top)) 10px 10px;
@@ -8656,19 +8616,6 @@ export const styles = `
     overflow: hidden;
     text-overflow: ellipsis;
   }
-  .study-timer {
-    min-width: 74px;
-    height: 38px;
-    padding: 0 8px;
-    gap: 4px;
-    letter-spacing: 0;
-  }
-  .study-timer-main {
-    font-size: 14px;
-  }
-  .study-timer-sub {
-    display: none;
-  }
   .mobile-tools-toggle {
     display: inline-flex;
     min-width: 74px;
@@ -8681,6 +8628,7 @@ export const styles = `
     width: 42px;
     max-width: 42px;
     margin: 0;
+    justify-self: end;
   }
   .header-search.open {
     grid-column: 1 / -1;
@@ -9207,18 +9155,15 @@ export const styles = `
 
 @media (max-width: 380px) {
   .mobile-bar {
-    grid-template-columns: 40px minmax(0, 1fr) auto;
-  }
-  .study-timer {
-    grid-column: 1 / 3;
-    order: 2;
-    width: 100%;
+    grid-template-columns: 40px minmax(0, 1fr) 40px auto;
   }
   .mobile-tools-toggle {
-    order: 2;
+    order: initial;
+    min-width: 66px;
+    padding: 0 8px;
   }
   .header-search {
-    order: 2;
+    order: initial;
     justify-self: end;
   }
   .header-search.open {

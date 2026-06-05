@@ -5,11 +5,10 @@ import {
   isLessonReadStatus,
   isLessonUnderstoodStatus,
 } from './lesson-status.js';
-import { formatStudyDuration } from './study-time.js';
 
 export { buildSectionLessonCards, getNestedLessonKey } from './section-lessons.js';
 
-export function SectionOverviewView({ section, lessons, visitedSet, lessonStatuses, studyTime, onSelectChapter, SectionIconComponent }) {
+export function SectionOverviewView({ section, lessons, visitedSet, lessonStatuses, onSelectChapter, SectionIconComponent }) {
   if (!section) return null;
   const cards = lessons || [];
   const completedCount = cards.filter((lesson) => {
@@ -47,7 +46,6 @@ export function SectionOverviewView({ section, lessons, visitedSet, lessonStatus
           {cards.map((lesson, index) => {
             const status = lessonStatuses?.[lesson.statusKey || lesson.id];
             const hasOpened = visitedSet.has(lesson.id);
-            const seconds = Number(studyTime?.byChapter?.[lesson.id]) || 0;
             const preview = lesson.intro || lesson.subtitle || 'Open the lesson and work through it at your own pace.';
             return (
               <button
@@ -67,7 +65,6 @@ export function SectionOverviewView({ section, lessons, visitedSet, lessonStatus
                   <span className="section-lesson-status">
                     {getLessonStatusLabel(status, hasOpened)}
                   </span>
-                  {seconds > 0 && <span className="section-lesson-time">{formatStudyDuration(seconds)}</span>}
                 </span>
               </button>
             );

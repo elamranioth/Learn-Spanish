@@ -251,7 +251,6 @@ export function buildTeacherInsights({
   learnerProfile = {},
   reviewQueue = [],
   dailyStats = {},
-  studyTime = {},
   savedWords = [],
   recommendations = [],
 } = {}) {
@@ -259,7 +258,6 @@ export function buildTeacherInsights({
   const dueWords = learnerProfile.vocabulary?.due || 0;
   const difficultWords = learnerProfile.vocabulary?.difficult || 0;
   const weakWriting = learnerProfile.writing?.needsPractice || 0;
-  const todaySeconds = studyTime.todaySeconds || 0;
 
   if (dueWords > 0) {
     insights.push({
@@ -298,16 +296,6 @@ export function buildTeacherInsights({
       detail: 'Pick one reading paragraph, listen once, then read it aloud without racing.',
       action: 'reading',
       actionLabel: 'Open reading',
-    });
-  }
-
-  if (todaySeconds < 10 * 60) {
-    insights.push({
-      key: 'time',
-      title: 'Keep today small',
-      detail: 'Aim for ten focused minutes. The streak matters more than a long session.',
-      action: 'daily',
-      actionLabel: 'Continue',
     });
   }
 

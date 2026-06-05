@@ -76,7 +76,7 @@ import {
   normalizeDictionaryLookup as normalizeDictionaryLookupSmart,
   translateWord as translateWordSmart,
 } from './spanish-dictionary.js';
-import { STUDY_TIME_KEY, formatStudyDuration, normalizeStudyTimeState, recordStudySecond } from './study-time.js';
+import { STUDY_TIME_KEY, normalizeStudyTimeState } from './study-time.js';
 
 const SyncPanel = React.lazy(() => import('./sync-panel.jsx'));
 
@@ -8663,18 +8663,20 @@ function ExpressionsLibraryBlock({ library }) {
   }
 
   function renderPager(extraClass = '') {
+    const previousPageLabel = Math.max(1, safePage);
+    const nextPageLabel = Math.min(totalPages, safePage + 2);
     return (
       <div className={`expressions-pager ${extraClass}`.trim()} aria-label={`${library.title} pages`}>
         <button
           className="expressions-page-btn prev"
           disabled={safePage === 0}
           onClick={goPreviousPage}
-          aria-label="Previous page"
+          aria-label={`Previous page ${previousPageLabel} of ${totalPages}`}
         >
           <ChevronLeft size={18} />
           <span>
             <strong>Anterior</strong>
-            <em>Back {perPage}</em>
+            <em>Page {previousPageLabel} / {totalPages}</em>
           </span>
         </button>
 
@@ -8688,11 +8690,11 @@ function ExpressionsLibraryBlock({ library }) {
           className="expressions-page-btn next"
           disabled={safePage >= totalPages - 1}
           onClick={goNextPage}
-          aria-label="Next page"
+          aria-label={`Next page ${nextPageLabel} of ${totalPages}`}
         >
           <span>
             <strong>Siguiente</strong>
-            <em>Next {perPage}</em>
+            <em>Page {nextPageLabel} / {totalPages}</em>
           </span>
           <ChevronRight size={18} />
         </button>
@@ -9657,21 +9659,6 @@ function todayStartMs() {
   return today.getTime();
 }
 
-function getStudyStreak(studyTime = {}) {
-  const sessions = Array.isArray(studyTime.sessions) ? studyTime.sessions : [];
-  const dates = new Set(sessions.filter((session) => (session.seconds || 0) >= 60).map((session) => session.date).filter(Boolean));
-  if ((studyTime.todaySeconds || 0) >= 60) dates.add(new Date().toISOString().slice(0, 10));
-  let streak = 0;
-  const cursor = new Date();
-  for (let i = 0; i < 90; i++) {
-    const key = cursor.toISOString().slice(0, 10);
-    if (!dates.has(key)) break;
-    streak++;
-    cursor.setDate(cursor.getDate() - 1);
-  }
-  return streak;
-}
-
 function isLikelyBooxDevice() {
   if (typeof navigator === 'undefined') return false;
   const brands = (navigator.userAgentData?.brands || []).map((brand) => brand.brand).join(' ');
@@ -9719,10 +9706,7 @@ export default function SpanishBook() {
   const [installMessage, setInstallMessage] = useState('');
   const [isInstalledApp, setIsInstalledApp] = useState(false);
   const [studyTime, setStudyTime] = useState(() => normalizeStudyTimeState());
-  const [studySessionSeconds, setStudySessionSeconds] = useState(0);
   const [lazyLessonData, setLazyLessonData] = useState({});
-  const studyPersistTickRef = React.useRef(0);
-  const studySessionIdRef = React.useRef('');
   const syncDirtyRef = React.useRef(false);
   const syncHydratingRef = React.useRef(false);
   const lastAutoSyncAtRef = React.useRef(0);
@@ -10278,9 +10262,8 @@ export default function SpanishBook() {
       grammarDone: chapterDone(grammarChapter),
       readingDone: chapterDone(readingChapter),
       verbDone: chapterDone(verbChapter),
-      streak: getStudyStreak(studyTime),
     };
-  }, [palabrasProgress, savedWords, visitedSet, lessonStatuses, grammarChapter, readingChapter, verbChapter, studyTime]);
+  }, [palabrasProgress, savedWords, visitedSet, lessonStatuses, grammarChapter, readingChapter, verbChapter]);
   const dailyPlan = useMemo(() => ([
     {
       key: 'palabras',
@@ -10321,70 +10304,14 @@ export default function SpanishBook() {
   const dailyProgress = useMemo(() => ({
     completed: dailyPlan.filter((item) => item.complete).length,
     total: dailyPlan.length,
-    streak: dailyStats.streak,
-  }), [dailyPlan, dailyStats.streak]);
+  }), [dailyPlan]);
   const teacherInsights = useMemo(() => buildTeacherInsights({
     learnerProfile,
     reviewQueue,
     dailyStats,
-    studyTime,
     savedWords,
     recommendations: recommendedChapters,
-  }), [learnerProfile, reviewQueue, dailyStats, studyTime, savedWords, recommendedChapters]);
-  const isStudyTimerRunning = Boolean(activeChapter && !showHome && !showMemoria && !sectionLandingId);
-  const activeStudyId = activeNestedTarget?.cardId || activeChapter?.id;
-  const studyTimerLabel = isStudyTimerRunning
-    ? `${activeChapter.sectionLabel || 'Lesson'} - ${activeNestedTarget?.title || activeChapter.title}`
-    : 'Open a lesson to count';
-
-  useEffect(() => {
-    setStudySessionSeconds(0);
-  }, [activeStudyId]);
-
-  useEffect(() => {
-    if (!isStudyTimerRunning || !activeStudyId) return undefined;
-    let alive = true;
-    const sessionId = `${Date.now()}-${Math.random().toString(36).slice(2)}-${activeStudyId}`;
-    studySessionIdRef.current = sessionId;
-    const tick = () => {
-      if (!alive || document.hidden) return;
-      const now = Date.now();
-      setStudySessionSeconds((seconds) => seconds + 1);
-      setStudyTime((current) => {
-        const next = recordStudySecond(current, activeStudyId, sessionId, now);
-        studyPersistTickRef.current += 1;
-        if (studyPersistTickRef.current >= 15) {
-          studyPersistTickRef.current = 0;
-          markSyncDirty();
-          try { window.storage.set(STUDY_TIME_KEY, JSON.stringify(next)); } catch (_) {}
-        }
-        return next;
-      });
-    };
-    const timer = window.setInterval(tick, 1000);
-    return () => {
-      alive = false;
-      window.clearInterval(timer);
-      if (studySessionIdRef.current === sessionId) studySessionIdRef.current = '';
-    };
-  }, [isStudyTimerRunning, activeStudyId]);
-
-  useEffect(() => {
-    markSyncDirty();
-    try { window.storage.set(STUDY_TIME_KEY, JSON.stringify(studyTime)); } catch (_) {}
-  }, [showHome, showMemoria, sectionLandingId, activeChapterId, activeNestedTarget]);
-
-  useEffect(() => {
-    const persistStudyTime = () => {
-      try { window.storage.set(STUDY_TIME_KEY, JSON.stringify(studyTime)); } catch (_) {}
-    };
-    window.addEventListener('pagehide', persistStudyTime);
-    window.addEventListener('beforeunload', persistStudyTime);
-    return () => {
-      window.removeEventListener('pagehide', persistStudyTime);
-      window.removeEventListener('beforeunload', persistStudyTime);
-    };
-  }, [studyTime]);
+  }), [learnerProfile, reviewQueue, dailyStats, savedWords, recommendedChapters]);
 
   useEffect(() => {
     try { window.storage.set(LEARNER_PROFILE_KEY, JSON.stringify(learnerProfile)); } catch (_) {}
@@ -10840,7 +10767,7 @@ export default function SpanishBook() {
       await writeGoogleSyncPayload(token, mergedPayload, file?.id);
       setGoogleLastSyncedAt(new Date().toLocaleString());
       syncDirtyRef.current = false;
-      if (!options.silent) setSyncMessage(`Google Drive synced across devices: ${mergedPayload.savedWords.length} words, ${Object.keys(mergedPayload.lessonStatuses || {}).length} lesson marks, ${formatStudyDuration(mergedPayload.studyTime?.totalSeconds)} total study time.`);
+      if (!options.silent) setSyncMessage(`Google Drive synced across devices: ${mergedPayload.savedWords.length} words and ${Object.keys(mergedPayload.lessonStatuses || {}).length} lesson marks.`);
     } catch (error) {
       if (/401|invalid|expired/i.test(error?.message || '')) setGoogleAccessToken('');
       if (!options.silent) setSyncMessage(error?.message || 'Google Drive sync did not finish.');
@@ -10850,11 +10777,11 @@ export default function SpanishBook() {
   }
 
   useEffect(() => {
-    if (!firebaseUser?.uid || firebaseBusy || isStudyTimerRunning || !syncDirtyRef.current) return undefined;
+    if (!firebaseUser?.uid || firebaseBusy || !syncDirtyRef.current) return undefined;
     const now = Date.now();
     if (now - lastFirebaseAutoSyncAtRef.current < 20_000) return undefined;
     const timer = window.setTimeout(() => {
-      if (!syncDirtyRef.current || firebaseBusy || isStudyTimerRunning || !firebaseUser?.uid) return;
+      if (!syncDirtyRef.current || firebaseBusy || !firebaseUser?.uid) return;
       lastFirebaseAutoSyncAtRef.current = Date.now();
       syncWithFirebase({ silent: true });
     }, 3000);
@@ -10862,7 +10789,6 @@ export default function SpanishBook() {
   }, [
     firebaseUser?.uid,
     firebaseBusy,
-    isStudyTimerRunning,
     savedWords,
     palabrasProgress,
     lessonStatuses,
@@ -10871,15 +10797,14 @@ export default function SpanishBook() {
     fontScale,
     translationMode,
     booxMode,
-    studyTime.updatedAt,
   ]);
 
   useEffect(() => {
-    if (!googleAccessToken || googleBusy || isStudyTimerRunning || !syncDirtyRef.current) return undefined;
+    if (!googleAccessToken || googleBusy || !syncDirtyRef.current) return undefined;
     const now = Date.now();
     if (now - lastAutoSyncAtRef.current < 20_000) return undefined;
     const timer = window.setTimeout(() => {
-      if (!syncDirtyRef.current || googleBusy || isStudyTimerRunning) return;
+      if (!syncDirtyRef.current || googleBusy) return;
       lastAutoSyncAtRef.current = Date.now();
       syncWithGoogleDrive(googleAccessToken, { silent: true });
     }, 3500);
@@ -10887,7 +10812,6 @@ export default function SpanishBook() {
   }, [
     googleAccessToken,
     googleBusy,
-    isStudyTimerRunning,
     savedWords,
     palabrasProgress,
     lessonStatuses,
@@ -10896,7 +10820,6 @@ export default function SpanishBook() {
     fontScale,
     translationMode,
     booxMode,
-    studyTime.updatedAt,
   ]);
 
   function renderGlobalSearch(extraClass = '') {
@@ -10972,9 +10895,8 @@ export default function SpanishBook() {
     { label: 'Memoria words', value: savedWords.length },
     { label: 'Palabras reviews', value: Object.keys(palabrasProgress || {}).length },
     { label: 'lesson marks', value: Object.keys(lessonStatuses || {}).length },
-    { label: 'study time', value: formatStudyDuration(studyTime.totalSeconds) },
     { label: 'reader profile', value: booxMode ? 'Boox' : 'Normal' },
-  ]), [savedWords.length, palabrasProgress, lessonStatuses, studyTime.totalSeconds, booxMode]);
+  ]), [savedWords.length, palabrasProgress, lessonStatuses, booxMode]);
 
   useEffect(() => {
     if (globalSearchOpen) {
@@ -11000,11 +10922,6 @@ export default function SpanishBook() {
         </button>
         <div className="mobile-title">
           <span className="mobile-brand-script">Lexiora</span>
-        </div>
-        <div className={`study-timer ${isStudyTimerRunning ? 'running' : ''}`} title={studyTimerLabel}>
-          <Clock size={14} />
-          <span className="study-timer-main">{formatStudyDuration(studyTime.todaySeconds)}</span>
-          <span className="study-timer-sub">{formatStudyDuration(studySessionSeconds)}</span>
         </div>
         {renderGlobalSearch('header-search')}
         <button
@@ -11283,7 +11200,6 @@ export default function SpanishBook() {
                 memoriaSummary={memoriaSummary}
                 learnerProfile={learnerProfile}
                 reviewQueue={reviewQueue}
-                studyTime={studyTime}
                 dailyPlan={dailyPlan}
                 dailyProgress={dailyProgress}
                 teacherInsights={teacherInsights}
@@ -11312,7 +11228,6 @@ export default function SpanishBook() {
                 lessons={sectionLandingLessons}
                 visitedSet={visitedSet}
                 lessonStatuses={lessonStatuses}
-                studyTime={studyTime}
                 onSelectChapter={selectChapter}
                 SectionIconComponent={SectionIcon}
               />

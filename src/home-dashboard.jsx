@@ -11,7 +11,6 @@ import {
   Zap,
 } from 'lucide-react';
 import TeacherPanel from './teacher-panel.jsx';
-import { formatStudyDuration } from './study-time.js';
 
 function TeacherMetric({ icon: Icon, label, value, detail }) {
   return (
@@ -34,7 +33,6 @@ export default function HomeView({
   memoriaSummary,
   learnerProfile,
   reviewQueue,
-  studyTime,
   dailyPlan,
   dailyProgress,
   teacherInsights,
@@ -107,12 +105,11 @@ export default function HomeView({
         <div className="daily-teacher-card">
           <span>{dailyProgress.completed} / {dailyProgress.total}</span>
           <strong>Today</strong>
-          <em>{dailyProgress.streak} day streak</em>
+          <em>{dailyProgress.completed} done today</em>
         </div>
       </section>
 
       <section className="teacher-metrics" aria-label="Today's study metrics">
-        <TeacherMetric icon={Clock} label="Today" value={formatStudyDuration(studyTime.todaySeconds)} detail={`${formatStudyDuration(studyTime.totalSeconds)} total`} />
         <TeacherMetric icon={BookCheck} label="Mastery" value={masteryCount} detail={`${lessonSummary.understood} understood`} />
         <TeacherMetric icon={Bookmark} label="Memoria" value={savedWordsCount} detail={`${memoriaSummary.due} due`} />
       </section>
