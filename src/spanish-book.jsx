@@ -8558,7 +8558,9 @@ function writeStoredExpressionsPage(key, page) {
 function ExpressionsLibraryBlock({ library }) {
   const pageStorageKey = useMemo(() => getExpressionsPageKey(library), [library?.title, library?.eyebrow]);
   const [query, setQuery] = useState('');
+  const [searchOpen, setSearchOpen] = useState(false);
   const [page, setPage] = useState(() => readStoredExpressionsPage(pageStorageKey));
+  const searchInputRef = React.useRef(null);
   const perPage = Math.max(1, Number(library?.perPage) || 50);
   const itemLabel = library?.itemLabel || 'expression';
   const itemLabelPlural = library?.itemLabelPlural || `${itemLabel}s`;
@@ -8714,6 +8716,17 @@ function ExpressionsLibraryBlock({ library }) {
     if (!query.trim()) writeStoredExpressionsPage(pageStorageKey, safePage);
   }, [pageStorageKey, query, safePage]);
 
+  useEffect(() => {
+    if (searchOpen) {
+      window.requestAnimationFrame(() => searchInputRef.current?.focus());
+    }
+  }, [searchOpen]);
+
+  function closeSearch() {
+    setQuery('');
+    setSearchOpen(false);
+  }
+
   return (
     <section className="block expressions-library-block expressions-lines-block">
       <div className="expressions-hero">
@@ -8741,14 +8754,36 @@ function ExpressionsLibraryBlock({ library }) {
       </div>
 
       <div className="expressions-toolbar">
-        <label>
-          <Search size={14} />
-          <input
-            value={query}
-            onChange={(e) => setQuery(e.target.value)}
-            placeholder={`Search ${itemLabel}, meaning, or example...`}
-          />
-        </label>
+        <div className={`expressions-search ${searchOpen ? 'open' : ''} ${query.trim() ? 'has-query' : ''}`}>
+          {!searchOpen ? (
+            <button
+              type="button"
+              className="expressions-search-toggle"
+              onClick={() => setSearchOpen(true)}
+              aria-label={`Search ${itemLabelPlural}`}
+            >
+              <Search size={18} />
+            </button>
+          ) : (
+            <div className="expressions-search-panel">
+              <Search size={15} />
+              <input
+                ref={searchInputRef}
+                value={query}
+                onChange={(e) => setQuery(e.target.value)}
+                placeholder={`Search ${itemLabel}, meaning, or example...`}
+              />
+              <button
+                type="button"
+                className="expressions-search-close"
+                onClick={closeSearch}
+                aria-label="Close search"
+              >
+                <X size={15} />
+              </button>
+            </div>
+          )}
+        </div>
         <div className="expressions-count">
           {filtered.length} {filtered.length === 1 ? itemLabel : itemLabelPlural} found
         </div>
