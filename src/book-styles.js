@@ -2488,11 +2488,11 @@ export const styles = `
 }
 .expressions-pager {
   display: grid;
-  grid-template-columns: minmax(130px, 1fr) auto minmax(130px, 1fr);
+  grid-template-columns: minmax(180px, 1fr) auto minmax(180px, 1fr);
   gap: 18px;
   align-items: center;
-  min-width: min(100%, 430px);
-  width: min(100%, 560px);
+  min-width: min(100%, 560px);
+  width: min(100%, 720px);
   padding: 8px 10px;
   border: 1px solid rgba(210, 213, 216, 0.9);
   border-radius: 10px;
@@ -5542,7 +5542,7 @@ export const styles = `
     justify-self: stretch;
     width: 100%;
     min-width: 0;
-    grid-template-columns: minmax(128px, 0.42fr) minmax(0, 1fr) minmax(128px, 0.42fr);
+    grid-template-columns: minmax(140px, 0.46fr) minmax(0, 1fr) minmax(140px, 0.46fr);
   }
   .expressions-page-chip {
     display: none;
@@ -5559,7 +5559,7 @@ export const styles = `
     justify-self: end;
   }
   .expressions-page-btn {
-    width: min(42vw, 170px);
+    width: min(44vw, 210px);
     min-height: 26px;
     padding: 3px 7px;
     gap: 4px;
