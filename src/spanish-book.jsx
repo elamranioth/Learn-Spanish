@@ -8675,7 +8675,7 @@ function ExpressionsLibraryBlock({ library }) {
         >
           <ChevronLeft size={18} />
           <span>
-            <strong>Anterior</strong>
+            <strong>BACK</strong>
             <em>{previousPageLabel} / {totalPages}</em>
           </span>
         </button>
@@ -8693,7 +8693,7 @@ function ExpressionsLibraryBlock({ library }) {
           aria-label={`Next page ${nextPageLabel} of ${totalPages}`}
         >
           <span>
-            <strong>Siguiente</strong>
+            <strong>NEXT</strong>
             <em>{nextPageLabel} / {totalPages}</em>
           </span>
           <ChevronRight size={18} />

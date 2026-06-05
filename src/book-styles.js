@@ -2488,39 +2488,55 @@ export const styles = `
 }
 .expressions-pager {
   display: grid;
-  grid-template-columns: minmax(118px, 1fr) auto minmax(118px, 1fr);
-  gap: 8px;
+  grid-template-columns: minmax(130px, 1fr) auto minmax(130px, 1fr);
+  gap: 18px;
   align-items: center;
   min-width: min(100%, 430px);
   width: min(100%, 560px);
-  padding: 4px;
-  border: 1px solid var(--rule);
-  border-radius: 8px;
-  background: #fff;
-  box-shadow: 0 8px 24px rgba(37, 49, 37, 0.08);
+  padding: 8px 10px;
+  border: 1px solid rgba(210, 213, 216, 0.9);
+  border-radius: 10px;
+  background:
+    linear-gradient(112deg, transparent 0 18%, rgba(180, 185, 190, 0.28) 18% 19%, transparent 19% 43%, rgba(210, 214, 218, 0.35) 43% 44%, transparent 44%),
+    linear-gradient(28deg, rgba(255,255,255,0.95), rgba(238, 240, 242, 0.78) 46%, rgba(255,255,255,0.96));
+  box-shadow:
+    inset 0 1px 0 rgba(255,255,255,0.95),
+    inset 0 -1px 0 rgba(180,185,190,0.28),
+    0 10px 22px rgba(37, 49, 37, 0.08);
 }
 .expressions-page-btn {
   width: 100%;
-  min-height: 26px;
-  border: 1px solid var(--rule);
-  border-radius: 6px;
-  background: var(--paper-light);
-  color: var(--ink);
-  padding: 3px 9px;
-  font-family: 'Literata', Georgia, serif;
+  min-height: 30px;
+  border: 2px solid transparent;
+  border-radius: 10px;
+  background-origin: border-box;
+  background-clip: padding-box, padding-box, padding-box, border-box;
+  color: #f1f3f5;
+  padding: 4px 12px;
+  font-family: 'Inter', Arial, sans-serif;
   cursor: pointer;
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  gap: 5px;
+  gap: 7px;
   text-align: left;
   touch-action: manipulation;
-  transition: transform 120ms ease, border-color 120ms ease, background 120ms ease, color 120ms ease;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  transition: transform 120ms ease, filter 120ms ease, box-shadow 120ms ease;
 }
-.expressions-page-btn.next {
-  background: var(--ink);
-  border-color: var(--ink);
-  color: #fff;
+.expressions-page-btn.prev {
+  background:
+    linear-gradient(135deg, rgba(255,255,255,0.18), rgba(255,255,255,0.02) 42%, rgba(0,0,0,0.28)),
+    repeating-linear-gradient(45deg, rgba(255,255,255,0.08) 0 1px, rgba(255,255,255,0) 1px 4px),
+    linear-gradient(180deg, #1e63d9, #0b318f) padding-box,
+    linear-gradient(145deg, #ffffff, #98a0aa 26%, #f4f7fb 46%, #6f7780 72%, #fdfdfd) border-box;
+  box-shadow:
+    inset 0 1px 2px rgba(255,255,255,0.42),
+    inset 0 -2px 4px rgba(0,0,0,0.3),
+    0 2px 0 #7c848e,
+    0 8px 16px rgba(28, 99, 217, 0.34),
+    0 14px 22px rgba(65, 145, 255, 0.22);
 }
 .expressions-page-btn.prev {
   justify-self: start;
@@ -2528,13 +2544,22 @@ export const styles = `
 .expressions-page-btn.next {
   justify-self: end;
 }
+.expressions-page-btn.next {
+  background:
+    linear-gradient(135deg, rgba(255,255,255,0.18), rgba(255,255,255,0.02) 42%, rgba(0,0,0,0.28)),
+    repeating-linear-gradient(45deg, rgba(255,255,255,0.08) 0 1px, rgba(255,255,255,0) 1px 4px),
+    linear-gradient(180deg, #138f55, #086334) padding-box,
+    linear-gradient(145deg, #ffffff, #98a0aa 26%, #f4f7fb 46%, #6f7780 72%, #fdfdfd) border-box;
+  box-shadow:
+    inset 0 1px 2px rgba(255,255,255,0.42),
+    inset 0 -2px 4px rgba(0,0,0,0.3),
+    0 2px 0 #7c848e,
+    0 8px 16px rgba(12, 143, 82, 0.34),
+    0 14px 22px rgba(44, 220, 126, 0.2);
+}
 .expressions-page-btn:hover:not(:disabled) {
   transform: translateY(-1px);
-  border-color: var(--green);
-}
-.expressions-page-btn.next:hover:not(:disabled) {
-  background: var(--green);
-  border-color: var(--green);
+  filter: brightness(1.08);
 }
 .expressions-page-btn:disabled {
   opacity: 0.35;
@@ -2555,19 +2580,25 @@ export const styles = `
   line-height: 1.1;
 }
 .expressions-page-btn svg {
-  width: 12px;
-  height: 12px;
+  width: 13px;
+  height: 13px;
+  color: #eef2f5;
+  filter: drop-shadow(0 1px 0 rgba(0,0,0,0.55));
 }
 .expressions-page-btn strong {
   font-size: 12px;
-  font-weight: 800;
+  font-weight: 900;
+  color: #f4f7f8;
+  text-shadow:
+    0 1px 0 rgba(0,0,0,0.55),
+    0 -1px 0 rgba(255,255,255,0.38);
 }
 .expressions-page-btn em {
   margin-top: 0;
   font-size: 9px;
   font-style: normal;
   color: currentColor;
-  opacity: 0.72;
+  opacity: 0.82;
 }
 .expressions-page-chip {
   min-width: 96px;
