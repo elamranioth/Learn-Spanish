@@ -9690,6 +9690,7 @@ export default function SpanishBook() {
   const [showMemoria, setShowMemoria] = useState(false);
   const [showHome, setShowHome] = useState(true);
   const [globalSearch, setGlobalSearch] = useState('');
+  const [globalSearchOpen, setGlobalSearchOpen] = useState(false);
   const [audioSettings, setAudioSettingsState] = useState({ rate: 0.85, voiceURI: '' });
   const [translationMode, setTranslationMode] = useState('both');
   const [booxMode, setBooxMode] = useState(false);
@@ -9733,6 +9734,7 @@ export default function SpanishBook() {
   const recordedPracticeAttemptsRef = React.useRef(new Set());
   const bookRootRef = React.useRef(null);
   const mobileBarRef = React.useRef(null);
+  const globalSearchInputRef = React.useRef(null);
 
   // --- Font size: persists across sessions, applied to body via CSS variable ---
   const [fontScale, setFontScale] = useState(1.0); // multiplier: 0.85 → 1.3
@@ -10899,15 +10901,36 @@ export default function SpanishBook() {
 
   function renderGlobalSearch(extraClass = '') {
     return (
-      <div className={`global-search ${extraClass}`}>
-        <label>
-          <Search size={14} />
-          <input
-            value={globalSearch}
-            onChange={(e) => setGlobalSearch(e.target.value)}
-            placeholder="Search everything..."
-          />
-        </label>
+      <div className={`global-search ${extraClass} ${globalSearchOpen ? 'open' : ''} ${globalSearch.trim() ? 'has-query' : ''}`}>
+        {!globalSearchOpen ? (
+          <button
+            type="button"
+            className="global-search-toggle"
+            onClick={() => setGlobalSearchOpen(true)}
+            aria-label="Open search"
+            title="Search"
+          >
+            <Search size={18} />
+          </button>
+        ) : (
+          <div className="global-search-panel">
+            <Search size={15} />
+            <input
+              ref={globalSearchInputRef}
+              value={globalSearch}
+              onChange={(e) => setGlobalSearch(e.target.value)}
+              placeholder="Search everything..."
+            />
+            <button
+              type="button"
+              className="global-search-close"
+              onClick={closeGlobalSearch}
+              aria-label="Close search"
+            >
+              <X size={15} />
+            </button>
+          </div>
+        )}
         {globalSearch.trim().length >= 2 && (
           <div className="global-search-results">
             {searchResults.length ? searchResults.map((result, index) => (
@@ -10923,6 +10946,7 @@ export default function SpanishBook() {
                     selectChapter(result.chapter);
                   }
                   setGlobalSearch('');
+                  setGlobalSearchOpen(false);
                   setSidebarOpen(false);
                 }}
               >
@@ -10951,6 +10975,17 @@ export default function SpanishBook() {
     { label: 'study time', value: formatStudyDuration(studyTime.totalSeconds) },
     { label: 'reader profile', value: booxMode ? 'Boox' : 'Normal' },
   ]), [savedWords.length, palabrasProgress, lessonStatuses, studyTime.totalSeconds, booxMode]);
+
+  useEffect(() => {
+    if (globalSearchOpen) {
+      window.requestAnimationFrame(() => globalSearchInputRef.current?.focus());
+    }
+  }, [globalSearchOpen]);
+
+  function closeGlobalSearch() {
+    setGlobalSearch('');
+    setGlobalSearchOpen(false);
+  }
 
   return (
     <div ref={bookRootRef} className={`book-root translation-mode-${translationMode} ${booxMode ? 'boox-mode' : ''} ${focusMode ? 'focus-mode' : ''}`}>
