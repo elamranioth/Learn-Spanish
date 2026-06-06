@@ -5,7 +5,7 @@ export const SPANISH_DAILY_PHRASES_LIBRARY = {
   "eyebrow": "Daily Spanish Phrases",
   "subtitle": "Spanish-English daily phrases from Spanish_Daily_Phrases.docx.",
   "description": "Spanish-English phrase pairs kept in the same order as the document, with 50 phrases per page.",
-  "sourceNote": "444 daily phrases - Spanish-English pairs imported from Spanish_Daily_Phrases.docx",
+  "sourceNote": "456 daily phrases - Spanish-English pairs imported from Spanish_Daily_Phrases.docx plus opinion phrases",
   "perPage": 50,
   "itemLabel": "phrase",
   "itemLabelPlural": "phrases",
@@ -2507,6 +2507,75 @@ export const SPANISH_DAILY_PHRASES_LIBRARY = {
           "rank": 444,
           "es": "No pasa nada.",
           "en": "It is okay / no problem."
+        }
+      ]
+    },
+    {
+      "id": "daily-phrases-opinions",
+      "title": "Daily Phrases - Opinions",
+      "shortTitle": "Opinions",
+      "tone": "sienna",
+      "count": 12,
+      "entries": [
+        {
+          "rank": 445,
+          "es": "Creo que...",
+          "en": "I think that..."
+        },
+        {
+          "rank": 446,
+          "es": "En mi opinión...",
+          "en": "In my opinion..."
+        },
+        {
+          "rank": 447,
+          "es": "Desde mi punto de vista...",
+          "en": "From my point of view..."
+        },
+        {
+          "rank": 448,
+          "es": "Estoy de acuerdo contigo.",
+          "en": "I agree with you."
+        },
+        {
+          "rank": 449,
+          "es": "No estoy de acuerdo.",
+          "en": "I disagree."
+        },
+        {
+          "rank": 450,
+          "es": "Por un lado... por otro lado...",
+          "en": "On one hand... on the other hand..."
+        },
+        {
+          "rank": 451,
+          "es": "Lo que pasa es que...",
+          "en": "The thing is that..."
+        },
+        {
+          "rank": 452,
+          "es": "A decir verdad...",
+          "en": "To tell the truth..."
+        },
+        {
+          "rank": 453,
+          "es": "Hasta cierto punto.",
+          "en": "Up to a point."
+        },
+        {
+          "rank": 454,
+          "es": "No me parece bien.",
+          "en": "It does not seem right to me."
+        },
+        {
+          "rank": 455,
+          "es": "Vale la pena.",
+          "en": "It is worth it."
+        },
+        {
+          "rank": 456,
+          "es": "Sin lugar a dudas.",
+          "en": "Without a doubt."
         }
       ]
     }

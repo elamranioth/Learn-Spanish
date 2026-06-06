@@ -5102,40 +5102,6 @@ const SECTIONS = [
           },
         ],
       },
-      {
-        id: 'f2',
-        level: 'B1',
-        title: 'Expresar Opiniones',
-        subtitle: 'Joining the conversation',
-        intro: 'At B1, you stop reciting and start participating. These are the connectors that let you share an opinion, agree, disagree, and qualify your thoughts.',
-        blocks: [
-          {
-            type: 'phraselist',
-            phrases: [
-              { es: 'Creo que...', en: 'I think that...' },
-              { es: 'En mi opinión...', en: 'In my opinion...' },
-              { es: 'Desde mi punto de vista...', en: 'From my point of view...' },
-              { es: 'Estoy de acuerdo contigo.', en: 'I agree with you.' },
-              { es: 'No estoy de acuerdo.', en: 'I disagree.' },
-              { es: 'Por un lado... por otro lado...', en: 'On one hand... on the other hand...' },
-              { es: 'Lo que pasa es que...', en: 'The thing is that...' },
-              { es: 'A decir verdad...', en: 'To tell the truth...' },
-              { es: 'Hasta cierto punto.', en: 'Up to a point.' },
-              { es: 'No me parece bien.', en: 'It does not seem right to me.' },
-              { es: 'Vale la pena.', en: 'It is worth it.' },
-              { es: 'Sin lugar a dudas.', en: 'Without a doubt.' },
-            ],
-          },
-          {
-            type: 'tip',
-            text: 'After "creo que" and "pienso que", use indicative. After "no creo que" and "no pienso que", switch to subjunctive. The negation flips the mood.',
-          },
-          {
-            type: 'takeaway',
-            text: 'Connectors are what make speech sound mature. Without them, you sound like a list of facts. With them, you sound like a person thinking aloud.',
-          },
-        ],
-      },
     ],
   },
   {
