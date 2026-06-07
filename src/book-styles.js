@@ -9592,4 +9592,248 @@ export const styles = `
     top: 0;
   }
 }
+
+/* ===== Lexiora learner systems: phone/Boox, mastery, phrase saving, Memoria 2.0 ===== */
+.device-phone .book-page {
+  width: 100%;
+  max-width: calc(100vw - 24px);
+}
+
+.device-phone .chapter-body,
+.device-phone .home-dashboard,
+.device-phone .section-overview {
+  width: 100%;
+}
+
+.device-phone .lesson-text,
+.device-phone .reading-paragraph,
+.device-phone .bio-paragraph,
+.device-phone .story-paragraph {
+  font-size: 19px;
+  line-height: 1.72;
+  overflow-wrap: break-word;
+}
+
+.device-touch button,
+.device-touch input,
+.device-touch select,
+.device-touch textarea,
+.device-touch a {
+  touch-action: manipulation;
+}
+
+.device-touch button,
+.device-touch .section-btn,
+.device-touch .chapter-btn,
+.device-touch .lesson-mini-choices button,
+.device-touch .lesson-status-btn {
+  min-height: 44px;
+}
+
+.device-reader-tablet .book-page {
+  max-width: min(880px, calc(100vw - 32px));
+}
+
+.device-reader-tablet .lesson-table,
+.device-reader-tablet .tense-group-table,
+.device-reader-tablet .tense-reader-table {
+  border-collapse: collapse;
+  table-layout: fixed;
+}
+
+.device-reader-tablet .lesson-table th,
+.device-reader-tablet .lesson-table td,
+.device-reader-tablet .tense-group-table th,
+.device-reader-tablet .tense-group-table td {
+  padding-top: 10px;
+  padding-bottom: 10px;
+  line-height: 1.22;
+}
+
+.lesson-mastery-quiz,
+.reading-phrase-saver {
+  border: 1px solid var(--rule);
+  border-radius: 8px;
+  background: var(--paper-light);
+  margin: 34px 0;
+  padding: 18px;
+}
+
+.lesson-mastery-quiz-head,
+.reading-phrase-saver-actions,
+.lesson-mastery-quiz-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+}
+
+.lesson-mastery-quiz-head .lesson-text {
+  margin-bottom: 0;
+}
+
+.reading-phrase-saver {
+  margin: 0 0 24px;
+  display: grid;
+  gap: 12px;
+}
+
+.reading-phrase-saver-copy,
+.reading-phrase-saved {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--green);
+  font-family: 'Literata', serif;
+  font-size: 15px;
+}
+
+.reading-phrase-saver-actions input {
+  flex: 1;
+  min-width: 0;
+  border: 1px solid var(--rule);
+  border-radius: 6px;
+  padding: 10px 12px;
+  background: var(--paper);
+  color: var(--ink);
+  font-family: 'Literata', serif;
+  font-size: 16px;
+}
+
+.reading-phrase-saver-actions button,
+.lesson-mastery-quiz .lesson-mini-reset {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  border: 1px solid var(--green);
+  border-radius: 999px;
+  background: var(--green);
+  color: #ffffff;
+  padding: 10px 16px;
+  font-family: 'Literata', serif;
+  font-weight: 700;
+}
+
+.practice-training-map {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 10px;
+  margin: 18px 0;
+}
+
+.practice-training-map div,
+.memoria-stage,
+.memoria-list-stage {
+  border: 1px solid var(--rule-soft);
+  border-radius: 7px;
+  background: var(--paper);
+}
+
+.practice-training-map div {
+  padding: 12px;
+}
+
+.practice-training-map strong,
+.practice-training-map span {
+  display: block;
+}
+
+.practice-training-map strong {
+  color: var(--green);
+  font-size: 16px;
+}
+
+.practice-training-map span {
+  color: var(--ink-mute);
+  font-size: 13px;
+  line-height: 1.35;
+}
+
+.practice-level-card em {
+  display: block;
+  color: var(--green);
+  font-style: normal;
+  font-size: 13px;
+}
+
+.memoria-stage {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 5px 9px;
+  margin-top: 10px;
+  color: var(--ink);
+  font-family: 'Literata', serif;
+  font-size: 12px;
+}
+
+.memoria-stage strong {
+  color: var(--green);
+}
+
+.memoria-stage.due strong,
+.memoria-list-stage.due {
+  color: var(--sienna);
+}
+
+.memoria-stage.difficult strong,
+.memoria-list-stage.difficult {
+  color: var(--red);
+}
+
+.memoria-stage.mastered strong,
+.memoria-list-stage.mastered {
+  color: var(--green);
+}
+
+.memoria-list-stage {
+  display: inline-block;
+  width: fit-content;
+  margin-top: 8px;
+  padding: 4px 8px;
+  font-size: 12px;
+  color: var(--ink-mute);
+}
+
+@media (max-width: 700px) {
+  .lesson-mastery-quiz,
+  .reading-phrase-saver {
+    padding: 14px;
+    margin: 24px 0;
+  }
+  .lesson-mastery-quiz-head,
+  .reading-phrase-saver-actions,
+  .lesson-mastery-quiz-footer {
+    align-items: stretch;
+    flex-direction: column;
+  }
+  .reading-phrase-saver-actions button,
+  .lesson-mastery-quiz .lesson-mini-reset {
+    width: 100%;
+  }
+  .practice-training-map {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+  .practice-level-card span {
+    overflow-wrap: anywhere;
+  }
+}
+
+.book-root.boox-mode .lesson-mastery-quiz,
+.book-root.boox-mode .reading-phrase-saver,
+.book-root.boox-mode .practice-training-map div,
+.book-root.boox-mode .memoria-stage,
+.book-root.boox-mode .memoria-list-stage {
+  background: #ffffff !important;
+  border: 1px solid #000000 !important;
+  color: #000000 !important;
+}
+
+.book-root.boox-mode .reading-phrase-saver-actions button,
+.book-root.boox-mode .lesson-mastery-quiz .lesson-mini-reset {
+  background: #ffffff !important;
+  color: #000000 !important;
+  border: 1.5px solid #000000 !important;
+}
 `;

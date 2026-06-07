@@ -18,6 +18,8 @@ import {
 import { buildRecommendedLessonCards, buildSectionProgress, buildVisibleFlatChapters, summarizeStudyProgress } from './progress.js';
 import { mergeStudyTime, recordStudySecond } from './study-time.js';
 import { mergeLessonStatus } from './lesson-status.js';
+import { buildLessonQuiz, buildPracticeHealth, collectQuizPairs } from './practice-engine.js';
+import { enrichSavedWordEntry, getMemoriaReviewStage } from './memoria-utils.js';
 
 function test(name, fn) {
   try {
@@ -161,6 +163,33 @@ test('lesson mastery statuses count as completed progress', () => {
   assert.equal(summary.understood, 2);
   assert.equal(summary.mastered, 1);
   assert.equal(mergeLessonStatus('read', 'mastered'), 'mastered');
+});
+
+test('practice engine builds lesson recall quizzes from lesson content', () => {
+  const chapter = {
+    blocks: [{
+      examples: [
+        { es: 'Trabajo hoy.', en: 'I work today.' },
+        { es: 'Vivo aqui.', en: 'I live here.' },
+        { es: 'Como pan.', en: 'I eat bread.' },
+      ],
+    }],
+  };
+  assert.equal(collectQuizPairs(chapter).length, 3);
+  const quiz = buildLessonQuiz(chapter, { count: 3 });
+  assert.equal(quiz.length, 3);
+  assert.ok(quiz.every((question) => question.choices.includes(question.answer)));
+  assert.equal(buildPracticeHealth({ score: 3, total: 3 }).status, 'mastered');
+  assert.equal(buildPracticeHealth({ score: 1, total: 3 }).status, 'practicing');
+});
+
+test('Memoria 2.0 enriches cards and labels review stages', () => {
+  const now = 3_000_000;
+  const fresh = enrichSavedWordEntry({ word: 'frase util', tags: ['phrase'] }, now);
+  assert.equal(fresh.review.seen, false);
+  assert.equal(getMemoriaReviewStage(fresh, now).key, 'new');
+  const due = enrichSavedWordEntry({ word: 'hola', review: { seen: true, dueAt: now - 1 } }, now);
+  assert.equal(getMemoriaReviewStage(due, now).key, 'due');
 });
 
 test('study time sync merges unique device sessions without losing minutes', () => {

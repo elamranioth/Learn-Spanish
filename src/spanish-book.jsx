@@ -1,8 +1,10 @@
 import React, { useState, useEffect, useLayoutEffect, useMemo } from 'react';
 import { BookOpen, Menu, X, ChevronLeft, ChevronRight, ChevronDown, Bookmark, Languages, Quote, Lightbulb, NotebookPen, Sparkles, RotateCcw, Check, Clock, Zap, BookText, Library, ListTree, MessageSquare, GraduationCap, Compass, Search, Star, AlertTriangle, BarChart3, Headphones, Download } from 'lucide-react';
 import { AppMessages } from './app-messages.jsx';
+import { getDeviceProfile } from './device-profile.js';
 import HomeDashboardView from './home-dashboard.jsx';
 import InstallBanner from './install-banner.jsx';
+import { LessonMasteryQuiz } from './lesson-mastery.jsx';
 import {
   AudioSettings,
   ExamplePair,
@@ -58,7 +60,7 @@ import {
   isLessonReadStatus,
   isLessonUnderstoodStatus,
 } from './lesson-status.js';
-import { exportMemoriaCsv, getMemoriaSummary, getMemoriaTags } from './memoria-utils.js';
+import { enrichSavedWordEntry, exportMemoriaCsv, getMemoriaReviewStage, getMemoriaSummary, getMemoriaTags } from './memoria-utils.js';
 import {
   buildRecommendedLessonCards,
   buildSectionProgress,
@@ -66,6 +68,11 @@ import {
   summarizeStudyProgress,
 } from './progress.js';
 import { GRAMMAR_TEST_LEVEL_BANK } from './grammar-test-bank.js';
+import {
+  PRACTICE_LEVEL_META,
+  stripMarkers,
+} from './practice-engine.js';
+import { ReadingPhraseSaver } from './reading-tools.jsx';
 import { buildSectionLessonCards, getNestedLessonKey } from './section-lessons.js';
 import { SectionOverviewView } from './section-overview.jsx';
 import {
@@ -77,6 +84,7 @@ import {
   translateWord as translateWordSmart,
 } from './spanish-dictionary.js';
 import { STUDY_TIME_KEY, normalizeStudyTimeState } from './study-time.js';
+import { APP_VERSION, buildSyncMeta, getBuildId, getVersionLabel } from './version-info.js';
 
 const SyncPanel = React.lazy(() => import('./sync-panel.jsx'));
 
@@ -5245,11 +5253,6 @@ function RenderForm({ raw }) {
   );
 }
 
-// Strip the [bracket] and {brace} markers used in verb tables before speaking
-function stripMarkers(s) {
-  return String(s || '').replace(/[\[\]{}]/g, '');
-}
-
 function renderLessonTableCell(cell, ci) {
   return ci === 0 ? cell : <RenderForm raw={String(cell)} />;
 }
@@ -5829,6 +5832,7 @@ function PracticeHubBlock({ chapter, practiceChapters = [], lessonStatuses = {},
       const grammarCount = Array.isArray(GRAMMAR_TEST_LEVEL_BANK[level]) ? GRAMMAR_TEST_LEVEL_BANK[level].length : 0;
       return {
         level,
+        meta: PRACTICE_LEVEL_META[level],
         lessonCount,
         grammarCount,
         ready: lessonCount > 0 || grammarCount > 0,
@@ -6128,8 +6132,9 @@ function PracticeHubBlock({ chapter, practiceChapters = [], lessonStatuses = {},
               onClick={() => startLevel(card.level)}
             >
               <span className="practice-level-tag">{card.level}</span>
-              <strong>{card.lessonCount} lecciones</strong>
-              <span>{card.grammarCount} preguntas gramatica</span>
+              <strong>{card.meta?.title || card.level}</strong>
+              <span>{card.meta?.canDo}</span>
+              <em>{card.lessonCount} lecciones - {card.grammarCount} preguntas</em>
             </button>
           ))}
         </div>
@@ -6154,8 +6159,8 @@ function PracticeHubBlock({ chapter, practiceChapters = [], lessonStatuses = {},
               onClick={() => startLevel(card.level)}
             >
               <span className="practice-level-tag">{card.level}</span>
-              <strong>{card.lessonCount} lecciones</strong>
-              <span>{card.grammarCount} preguntas gramatica</span>
+              <strong>{card.meta?.title || card.level}</strong>
+              <span>{card.lessonCount} lecciones - {card.grammarCount} preguntas</span>
             </button>
           ))}
         </div>
@@ -6187,9 +6192,23 @@ function PracticeHubBlock({ chapter, practiceChapters = [], lessonStatuses = {},
             onClick={() => startLevel(card.level)}
           >
             <span className="practice-level-tag">{card.level}</span>
-            <strong>{card.lessonCount} lecciones</strong>
-            <span>{card.grammarCount} preguntas gramatica</span>
+            <strong>{card.meta?.title || card.level}</strong>
+            <span>{card.meta?.focus}</span>
           </button>
+        ))}
+      </div>
+
+      <div className="practice-training-map" aria-label="Practice skills">
+        {[
+          { label: 'Recall', detail: 'Multiple choice from lessons and grammar bank' },
+          { label: 'Write', detail: 'Type the Spanish or English from memory' },
+          { label: 'Listen', detail: 'Hear Spanish, choose the meaning' },
+          { label: 'Mastery', detail: 'Use results to mark lessons strong or dominated' },
+        ].map((item) => (
+          <div key={item.label}>
+            <strong>{item.label}</strong>
+            <span>{item.detail}</span>
+          </div>
         ))}
       </div>
 
@@ -6218,6 +6237,8 @@ function PracticeHubBlock({ chapter, practiceChapters = [], lessonStatuses = {},
             <option value={10}>10 preguntas</option>
             <option value={20}>20 preguntas</option>
             <option value={30}>30 preguntas</option>
+            <option value={40}>40 preguntas</option>
+            <option value={50}>50 preguntas</option>
           </select>
         </label>
         <div className="practice-hub-modes" role="tablist" aria-label="Quiz format">
@@ -6612,7 +6633,7 @@ function useAutoOpenNested(activeNestedTarget, type, setOpenIndex, itemRefs) {
 // FOLDABLE POEMS — two-column stanza layout (ES | EN)
 // Each poem folds open showing stanzas, vocab, and learning note
 // =============================================================
-function FoldablePoemsBlock({ poems, chapterId, lessonStatuses = {}, onLessonStatusChange, activeNestedTarget }) {
+function FoldablePoemsBlock({ poems, chapterId, lessonStatuses = {}, onLessonStatusChange, activeNestedTarget, onSavePhrase }) {
   const [openIndex, setOpenIndex] = useState(null);
   const itemRefs = React.useRef([]);
   useAutoOpenNested(activeNestedTarget, 'poem', setOpenIndex, itemRefs);
@@ -6648,6 +6669,7 @@ function FoldablePoemsBlock({ poems, chapterId, lessonStatuses = {}, onLessonSta
                   status={lessonStatuses[statusKey]}
                   onChange={(status) => onLessonStatusChange?.(statusKey, status)}
                 />
+                <ReadingPhraseSaver chapterTitle={poem.title} onSavePhrase={onSavePhrase} />
                 {poem.note && (
                   <p className="poem-intro-note">{poem.note}</p>
                 )}
@@ -6699,7 +6721,7 @@ function FoldablePoemsBlock({ poems, chapterId, lessonStatuses = {}, onLessonSta
   );
 }
 
-function FoldableSongsBlock({ songs, chapterId, lessonStatuses = {}, onLessonStatusChange, activeNestedTarget }) {
+function FoldableSongsBlock({ songs, chapterId, lessonStatuses = {}, onLessonStatusChange, activeNestedTarget, onSavePhrase }) {
   const [openIndex, setOpenIndex] = useState(null);
   const itemRefs = React.useRef([]);
   useAutoOpenNested(activeNestedTarget, 'song', setOpenIndex, itemRefs);
@@ -6738,6 +6760,7 @@ function FoldableSongsBlock({ songs, chapterId, lessonStatuses = {}, onLessonSta
                   status={lessonStatuses[statusKey]}
                   onChange={(status) => onLessonStatusChange?.(statusKey, status)}
                 />
+                <ReadingPhraseSaver chapterTitle={song.title} onSavePhrase={onSavePhrase} />
                 <p className="poem-intro-note">{song.note}</p>
                 <div className="poem-tools">
                   <SpeakBtn text={speakText} size="md" />
@@ -6783,7 +6806,7 @@ function FoldableSongsBlock({ songs, chapterId, lessonStatuses = {}, onLessonSta
   );
 }
 
-function FoldableBiosBlock({ bios, chapterId, lessonStatuses = {}, onLessonStatusChange, activeNestedTarget }) {
+function FoldableBiosBlock({ bios, chapterId, lessonStatuses = {}, onLessonStatusChange, activeNestedTarget, onSavePhrase }) {
   const [openIndex, setOpenIndex] = useState(null);
   const itemRefs = React.useRef([]);
   useAutoOpenNested(activeNestedTarget, 'bio', setOpenIndex, itemRefs);
@@ -6824,6 +6847,7 @@ function FoldableBiosBlock({ bios, chapterId, lessonStatuses = {}, onLessonStatu
                   status={lessonStatuses[statusKey]}
                   onChange={(status) => onLessonStatusChange?.(statusKey, status)}
                 />
+                <ReadingPhraseSaver chapterTitle={bio.title} onSavePhrase={onSavePhrase} />
                 {bio.levels.map((section, si) => (
                   <div key={si} className="bio-section">
                     <div className="bio-section-header">
@@ -6907,7 +6931,7 @@ function FoldableGrammarBlock({ lessons, chapterId, lessonStatuses = {}, onLesso
 // FOLDABLE STORIES — list of collapsible reading texts
 // Each story title is a button. Click to expand/collapse the body.
 // =============================================================
-function FoldableStoriesBlock({ stories, chapterId, lessonStatuses = {}, onLessonStatusChange, activeNestedTarget }) {
+function FoldableStoriesBlock({ stories, chapterId, lessonStatuses = {}, onLessonStatusChange, activeNestedTarget, onSavePhrase }) {
   const [openIndex, setOpenIndex] = useState(null);
   const itemRefs = React.useRef([]);
   useAutoOpenNested(activeNestedTarget, 'story', setOpenIndex, itemRefs);
@@ -6957,6 +6981,7 @@ function FoldableStoriesBlock({ stories, chapterId, lessonStatuses = {}, onLesso
                     status={lessonStatuses[statusKey]}
                     onChange={(status) => onLessonStatusChange?.(statusKey, status)}
                   />
+                  <ReadingPhraseSaver chapterTitle={s.title} onSavePhrase={onSavePhrase} />
                   {s.paragraphs.map((p, pi) => (
                     <KaraokeText key={pi} text={p} paragraphClass="bio-paragraph story-paragraph" />
                   ))}
@@ -7654,6 +7679,7 @@ function ChapterContent({ chapter, sectionId, section, activeNestedTarget, onOpe
           case 'reading':
             return (
               <section key={i} className="block reading-block">
+                <ReadingPhraseSaver chapterTitle={chapter.title} onSavePhrase={onSaveWord} />
                 {block.paragraphs.map((p, j) => (
                   <KaraokeText key={j} text={p} paragraphClass="reading-paragraph" />
                 ))}
@@ -7679,6 +7705,7 @@ function ChapterContent({ chapter, sectionId, section, activeNestedTarget, onOpe
                 lessonStatuses={lessonStatuses}
                 onLessonStatusChange={onLessonStatusChange}
                 activeNestedTarget={activeNestedTarget}
+                onSavePhrase={onSaveWord}
               />
             );
           case 'foldable-songs':
@@ -7698,6 +7725,7 @@ function ChapterContent({ chapter, sectionId, section, activeNestedTarget, onOpe
                 lessonStatuses={lessonStatuses}
                 onLessonStatusChange={onLessonStatusChange}
                 activeNestedTarget={activeNestedTarget}
+                onSavePhrase={onSaveWord}
               />
             );
           case 'foldable-bios':
@@ -7709,6 +7737,7 @@ function ChapterContent({ chapter, sectionId, section, activeNestedTarget, onOpe
                 lessonStatuses={lessonStatuses}
                 onLessonStatusChange={onLessonStatusChange}
                 activeNestedTarget={activeNestedTarget}
+                onSavePhrase={onSaveWord}
               />
             );
           case 'foldable-grammar':
@@ -7731,6 +7760,7 @@ function ChapterContent({ chapter, sectionId, section, activeNestedTarget, onOpe
                 lessonStatuses={lessonStatuses}
                 onLessonStatusChange={onLessonStatusChange}
                 activeNestedTarget={activeNestedTarget}
+                onSavePhrase={onSaveWord}
               />
             );
           case 'glossary':
@@ -8069,6 +8099,15 @@ function ChapterContent({ chapter, sectionId, section, activeNestedTarget, onOpe
             return null;
         }
       })}
+
+      {!hasNestedLessonStatus && (
+        <LessonMasteryQuiz
+          chapter={chapter}
+          status={lessonStatuses[chapter.id]}
+          onStatusChange={(status) => onLessonStatusChange?.(chapter.id, status)}
+          onPracticeAttempt={onPracticeAttempt}
+        />
+      )}
     </article>
   );
 }
@@ -8995,6 +9034,8 @@ function DictionaryPopup({ savedWords, onSave, onRemove }) {
       const viewport = window.visualViewport;
       const viewportWidth = Math.round(viewport?.width || window.innerWidth || 0);
       const viewportHeight = Math.round(viewport?.height || window.innerHeight || 0);
+      const viewportLeft = Math.round(viewport?.offsetLeft || 0);
+      const viewportTop = Math.round(viewport?.offsetTop || 0);
       if (!viewportWidth || !viewportHeight) return;
 
       const rect = popupRef.current.getBoundingClientRect();
@@ -9004,10 +9045,10 @@ function DictionaryPopup({ savedWords, onSave, onRemove }) {
       const anchorY = popup.y || margin + 20;
 
       let left = anchorX - popupWidth / 2;
-      left = Math.max(margin, Math.min(left, viewportWidth - popupWidth - margin));
+      left = Math.max(viewportLeft + margin, Math.min(left, viewportLeft + viewportWidth - popupWidth - margin));
 
-      const spaceBelow = viewportHeight - anchorY - margin;
-      const spaceAbove = anchorY - margin;
+      const spaceBelow = viewportTop + viewportHeight - anchorY - margin;
+      const spaceAbove = anchorY - viewportTop - margin;
 
       let top;
       if (spaceBelow >= popupHeight || spaceBelow >= spaceAbove) {
@@ -9015,7 +9056,7 @@ function DictionaryPopup({ savedWords, onSave, onRemove }) {
       } else {
         top = anchorY - popupHeight - 10;
       }
-      top = Math.max(margin, Math.min(top, viewportHeight - popupHeight - margin));
+      top = Math.max(viewportTop + margin, Math.min(top, viewportTop + viewportHeight - popupHeight - margin));
 
       setPopupLayout((prev) => {
         const nextLeft = Math.round(left);
@@ -9320,7 +9361,9 @@ function MemoriaView({ savedWords, onRemove, onClear, onUpdateWord }) {
       </header>
 
         <div className="memoria-summary-strip">
+          <span><BookOpen size={13} /> {memoriaSummary.newCards} new</span>
           <span><Clock size={13} /> {memoriaSummary.due} due</span>
+          <span><Quote size={13} /> {memoriaSummary.phrases} phrases</span>
           <span><Star size={13} /> {memoriaSummary.favorite} favoritas</span>
           <span><AlertTriangle size={13} /> {memoriaSummary.difficult} dificiles</span>
           <span><Check size={13} /> {memoriaSummary.mastered} dominadas</span>
@@ -9389,7 +9432,10 @@ function MemoriaView({ savedWords, onRemove, onClear, onUpdateWord }) {
               <button className={`memoria-review-card ${reviewFlipped ? 'flipped' : ''}`} onClick={() => setReviewFlipped((prev) => !prev)}>
                 <span className="memoria-review-count">{filtered.length ? `${reviewIndex + 1} / ${filtered.length}` : '0 / 0'}</span>
                 <strong>{reviewFlipped ? reviewWord.translation || 'Sin traduccion' : reviewWord.word}</strong>
-                <em>{reviewFlipped ? reviewWord.word : 'toca para revelar'}</em>
+                <em>{reviewFlipped ? (reviewWord.context || reviewWord.contexts?.[0] || reviewWord.word) : 'toca para revelar'}</em>
+                <span className={`memoria-stage ${getMemoriaReviewStage(reviewWord).key}`}>
+                  {getMemoriaReviewStage(reviewWord).label}
+                </span>
               </button>
               <div className="memoria-review-actions">
                 <SpeakBtn text={reviewWord.word} size="md" />
@@ -9423,6 +9469,7 @@ function MemoriaView({ savedWords, onRemove, onClear, onUpdateWord }) {
             const isFlipped = flipped[entry.word];
             const isPending = entry.pending;
             const tags = getMemoriaTags(entry);
+            const stage = getMemoriaReviewStage(entry);
             return (
               <div
                 key={entry.word}
@@ -9450,6 +9497,10 @@ function MemoriaView({ savedWords, onRemove, onClear, onUpdateWord }) {
                         {tags.slice(0, 3).map((tag) => <span key={tag}>{tag}</span>)}
                       </div>
                     )}
+                    <div className={`memoria-stage ${stage.key}`}>
+                      <strong>{stage.label}</strong>
+                      <span>{stage.detail}</span>
+                    </div>
                     <div className="memoria-label-actions">
                       <button
                         className={entry.favorite ? 'active' : ''}
@@ -9513,6 +9564,7 @@ function MemoriaView({ savedWords, onRemove, onClear, onUpdateWord }) {
           {filtered.map((entry) => {
             const isPending = entry.pending;
             const tags = getMemoriaTags(entry);
+            const stage = getMemoriaReviewStage(entry);
             return (
               <div key={entry.word} className="memoria-list-row">
                 <div className="memoria-list-main">
@@ -9545,6 +9597,9 @@ function MemoriaView({ savedWords, onRemove, onClear, onUpdateWord }) {
                   {(entry.context || entry.contexts?.[0]) && (
                     <div className="memoria-list-context">{entry.context || entry.contexts[0]}</div>
                   )}
+                  <div className={`memoria-list-stage ${stage.key}`}>
+                    {stage.label} - {stage.detail}
+                  </div>
                 </div>
                 <div className="memoria-list-actions">
                   <button
@@ -9633,6 +9688,7 @@ function isLikelyBooxDevice() {
 }
 
 export default function SpanishBook() {
+  const [deviceProfile, setDeviceProfile] = useState(() => getDeviceProfile());
   const [activeSectionId, setActiveSectionId] = useState('tiempos');
   const [activeChapterId, setActiveChapterId] = useState('tiempos');
   const [sectionLandingId, setSectionLandingId] = useState(null);
@@ -9697,6 +9753,18 @@ export default function SpanishBook() {
   const [lessonStatuses, setLessonStatuses] = useState({});
 
   useEffect(() => {
+    if (typeof window === 'undefined') return undefined;
+    const updateProfile = () => setDeviceProfile(getDeviceProfile());
+    updateProfile();
+    window.addEventListener('resize', updateProfile);
+    window.addEventListener('orientationchange', updateProfile);
+    return () => {
+      window.removeEventListener('resize', updateProfile);
+      window.removeEventListener('orientationchange', updateProfile);
+    };
+  }, []);
+
+  useEffect(() => {
     // Load saved words, font scale, and last-read position on mount
     (async () => {
       try {
@@ -9750,7 +9818,7 @@ export default function SpanishBook() {
       try {
         const boox = await window.storage.get(BOOX_MODE_KEY);
         if (boox?.value === 'true') setBooxMode(true);
-        else if (!boox?.value && isLikelyBooxDevice()) setBooxMode(true);
+        else if (!boox?.value && (isLikelyBooxDevice() || getDeviceProfile().isReaderTablet)) setBooxMode(true);
       } catch (_) {}
       try {
         const dismissed = await window.storage.get(INSTALL_DISMISSED_KEY);
@@ -9993,27 +10061,29 @@ export default function SpanishBook() {
   }
 
   function handleSaveWord(entry) {
+    const enrichedEntry = enrichSavedWordEntry(entry);
     setSavedWords(prev => {
-      if (prev.some(w => w.word === entry.word)) {
-        const next = prev.map((word) => word.word === entry.word ? {
+      if (prev.some(w => w.word === enrichedEntry.word)) {
+        const next = prev.map((word) => word.word === enrichedEntry.word ? enrichSavedWordEntry({
           ...word,
-          ...entry,
-          tags: Array.from(new Set([...(word.tags || []), ...(entry.tags || [])])),
-          extras: Array.from(new Set([...(word.extras || []), ...(entry.extras || [])])),
-          contexts: Array.from(new Set([...(word.contexts || []), word.context, ...(entry.contexts || []), entry.context].filter(Boolean))).slice(0, 6),
-          context: entry.context || word.context || '',
-          savedAt: word.savedAt || entry.savedAt || Date.now(),
-        } : word);
+          ...enrichedEntry,
+          review: word.review || enrichedEntry.review,
+          tags: Array.from(new Set([...(word.tags || []), ...(enrichedEntry.tags || [])])),
+          extras: Array.from(new Set([...(word.extras || []), ...(enrichedEntry.extras || [])])),
+          contexts: Array.from(new Set([...(word.contexts || []), word.context, ...(enrichedEntry.contexts || []), enrichedEntry.context].filter(Boolean))).slice(0, 8),
+          context: enrichedEntry.context || word.context || '',
+          savedAt: word.savedAt || enrichedEntry.savedAt || Date.now(),
+        }) : word);
         persistWords(next);
         return next;
       }
-      const next = [entry, ...prev];
+      const next = [enrichedEntry, ...prev];
       persistWords(next);
       return next;
     });
     // If saved without a translation, fetch it in the background
-    if (!entry.translation) {
-      backgroundTranslate(entry.word);
+    if (!enrichedEntry.translation) {
+      backgroundTranslate(enrichedEntry.word);
     }
   }
 
@@ -10385,7 +10455,9 @@ export default function SpanishBook() {
   function buildSyncPayload() {
     return {
       app: 'Lexiora',
-      version: 6,
+      version: Number(APP_VERSION),
+      buildId: getBuildId(),
+      syncMeta: buildSyncMeta(),
       exportedAt: new Date().toISOString(),
       savedWords,
       visitedChapters,
@@ -10857,12 +10929,14 @@ export default function SpanishBook() {
   const showInstallBanner = !isInstalledApp && !installDismissed;
   const installReady = Boolean(installPrompt);
   const hasBundledGoogleClient = Boolean(import.meta.env.VITE_GOOGLE_CLIENT_ID);
+  const versionLabel = getVersionLabel();
   const syncStats = useMemo(() => ([
     { label: 'Memoria words', value: savedWords.length },
     { label: 'Palabras reviews', value: Object.keys(palabrasProgress || {}).length },
     { label: 'lesson marks', value: Object.keys(lessonStatuses || {}).length },
     { label: 'reader profile', value: booxMode ? 'Boox' : 'Normal' },
-  ]), [savedWords.length, palabrasProgress, lessonStatuses, booxMode]);
+    { label: 'version', value: versionLabel },
+  ]), [savedWords.length, palabrasProgress, lessonStatuses, booxMode, versionLabel]);
 
   useEffect(() => {
     if (globalSearchOpen) {
@@ -10876,7 +10950,7 @@ export default function SpanishBook() {
   }
 
   return (
-    <div ref={bookRootRef} className={`book-root translation-mode-${translationMode} ${booxMode ? 'boox-mode' : ''} ${focusMode ? 'focus-mode' : ''}`}>
+    <div ref={bookRootRef} className={`book-root translation-mode-${translationMode} ${deviceProfile.classes} ${booxMode ? 'boox-mode' : ''} ${focusMode ? 'focus-mode' : ''}`}>
       <DictionaryPopup savedWords={savedWords} onSave={handleSaveWord} onRemove={handleRemoveWord} />
       <AppMessages />
       <style>{styles}</style>
@@ -11145,7 +11219,7 @@ export default function SpanishBook() {
             <div className="update-banner">
               <div>
                 <span className="resume-banner-label">New version ready</span>
-                <span className="resume-banner-title">Refresh to use the latest study tools.</span>
+                <span className="resume-banner-title">Refresh to use the latest study tools. Current: {versionLabel}</span>
               </div>
               <button className="resume-btn-primary" onClick={activateAppUpdate}>
                 Update
