@@ -20,6 +20,8 @@ import { mergeStudyTime, recordStudySecond } from './study-time.js';
 import { mergeLessonStatus } from './lesson-status.js';
 import { buildLessonQuiz, buildPracticeHealth, collectQuizPairs } from './practice-engine.js';
 import { enrichSavedWordEntry, getMemoriaReviewStage } from './memoria-utils.js';
+import { mergeAppPayloads } from './sync-merge.js';
+import { APP_VERSION } from './version-info.js';
 
 function test(name, fn) {
   try {
@@ -200,4 +202,37 @@ test('study time sync merges unique device sessions without losing minutes', () 
   assert.equal(merged.byChapter['lesson-a'], 1);
   assert.equal(merged.byChapter['lesson-b'], 1);
   assert.equal(merged.sessions.length, 2);
+});
+
+test('sync merge keeps words, progress, and app version consistent', () => {
+  const local = {
+    exportedAt: '2026-01-02T00:00:00.000Z',
+    savedWords: [{ word: 'sí', translation: 'yes', favorite: true, savedAt: 10 }],
+    visitedChapters: ['a'],
+    palabrasProgress: { hola: { reviewedAt: 4, dueAt: 4 } },
+    lessonStatuses: { a: 'read' },
+    studyTime: recordStudySecond({}, 'a', 'local', 10),
+    writingEntries: [{ id: 'one', createdAt: 2 }],
+    booxMode: true,
+    fontScale: 1.1,
+    audioSettings: { rate: 0.8 },
+    translationMode: 'both',
+  };
+  const remote = {
+    exportedAt: '2026-01-01T00:00:00.000Z',
+    version: 5,
+    savedWords: [{ word: 'si', translation: 'if', difficult: true, savedAt: 20 }],
+    visitedChapters: ['b'],
+    palabrasProgress: { hola: { reviewedAt: 1, dueAt: 1 } },
+    lessonStatuses: { a: 'mastered' },
+    studyTime: recordStudySecond({}, 'b', 'remote', 20),
+    writingEntries: [{ id: 'two', createdAt: 1 }],
+  };
+  const merged = mergeAppPayloads(local, remote);
+  assert.equal(merged.version, APP_VERSION);
+  assert.deepEqual(merged.visitedChapters.sort(), ['a', 'b']);
+  assert.equal(merged.savedWords.length, 2);
+  assert.equal(merged.lessonStatuses.a, 'mastered');
+  assert.equal(merged.palabrasProgress.hola.reviewedAt, 4);
+  assert.equal(merged.studyTime.totalSeconds, 2);
 });
