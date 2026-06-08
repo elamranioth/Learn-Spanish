@@ -8,7 +8,8 @@
     "build": "vite build",
     "preview": "vite preview --host 0.0.0.0",
     "test": "node src/learning.test.js",
-    "visual:audit": "node scripts/visual-audit.mjs"
+    "visual:audit": "node scripts/visual-audit.mjs",
+    "visual:devices": "node scripts/device-visual-check.mjs"
   },
   "dependencies": {
     "@vitejs/plugin-react": "^5.0.4",

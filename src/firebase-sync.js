@@ -16,6 +16,7 @@ const REQUIRED_FIREBASE_CONFIG_KEYS = [
 let firebaseSdkPromise = null;
 let firebaseContextPromise = null;
 let persistenceStatusCache = { enabled: false, note: 'not-started' };
+let publicConfigScriptPromise = null;
 
 function trimOrEmpty(value) {
   return String(value ?? '').trim();
@@ -47,6 +48,29 @@ function readStoredFirebaseConfig() {
 function readWindowFirebaseConfig() {
   if (typeof window === 'undefined') return null;
   return normalizeFirebaseConfig(window.__LEXIORA_FIREBASE_CONFIG__);
+}
+
+export function getPublicFirebaseConfigUrl() {
+  const base = import.meta.env.BASE_URL || '/';
+  return `${base.endsWith('/') ? base : `${base}/`}firebase-config.js`;
+}
+
+export async function loadPublicFirebaseConfig() {
+  if (typeof window === 'undefined' || typeof document === 'undefined') return null;
+  const current = readWindowFirebaseConfig();
+  if (current) return current;
+  if (!publicConfigScriptPromise) {
+    publicConfigScriptPromise = new Promise((resolve) => {
+      const script = document.createElement('script');
+      script.src = getPublicFirebaseConfigUrl();
+      script.async = true;
+      script.dataset.lexioraFirebaseConfig = 'true';
+      script.onload = () => resolve(readWindowFirebaseConfig());
+      script.onerror = () => resolve(null);
+      document.head.appendChild(script);
+    });
+  }
+  return publicConfigScriptPromise;
 }
 
 function readEnvFirebaseConfig() {
@@ -120,7 +144,11 @@ async function ensureFirebase(configOverride = null) {
   if (!firebaseContextPromise) {
     firebaseContextPromise = (async () => {
       const sdk = await loadFirebaseSdk();
-      const config = normalizeFirebaseConfig(configOverride) || resolveFirebaseConfig();
+      let config = normalizeFirebaseConfig(configOverride) || resolveFirebaseConfig();
+      if (!config) {
+        await loadPublicFirebaseConfig();
+        config = resolveFirebaseConfig();
+      }
       if (!config) {
         throw new Error('Firebase config is missing. Add it in Sync setup first.');
       }

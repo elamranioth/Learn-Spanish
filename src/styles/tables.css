@@ -1,0 +1,24 @@
+
+/* Table and conjugation stability lives here so phone/BOOX fixes are easy to audit. */
+.lesson-table,
+.tense-reader-table,
+.tense-group-table,
+.gl-table,
+.conjugation-grid {
+  max-width: 100%;
+}
+
+.lesson-table,
+.tense-reader-table,
+.tense-group-table {
+  border-collapse: collapse;
+  table-layout: fixed;
+}
+
+.render-form {
+  white-space: nowrap;
+}
+
+.render-form .form-part + .ending {
+  margin-left: 0;
+}

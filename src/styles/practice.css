@@ -1,0 +1,21 @@
+
+/* Practice, mastery, Memoria, and phrase saving receive their late-stage layout guards here. */
+.practice-hub,
+.lesson-mastery-panel,
+.memoria-view,
+.palabras-lab,
+.reading-phrase-saver {
+  max-width: 100%;
+}
+
+.practice-level-cards,
+.palabras-grid,
+.memoria-grid {
+  min-width: 0;
+}
+
+.practice-card,
+.palabra-card,
+.memoria-card {
+  overflow-wrap: anywhere;
+}

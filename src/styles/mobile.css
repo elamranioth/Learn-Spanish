@@ -1,0 +1,32 @@
+
+/* Mobile and reader-tablet overrides stay last except for Boox mode. */
+@media (max-width: 700px) {
+  .book-root {
+    min-width: 0;
+  }
+
+  .book-page,
+  .chapter-body,
+  .section-overview,
+  .home-dashboard {
+    width: 100%;
+    max-width: 100%;
+    min-width: 0;
+  }
+
+  .mobile-bar {
+    min-width: 0;
+  }
+
+  .mobile-bar .header-search {
+    min-width: 0;
+    flex: 1 1 auto;
+  }
+}
+
+@media (min-width: 700px) and (max-width: 980px) {
+  .device-reader-tablet .book-page,
+  .device-reader-tablet .chapter-body {
+    max-width: 100%;
+  }
+}
