@@ -428,7 +428,13 @@ export function FoldableStoriesBlock({ stories, chapterId, lessonStatuses = {}, 
                   />
                   <ReadingPhraseSaver chapterTitle={s.title} onSavePhrase={onSavePhrase} />
                   {s.paragraphs.map((p, pi) => (
-                    <KaraokeText key={pi} text={p} paragraphClass="bio-paragraph story-paragraph" />
+                    isStoryChapterHeading(p) ? (
+                      <h4 key={pi} className="story-chapter-heading">
+                        <InlineDictionaryText text={p} />
+                      </h4>
+                    ) : (
+                      <KaraokeText key={pi} text={p} paragraphClass="bio-paragraph story-paragraph" />
+                    )
                   ))}
                 </div>
               </div>
@@ -438,6 +444,10 @@ export function FoldableStoriesBlock({ stories, chapterId, lessonStatuses = {}, 
       })}
     </section>
   );
+}
+
+function isStoryChapterHeading(text) {
+  return /^(cap[ií]tulo|resumen final)\b/i.test(String(text || '').trim());
 }
 
 // =============================================================

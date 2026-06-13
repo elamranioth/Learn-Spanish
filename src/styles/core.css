@@ -4324,6 +4324,23 @@
 .story-section .lesson-status-control {
   margin: 0 0 22px;
 }
+.story-chapter-heading {
+  max-width: min(680px, 100%);
+  margin: 38px auto 24px;
+  padding: 13px 10px 14px;
+  border-top: 1px solid var(--rule);
+  border-bottom: 1px solid var(--rule);
+  color: var(--sienna-deep);
+  font-family: 'Cormorant Garamond', Georgia, serif;
+  font-size: clamp(1.45rem, 2.3vw, 2.05rem);
+  font-weight: 700;
+  line-height: 1.18;
+  letter-spacing: 0.03em;
+  text-align: center;
+}
+.story-chapter-heading:first-of-type {
+  margin-top: 14px;
+}
 .story-paragraph:first-of-type {
   margin-top: 0;
 }

@@ -128,6 +128,13 @@
   max-width: 70ch;
   line-height: 1.85 !important;
 }
+.book-root.boox-mode .story-chapter-heading {
+  color: #000000;
+  border-color: #000000;
+  background: #ffffff;
+  font-weight: 800;
+  letter-spacing: 0.02em;
+}
 .book-root.boox-mode .teacher-card-grid {
   grid-template-columns: repeat(3, minmax(0, 1fr));
 }
