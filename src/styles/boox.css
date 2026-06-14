@@ -79,6 +79,9 @@
 .book-root.boox-mode .lesson-table,
 .book-root.boox-mode .lesson-table th,
 .book-root.boox-mode .lesson-table td,
+.book-root.boox-mode .indicative-ref-table-shell table,
+.book-root.boox-mode .indicative-ref-table-shell th,
+.book-root.boox-mode .indicative-ref-table-shell td,
 .book-root.boox-mode .lesson-table-card,
 .book-root.boox-mode .tense-atlas-guide span,
 .book-root.boox-mode .tense-atlas-index a,
@@ -87,6 +90,17 @@
 .book-root.boox-mode .tense-era-number,
 .book-root.boox-mode .tense-atlas-card-number,
 .book-root.boox-mode .indicative-card,
+.book-root.boox-mode .indicative-reference-hero,
+.book-root.boox-mode .indicative-reference-overview,
+.book-root.boox-mode .indicative-reference-group,
+.book-root.boox-mode .indicative-reference-tabs button,
+.book-root.boox-mode .indicative-reference-detail,
+.book-root.boox-mode .indicative-reference-formula,
+.book-root.boox-mode .indicative-reference-use-list li,
+.book-root.boox-mode .indicative-reference-notes aside,
+.book-root.boox-mode .indicative-reference-appendix,
+.book-root.boox-mode .indicative-reference-appendix-card,
+.book-root.boox-mode .indicative-ref-type,
 .book-root.boox-mode .subj-tense-card,
 .book-root.boox-mode .contextual-quiz-card,
 .book-root.boox-mode .trigger-card,
@@ -104,6 +118,7 @@
 .book-root.boox-mode .section-group.active > .section-btn,
 .book-root.boox-mode .top-tool-btn.install-toggle.ready,
 .book-root.boox-mode .lesson-status-btn.active,
+.book-root.boox-mode .indicative-reference-tabs button.active,
 .book-root.boox-mode .memoria-view-btn.active {
   background: #ffffff !important;
   color: #000000 !important;
@@ -137,6 +152,28 @@
 }
 .book-root.boox-mode .teacher-card-grid {
   grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+.book-root.boox-mode .indicative-reference-hero,
+.book-root.boox-mode .indicative-reference-detail {
+  border-left-color: #000000 !important;
+  border-top-color: #000000 !important;
+}
+.book-root.boox-mode .indicative-ref-table-shell th {
+  background: #000000 !important;
+  color: #ffffff !important;
+}
+.book-root.boox-mode .indicative-reference-use-list li,
+.book-root.boox-mode .indicative-reference-formula,
+.book-root.boox-mode .indicative-reference-notes aside {
+  background: #ffffff !important;
+}
+.book-root.boox-mode .indicative-reference-number,
+.book-root.boox-mode .indicative-reference-overview h3,
+.book-root.boox-mode .indicative-reference-appendix > h3,
+.book-root.boox-mode .indicative-reference-panel h4,
+.book-root.boox-mode .indicative-ref-table-card h5,
+.book-root.boox-mode .indicative-reference-tabs button span {
+  color: #000000 !important;
 }
 .book-root.boox-mode .teacher-card-title,
 .book-root.boox-mode .teacher-card-detail,

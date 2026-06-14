@@ -81,6 +81,8 @@ export function ChapterContent({ chapter, sectionId, section, activeNestedTarget
             return <ParticipleSectionBlock key={i} block={block} />;
           case 'indicative-timeline':
             return <IndicativeTimelineBlock key={i} block={block} />;
+          case 'indicative-reference':
+            return <IndicativeReferenceBlock key={i} block={block} />;
           case 'conjugation':
             return (
               <section key={i} className="block">
@@ -536,6 +538,206 @@ function IndicativeHeroBlock({ block }) {
         {block.tags.map((tag) => <span key={tag}>{tag}</span>)}
       </div>
     </section>
+  );
+}
+
+function IndicativeReferenceBlock({ block }) {
+  const [activeId, setActiveId] = useState(block.tenses?.[0]?.id || '');
+  const activeTense = block.tenses?.find((tense) => tense.id === activeId) || block.tenses?.[0];
+
+  if (!activeTense) return null;
+
+  return (
+    <section className="block indicative-reference-block">
+      <div className="indicative-reference-hero">
+        <div className="indicative-eyebrow">{block.eyebrow}</div>
+        <h2>{block.title}</h2>
+        <p className="indicative-reference-subtitle">{block.subtitle}</p>
+        <div className="indicative-reference-intro">
+          {block.intro?.map((line) => (
+            <p key={line}><InlineDictionaryText text={line} /></p>
+          ))}
+        </div>
+      </div>
+
+      <div className="indicative-reference-overview">
+        <h3>Panorama general</h3>
+        <div className="indicative-ref-table-shell">
+          <table>
+            <thead>
+              <tr>
+                <th>#</th>
+                <th>Tiempo</th>
+                <th>Tipo</th>
+                <th>English</th>
+                <th>Ejemplo</th>
+              </tr>
+            </thead>
+            <tbody>
+              {block.overview?.map((row) => (
+                <tr key={`${row.number}-${row.name}`}>
+                  <td>{row.number}</td>
+                  <td><strong>{row.name}</strong></td>
+                  <td><span className={`indicative-ref-type ${row.type === 'Compuesto' ? 'compound' : 'simple'}`}>{row.type}</span></td>
+                  <td>{row.english}</td>
+                  <td><em>{row.example}</em></td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <div className="indicative-reference-picker">
+        {block.groups?.map((group) => (
+          <div key={group.title} className="indicative-reference-group">
+            <div className="indicative-reference-group-head">
+              <h3>{group.title}</h3>
+              <p>{group.text}</p>
+            </div>
+            {group.intro?.map((line) => (
+              <p key={line} className="indicative-reference-group-note"><InlineDictionaryText text={line} /></p>
+            ))}
+            <div className="indicative-reference-tabs">
+              {group.cardIds.map((id) => {
+                const tense = block.tenses.find((item) => item.id === id);
+                if (!tense) return null;
+                return (
+                  <button
+                    key={id}
+                    type="button"
+                    className={activeTense.id === id ? 'active' : ''}
+                    onClick={() => setActiveId(id)}
+                  >
+                    <span>{tense.number}</span>
+                    {tense.title}
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+        ))}
+      </div>
+
+      <IndicativeTenseReference tense={activeTense} />
+
+      {block.appendices?.length > 0 && (
+        <div className="indicative-reference-appendix">
+          <h3>Apéndices útiles</h3>
+          {block.appendices.map((appendix) => (
+            <article key={appendix.title} className="indicative-reference-appendix-card">
+              <h4>{appendix.title}</h4>
+              <IndicativeReferenceTable table={appendix.table} />
+            </article>
+          ))}
+        </div>
+      )}
+
+      {block.sourceNote && <p className="indicative-reference-source">{block.sourceNote}</p>}
+    </section>
+  );
+}
+
+function IndicativeTenseReference({ tense }) {
+  return (
+    <article className="indicative-reference-detail">
+      <header className="indicative-reference-detail-head">
+        <div className="indicative-reference-number">{tense.number}</div>
+        <div>
+          <h3>{tense.title}</h3>
+          <p>{tense.english}</p>
+        </div>
+      </header>
+
+      {tense.uses?.length > 0 && (
+        <section className="indicative-reference-panel">
+          <h4>¿Para qué se usa?</h4>
+          <ul className="indicative-reference-use-list">
+            {tense.uses.map((use) => (
+              <li key={use}><InlineDictionaryText text={use} /></li>
+            ))}
+          </ul>
+        </section>
+      )}
+
+      {tense.formula && (
+        <section className="indicative-reference-formula">
+          <span>Fórmula</span>
+          <p><InlineDictionaryText text={tense.formula} /></p>
+        </section>
+      )}
+
+      {tense.conjugationTables?.length > 0 && (
+        <section className="indicative-reference-panel">
+          <h4>Formación</h4>
+          <div className={`indicative-reference-table-grid count-${Math.min(tense.conjugationTables.length, 3)}`}>
+            {tense.conjugationTables.map((table, index) => (
+              <IndicativeReferenceTable key={`${table.caption}-${index}`} table={table} />
+            ))}
+          </div>
+        </section>
+      )}
+
+      {tense.examples?.length > 0 && (
+        <section className="indicative-reference-panel">
+          <h4>Ejemplos</h4>
+          <div className="indicative-reference-examples">
+            {tense.examples.map((example) => (
+              <ExamplePair key={example.es} es={example.es} en={example.en} esClass="lesson-ex-es" enClass="lesson-ex-en" />
+            ))}
+          </div>
+        </section>
+      )}
+
+      {tense.irregularTables?.length > 0 && (
+        <section className="indicative-reference-panel">
+          <h4>Irregulares importantes</h4>
+          <div className="indicative-reference-irregulars">
+            {tense.irregularTables.map((table, index) => (
+              <IndicativeReferenceTable key={`${tense.id}-irregular-${index}`} table={table} />
+            ))}
+          </div>
+        </section>
+      )}
+
+      {tense.notes?.length > 0 && (
+        <div className="indicative-reference-notes">
+          {tense.notes.map((note) => (
+            <aside key={note}><InlineDictionaryText text={note} /></aside>
+          ))}
+        </div>
+      )}
+    </article>
+  );
+}
+
+function IndicativeReferenceTable({ table }) {
+  return (
+    <div className="indicative-ref-table-card">
+      {table.caption && <h5>{table.caption}</h5>}
+      <div className="indicative-ref-table-shell">
+        <table>
+          {table.headers?.length > 0 && (
+            <thead>
+              <tr>
+                {table.headers.map((header, index) => <th key={`${header}-${index}`}>{header}</th>)}
+              </tr>
+            </thead>
+          )}
+          <tbody>
+            {table.rows?.map((row, rowIndex) => (
+              <tr key={rowIndex}>
+                {row.map((cell, cellIndex) => (
+                  <td key={`${rowIndex}-${cellIndex}`}>
+                    {cellIndex === 0 ? cell : <RenderForm raw={cell} />}
+                  </td>
+                ))}
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+    </div>
   );
 }
 

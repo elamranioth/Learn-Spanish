@@ -1,5 +1,6 @@
 export const LESSON_DATA_LOADERS = {
   tiemposVerbales: () => import('./tiempos-verbales.js').then((module) => module.TIEMPOS_VERBALES_LESSON),
+  indicativeMood: () => import('./indicative-mood.js').then((module) => module.INDICATIVE_MOOD_LESSON),
   compoundIndicative: () => import('./compound-tenses-indicative.js').then((module) => module.COMPOUND_TENSES_INDICATIVE_LESSON),
   compoundSubjunctive: () => import('./compound-tenses-subjunctive.js').then((module) => module.COMPOUND_TENSES_SUBJUNCTIVE_LESSON),
   zoranJourney: () => import('./zoran-journey.js').then((module) => module.ZORAN_JOURNEY_LESSON),
@@ -310,6 +311,12 @@ export const SECTIONS = [
           },
         ],
       },
+      lazyChapter('indicativeMood', {
+        id: 'el-modo-indicativo',
+        level: 'A1-B2',
+        title: 'El Modo Indicativo',
+        subtitle: 'guía completa de los 10 tiempos',
+      }),
       lazyChapter('tiemposVerbales', {
         id: 'tiempos-verbales',
         level: 'A1-B2',
