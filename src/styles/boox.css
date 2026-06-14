@@ -1235,7 +1235,7 @@
   .book-root {
     --mobile-bar-space: 67px;
     padding-top: var(--mobile-bar-space);
-    overflow-x: visible;
+    overflow-x: hidden;
   }
   .book-root:has(.header-search.open) {
     --mobile-bar-space: 122px;
@@ -1319,7 +1319,8 @@
     height: auto !important;
     min-height: 0 !important;
     max-height: none !important;
-    overflow: visible !important;
+    overflow-x: hidden !important;
+    overflow-y: visible !important;
   }
   .book-page {
     max-width: min(880px, calc(100vw - 56px));
@@ -1370,7 +1371,7 @@
     line-height: 1.62;
     min-height: 100svh;
     padding-top: var(--mobile-bar-space);
-    overflow-x: visible;
+    overflow-x: hidden;
   }
   .book-root:has(.top-tools.open) {
     --mobile-bar-space: 150px;
@@ -1487,7 +1488,8 @@
     height: auto !important;
     min-height: 0 !important;
     max-height: none !important;
-    overflow: visible !important;
+    overflow-x: hidden !important;
+    overflow-y: visible !important;
   }
   .book-page,
   .book-page.home-page,
@@ -1942,7 +1944,10 @@
   .tense-group-table,
   .indicative-conj-table,
   .subj-tense-grid table {
-    min-width: 560px;
+    max-width: 100%;
+    min-width: 0 !important;
+    width: 100%;
+    table-layout: fixed;
   }
   .indicative-timeline-wrap {
     overflow-x: auto;
@@ -1955,6 +1960,79 @@
   .quiz-modal,
   .sync-modal {
     width: min(100vw - 24px, 560px);
+  }
+  .verb-table-block,
+  .tense-stack,
+  .tense-block,
+  .tense-mobile-stack,
+  .tense-mobile-card,
+  .lesson-table-shell,
+  .indicative-reference-block,
+  .indicative-reference-detail,
+  .indicative-reference-panel,
+  .indicative-ref-table-card,
+  .indicative-ref-table-shell {
+    max-width: 100%;
+    min-width: 0;
+  }
+  .tense-group-table {
+    min-width: 0 !important;
+    width: 100% !important;
+    max-width: 100% !important;
+    table-layout: fixed !important;
+  }
+  .tense-group-table th,
+  .tense-group-table td {
+    padding: 8px 4px !important;
+    overflow: hidden;
+  }
+  .tense-group-table thead th {
+    font-size: clamp(9px, 2.2vw, 12px) !important;
+    letter-spacing: 0.14em !important;
+    white-space: nowrap;
+  }
+  .tense-group-table tbody th.tg-pronoun {
+    width: 22% !important;
+    font-size: clamp(13px, 3.2vw, 16px) !important;
+    line-height: 1.18 !important;
+    white-space: normal !important;
+  }
+  .tense-group-table tbody td.tg-form {
+    font-size: clamp(14px, 3.6vw, 18px) !important;
+    line-height: 1.15 !important;
+    text-align: center !important;
+    white-space: nowrap !important;
+  }
+  .tense-group-table .render-form,
+  .tense-mobile-form .render-form,
+  .lesson-table-card-value .render-form {
+    max-width: 100%;
+  }
+  .tense-group-table .speak-btn,
+  .tense-mobile-form .speak-btn,
+  .lesson-table-card-value .speak-btn {
+    width: 16px !important;
+    height: 16px !important;
+    min-width: 16px !important;
+    margin-left: 2px !important;
+  }
+  .indicative-ref-table-shell {
+    overflow-x: hidden;
+  }
+  .indicative-ref-table-shell table,
+  .indicative-ref-table-card.merged .indicative-ref-table-shell table {
+    min-width: 0 !important;
+    width: 100% !important;
+    table-layout: fixed !important;
+  }
+  .indicative-ref-table-card.merged .indicative-ref-table-shell thead th,
+  .indicative-ref-table-card.merged .indicative-ref-table-shell tbody th,
+  .indicative-ref-table-card.merged .indicative-ref-table-shell td {
+    padding-inline: 3px !important;
+  }
+  .indicative-ref-table-card.merged tbody td {
+    font-size: clamp(13px, 3.6vw, 17px) !important;
+    overflow: hidden;
   }
 }
 
@@ -2238,6 +2316,59 @@
     color: #777777 !important;
     border-color: #d8cbb8 !important;
     background: #ffffff !important;
+  }
+}
+
+@media (min-width: 560px) and (max-width: 700px) and (min-height: 850px) {
+  .book-page {
+    padding-left: 10px !important;
+    padding-right: 10px !important;
+  }
+  .verb-table-block .tense-stack {
+    max-width: 100% !important;
+    gap: 24px !important;
+  }
+  .verb-table-block .tense-group-table {
+    display: table !important;
+    min-width: 0 !important;
+    width: 100% !important;
+    max-width: 100% !important;
+    table-layout: fixed !important;
+  }
+  .verb-table-block .tense-group-table th,
+  .verb-table-block .tense-group-table td {
+    padding: 8px 4px !important;
+    overflow: hidden !important;
+  }
+  .verb-table-block .tense-group-table thead th {
+    font-size: 10px !important;
+    letter-spacing: 0.16em !important;
+    padding-bottom: 10px !important;
+  }
+  .verb-table-block .tense-group-count-3 thead th:first-child,
+  .verb-table-block .tense-group-count-3 tbody th.tg-pronoun {
+    width: 22% !important;
+  }
+  .verb-table-block .tense-group-table tbody th.tg-pronoun {
+    font-size: 16px !important;
+    line-height: 1.15 !important;
+    white-space: normal !important;
+  }
+  .verb-table-block .tense-group-table tbody td.tg-form {
+    font-size: clamp(16px, 3vw, 18px) !important;
+    line-height: 1.15 !important;
+    text-align: center !important;
+  }
+  .verb-table-block .tense-group-table .speak-btn {
+    width: 15px !important;
+    height: 15px !important;
+    min-width: 15px !important;
+    margin-left: 2px !important;
+  }
+  .indicative-ref-table-card.merged .indicative-ref-table-shell table {
+    min-width: 0 !important;
+    width: 100% !important;
+    table-layout: fixed !important;
   }
 }
 
