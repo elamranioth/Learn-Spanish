@@ -4999,7 +4999,7 @@
   border-collapse: collapse;
   font-size: 16px;
 }
-.indicative-ref-table-shell th {
+.indicative-ref-table-shell thead th {
   background: var(--green);
   color: #fff;
   padding: 9px 11px;
@@ -5009,12 +5009,23 @@
   letter-spacing: 0.08em;
   text-transform: uppercase;
 }
+.indicative-ref-table-shell tbody th,
 .indicative-ref-table-shell td {
   border-bottom: 1px solid var(--rule-soft);
   border-right: 1px solid var(--rule-soft);
   padding: 9px 11px;
   vertical-align: top;
 }
+.indicative-ref-table-shell tbody th {
+  background: #fff;
+  font-weight: 500;
+  text-align: left;
+}
+.indicative-ref-table-shell tbody tr:last-child th,
+.indicative-ref-table-shell tbody tr:last-child td {
+  border-bottom: 0;
+}
+.indicative-ref-table-shell tbody th,
 .indicative-ref-table-shell td:first-child {
   color: var(--ink-mute);
   white-space: nowrap;
@@ -5069,7 +5080,7 @@
 }
 .indicative-reference-tabs {
   display: grid;
-  grid-template-columns: repeat(5, minmax(0, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(142px, 1fr));
   gap: 8px;
 }
 .indicative-reference-tabs button {
@@ -5176,11 +5187,20 @@
   grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 14px;
 }
+.indicative-reference-table-grid.single {
+  grid-template-columns: 1fr;
+}
 .indicative-reference-table-grid.count-3 {
   grid-template-columns: repeat(3, minmax(0, 1fr));
 }
 .indicative-ref-table-card {
   min-width: 0;
+}
+.indicative-ref-table-card.merged {
+  max-width: 100%;
+}
+.indicative-ref-table-card.merged h5 {
+  display: none;
 }
 .indicative-ref-table-card h5 {
   margin: 0 0 8px;
@@ -5189,6 +5209,27 @@
   font-family: 'Cormorant Garamond', Georgia, serif;
   font-size: 22px;
   font-style: italic;
+}
+.indicative-ref-table-card.merged .indicative-ref-table-shell table {
+  min-width: 0;
+  table-layout: fixed;
+}
+.indicative-ref-table-card.merged thead th:first-child,
+.indicative-ref-table-card.merged tbody th {
+  width: 22%;
+}
+.indicative-ref-table-card.merged thead th:not(:first-child),
+.indicative-ref-table-card.merged tbody td {
+  text-align: center;
+}
+.indicative-ref-table-card.merged tbody td {
+  color: var(--ink);
+  font-family: 'Literata', Georgia, serif;
+  font-size: clamp(17px, 2vw, 21px);
+  font-weight: 800;
+}
+.indicative-ref-table-card.merged .render-form {
+  white-space: nowrap;
 }
 .indicative-reference-examples,
 .indicative-reference-irregulars,
@@ -5904,6 +5945,43 @@
   .indicative-ref-table-shell table {
     min-width: 520px;
     font-size: 15px;
+  }
+  .indicative-reference-tabs {
+    grid-template-columns: repeat(auto-fit, minmax(136px, 1fr));
+  }
+  .indicative-reference-tabs button {
+    min-height: 50px;
+    padding: 7px;
+    font-size: 13px;
+  }
+  .indicative-ref-table-card.merged h5 {
+    font-size: 19px;
+    line-height: 1.2;
+  }
+  .indicative-ref-table-card.merged .indicative-ref-table-shell table {
+    min-width: 0;
+    table-layout: fixed;
+    font-size: 13px;
+  }
+  .indicative-ref-table-card.merged .indicative-ref-table-shell thead th {
+    padding: 8px 4px;
+    font-size: 10px;
+    letter-spacing: 0.04em;
+  }
+  .indicative-ref-table-card.merged .indicative-ref-table-shell tbody th,
+  .indicative-ref-table-card.merged .indicative-ref-table-shell td {
+    padding: 9px 4px;
+  }
+  .indicative-ref-table-card.merged thead th:first-child,
+  .indicative-ref-table-card.merged tbody th {
+    width: 24%;
+  }
+  .indicative-ref-table-card.merged tbody th {
+    font-size: 13px;
+    white-space: normal;
+  }
+  .indicative-ref-table-card.merged tbody td {
+    font-size: clamp(14px, 4.1vw, 18px);
   }
   .subj-hero-block { padding: 22px; }
   .subj-hero-block h2 { font-size: 30px; }

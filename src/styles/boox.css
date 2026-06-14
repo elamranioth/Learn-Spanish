@@ -158,9 +158,30 @@
   border-left-color: #000000 !important;
   border-top-color: #000000 !important;
 }
-.book-root.boox-mode .indicative-ref-table-shell th {
+.book-root.boox-mode .indicative-ref-table-shell thead th {
   background: #000000 !important;
   color: #ffffff !important;
+}
+.book-root.boox-mode .indicative-ref-table-shell tbody th,
+.book-root.boox-mode .indicative-ref-table-shell td {
+  background: #ffffff !important;
+}
+.book-root.boox-mode .indicative-ref-table-card.merged .indicative-ref-table-shell table {
+  min-width: 0 !important;
+  table-layout: fixed;
+}
+.book-root.boox-mode .indicative-ref-table-card.merged thead th:first-child,
+.book-root.boox-mode .indicative-ref-table-card.merged tbody th {
+  width: 22%;
+}
+.book-root.boox-mode .indicative-ref-table-card.merged thead th:not(:first-child),
+.book-root.boox-mode .indicative-ref-table-card.merged tbody td {
+  text-align: center !important;
+}
+.book-root.boox-mode .indicative-ref-table-card.merged tbody td {
+  color: #000000 !important;
+  font-size: clamp(17px, 2.1vw, 21px) !important;
+  font-weight: 800 !important;
 }
 .book-root.boox-mode .indicative-reference-use-list li,
 .book-root.boox-mode .indicative-reference-formula,
@@ -278,7 +299,7 @@
   margin-left: 0;
 }
 .book-root.boox-mode .verb-table-block {
-  max-width: 680px;
+  max-width: min(920px, 100%);
   margin-left: auto;
   margin-right: auto;
 }
@@ -344,7 +365,7 @@
 .book-root.boox-mode .tense-reader-table tbody td.tg-form,
 .book-root.boox-mode .tense-group-table tbody td.tg-form {
   color: #000000 !important;
-  font-size: 23px !important;
+  font-size: clamp(18px, 2.65vw, 22px) !important;
   font-weight: 800 !important;
   text-align: left !important;
   white-space: nowrap;
@@ -2095,7 +2116,7 @@
     display: flex !important;
     flex-direction: column;
     gap: 34px;
-    max-width: 680px;
+    max-width: min(920px, 100%);
     margin: 18px auto 0;
   }
 
@@ -2150,7 +2171,7 @@
   .tense-reader-table tbody td.tg-form,
   .tense-group-table tbody td.tg-form {
     color: #000000;
-    font-size: 23px !important;
+    font-size: clamp(18px, 2.65vw, 22px) !important;
     font-weight: 800 !important;
     text-align: left !important;
     white-space: nowrap;
@@ -2344,6 +2365,19 @@
   padding-top: 10px;
   padding-bottom: 10px;
   line-height: 1.22;
+}
+
+.device-reader-tablet .indicative-ref-table-card.merged .indicative-ref-table-shell table {
+  min-width: 0;
+  table-layout: fixed;
+}
+
+.device-reader-tablet .indicative-ref-table-card.merged tbody td {
+  font-size: clamp(17px, 2.2vw, 21px);
+}
+
+.device-reader-tablet .indicative-reference-tabs {
+  grid-template-columns: repeat(auto-fit, minmax(138px, 1fr));
 }
 
 .lesson-mastery-quiz,

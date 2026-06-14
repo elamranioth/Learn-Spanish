@@ -638,7 +638,44 @@ function IndicativeReferenceBlock({ block }) {
   );
 }
 
+function canMergeIndicativeTables(tables = []) {
+  if (!Array.isArray(tables) || tables.length < 2) return false;
+  const baseRows = tables[0]?.rows;
+  if (!Array.isArray(baseRows) || baseRows.length === 0) return false;
+  const baseLabels = baseRows.map((row) => String(row?.[0] || '').trim().toLowerCase());
+
+  return tables.every((table) => (
+    Array.isArray(table?.rows) &&
+    table.rows.length === baseRows.length &&
+    table.rows.every((row, index) => (
+      row?.length >= 2 &&
+      String(row[0] || '').trim().toLowerCase() === baseLabels[index]
+    ))
+  ));
+}
+
+function mergeIndicativeTables(tables = []) {
+  if (!canMergeIndicativeTables(tables)) return tables;
+  const headers = [
+    'Pronombre',
+    ...tables.map((table, index) => table.caption || table.headers?.[1] || `Forma ${index + 1}`),
+  ];
+  const rows = tables[0].rows.map((row, rowIndex) => [
+    row[0],
+    ...tables.map((table) => table.rows[rowIndex]?.[1] || ''),
+  ]);
+
+  return [{
+    caption: tables.map((table) => table.caption).filter(Boolean).join(' | '),
+    headers,
+    rows,
+    merged: true,
+  }];
+}
+
 function IndicativeTenseReference({ tense }) {
+  const formationTables = mergeIndicativeTables(tense.conjugationTables);
+
   return (
     <article className="indicative-reference-detail">
       <header className="indicative-reference-detail-head">
@@ -667,11 +704,11 @@ function IndicativeTenseReference({ tense }) {
         </section>
       )}
 
-      {tense.conjugationTables?.length > 0 && (
+      {formationTables?.length > 0 && (
         <section className="indicative-reference-panel">
           <h4>Formación</h4>
-          <div className={`indicative-reference-table-grid count-${Math.min(tense.conjugationTables.length, 3)}`}>
-            {tense.conjugationTables.map((table, index) => (
+          <div className={`indicative-reference-table-grid ${formationTables.length === 1 ? 'single' : `count-${Math.min(formationTables.length, 3)}`}`}>
+            {formationTables.map((table, index) => (
               <IndicativeReferenceTable key={`${table.caption}-${index}`} table={table} />
             ))}
           </div>
@@ -712,8 +749,10 @@ function IndicativeTenseReference({ tense }) {
 }
 
 function IndicativeReferenceTable({ table }) {
+  const cardClass = ['indicative-ref-table-card', table.merged ? 'merged' : ''].filter(Boolean).join(' ');
+
   return (
-    <div className="indicative-ref-table-card">
+    <div className={cardClass}>
       {table.caption && <h5>{table.caption}</h5>}
       <div className="indicative-ref-table-shell">
         <table>
@@ -728,9 +767,13 @@ function IndicativeReferenceTable({ table }) {
             {table.rows?.map((row, rowIndex) => (
               <tr key={rowIndex}>
                 {row.map((cell, cellIndex) => (
-                  <td key={`${rowIndex}-${cellIndex}`}>
-                    {cellIndex === 0 ? cell : <RenderForm raw={cell} />}
-                  </td>
+                  cellIndex === 0 ? (
+                    <th key={`${rowIndex}-${cellIndex}`} scope="row" className="indicative-ref-row-head">{cell}</th>
+                  ) : (
+                    <td key={`${rowIndex}-${cellIndex}`} className="indicative-ref-form-cell">
+                      <RenderForm raw={cell} />
+                    </td>
+                  )
                 ))}
               </tr>
             ))}
